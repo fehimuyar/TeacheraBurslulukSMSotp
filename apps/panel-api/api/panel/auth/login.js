@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomInt, randomUUID } from 'node:crypto';
 import {
   assertNotBruteForceLocked,
   clearBruteForceState,
@@ -6,9 +6,11 @@ import {
 } from '../../_lib/abuseProtection.js';
 import { appendAuditLog, readRequestContext } from '../../_lib/auditLog.js';
 import { ROLES } from '../../_lib/constants.js';
-import { withTransaction } from '../../_lib/db.js';
+import { query, withTransaction } from '../../_lib/db.js';
+import { normalizePhoneE164 } from '../../_lib/exam.js';
 import { HttpError } from '../../_lib/errors.js';
 import { handleRequest, methodGuard, ok, parseBody, safeTrim } from '../../_lib/http.js';
+import { enqueueNotification } from '../../_lib/notifications.js';
 import { verifyTotpCode } from '../../_lib/panelMfa.js';
 import {
   buildPanelSessionCookie,
@@ -17,6 +19,7 @@ import {
   readPanelMaxActiveSessions,
   readPanelSessionTtlMinutes,
 } from '../../_lib/panelSession.js';
+import { maskPiiPhone } from '../../_lib/piiCrypto.js';
 import { enforceRateLimit, getRequestIp } from '../../_lib/redisRateLimit.js';
 
 const ROLE_PRIORITY = [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY];
@@ -25,14 +28,52 @@ const LEGACY_ROLE_NORMALIZATION_MAP = {
   EDUCATION_ADVISOR: ROLES.OPERATIONS,
 };
 
+const OTP_TEMPLATE_CODE = 'PANEL_LOGIN_SMS_OTP';
+
 function normalizeEmail(value) {
   return safeTrim(value).toLowerCase();
+}
+
+function normalizeOtpCode(value) {
+  return safeTrim(value).replace(/\D+/g, '').slice(0, 6);
 }
 
 function readBoundedIntEnv(name, fallback, min, max) {
   const parsed = Number.parseInt(safeTrim(process.env[name] || ''), 10);
   if (!Number.isFinite(parsed)) return fallback;
   return Math.max(min, Math.min(max, parsed));
+}
+
+function readBooleanEnv(name, fallback) {
+  const raw = safeTrim(process.env[name] || '').toLowerCase();
+  if (!raw) return fallback;
+  if (['1', 'true', 'yes', 'on'].includes(raw)) return true;
+  if (['0', 'false', 'no', 'off'].includes(raw)) return false;
+  return fallback;
+}
+
+function readOtpTtlSeconds() {
+  return readBoundedIntEnv('PANEL_LOGIN_OTP_TTL_SECONDS', 5 * 60, 60, 20 * 60);
+}
+
+function readOtpMaxAttempts() {
+  return readBoundedIntEnv('PANEL_LOGIN_OTP_MAX_ATTEMPTS', 5, 1, 10);
+}
+
+function readPanelOtpCampaignCode() {
+  return (
+    safeTrim(process.env.PANEL_LOGIN_OTP_CAMPAIGN_CODE)
+    || safeTrim(process.env.BURSLULUK_CAMPAIGN_CODE)
+    || '2026_BURSLULUK'
+  ).slice(0, 120);
+}
+
+function isLegacyTotpAllowed() {
+  return readBooleanEnv('PANEL_LOGIN_ALLOW_TOTP', true);
+}
+
+function hashOpaqueToken(token) {
+  return createHash('sha256').update(token).digest('hex');
 }
 
 function normalizeRoleCodes(value) {
@@ -112,6 +153,348 @@ async function clearLoginFailureState(ipAddress, email) {
   });
 }
 
+async function readPanelUserByEmail(client, email) {
+  const result = await client.query(
+    `
+      SELECT
+        u.id,
+        u.email,
+        u.full_name,
+        u.password_hash,
+        COALESCE((to_jsonb(u)->>'password_reset_required')::boolean, FALSE) AS password_reset_required,
+        u.status,
+        u.mfa_enabled,
+        u.mfa_totp_secret,
+        to_jsonb(u)->>'phone_e164' AS phone_e164,
+        COALESCE(
+          array_agg(r.code) FILTER (WHERE r.code IS NOT NULL),
+          ARRAY[]::text[]
+        ) AS role_codes
+      FROM admin_users u
+      LEFT JOIN admin_user_roles ur ON ur.admin_user_id = u.id
+      LEFT JOIN roles r ON r.id = ur.role_id
+      WHERE lower(u.email) = lower($1)
+      GROUP BY u.id
+      LIMIT 1
+    `,
+    [email],
+  );
+
+  if (result.rowCount === 0) {
+    throw new HttpError(401, 'Invalid email or password.', 'invalid_credentials');
+  }
+
+  return result.rows[0];
+}
+
+async function validateUserCredentials(client, user, password) {
+  if (safeTrim(user.status).toUpperCase() !== 'ACTIVE') {
+    throw new HttpError(403, 'Panel user is disabled.', 'panel_user_disabled');
+  }
+
+  const passwordOk = await verifyPassword(client, password, user.password_hash);
+  if (!passwordOk) {
+    throw new HttpError(401, 'Invalid email or password.', 'invalid_credentials');
+  }
+}
+
+async function createSessionForUser(client, {
+  user,
+  role,
+  ipAddress,
+  userAgent,
+  ttlMinutes,
+  maxActiveSessions,
+}) {
+  const sessionId = randomUUID();
+  const passwordResetRequired = Boolean(user.password_reset_required);
+  const tokenPayload = createPanelSessionToken({
+    userId: user.id,
+    sessionId,
+    role,
+    email: user.email,
+    mfaVerified: true,
+    ttlMinutes,
+  });
+  const tokenHash = hashPanelSessionToken(tokenPayload.token);
+
+  await client.query(
+    `
+      INSERT INTO admin_sessions (
+        id,
+        admin_user_id,
+        role_code,
+        token_hash,
+        mfa_verified_at,
+        issued_at,
+        expires_at,
+        ip_address,
+        user_agent,
+        last_seen_at,
+        updated_at
+      )
+      VALUES (
+        $1::uuid,
+        $2::uuid,
+        $3,
+        $4,
+        NOW(),
+        NOW(),
+        $5::timestamptz,
+        $6,
+        $7,
+        NOW(),
+        NOW()
+      )
+    `,
+    [
+      sessionId,
+      user.id,
+      role,
+      tokenHash,
+      tokenPayload.expiresAt,
+      ipAddress,
+      userAgent,
+    ],
+  );
+
+  await client.query(
+    `
+      UPDATE admin_users
+      SET last_login_at = NOW(), updated_at = NOW()
+      WHERE id = $1::uuid
+    `,
+    [user.id],
+  );
+
+  await client.query(
+    `
+      WITH ranked_sessions AS (
+        SELECT
+          id,
+          ROW_NUMBER() OVER (ORDER BY issued_at DESC, created_at DESC, id DESC) AS rn
+        FROM admin_sessions
+        WHERE admin_user_id = $1::uuid
+          AND revoked_at IS NULL
+          AND expires_at > NOW()
+      )
+      UPDATE admin_sessions s
+      SET revoked_at = NOW(), updated_at = NOW()
+      FROM ranked_sessions r
+      WHERE s.id = r.id
+        AND r.rn > $2
+        AND s.revoked_at IS NULL
+    `,
+    [user.id, maxActiveSessions],
+  );
+
+  return {
+    token: tokenPayload.token,
+    role,
+    expiresAt: tokenPayload.expiresAt,
+    sessionId,
+    passwordResetRequired,
+    user: {
+      id: user.id,
+      email: normalizeEmail(user.email),
+      fullName: safeTrim(user.full_name),
+    },
+  };
+}
+
+function buildChallengeToken() {
+  return randomUUID().replace(/-/g, '') + randomUUID().replace(/-/g, '');
+}
+
+function generateOtpCode() {
+  return String(randomInt(0, 1_000_000)).padStart(6, '0');
+}
+
+async function createOtpChallenge(client, {
+  user,
+  role,
+  ipAddress,
+  userAgent,
+}) {
+  let normalizedPhone = null;
+  try {
+    normalizedPhone = normalizePhoneE164(user.phone_e164);
+  } catch {
+    throw new HttpError(403, 'Panel kullanıcısı için geçerli SMS telefonu tanımlı değil.', 'panel_phone_missing');
+  }
+
+  if (!normalizedPhone) {
+    throw new HttpError(403, 'Panel kullanıcısı için SMS telefonu tanımlı değil.', 'panel_phone_missing');
+  }
+
+  const challengeId = randomUUID();
+  const challengeToken = buildChallengeToken();
+  const challengeTokenHash = hashOpaqueToken(challengeToken);
+  const otpCode = generateOtpCode();
+  const ttlSeconds = readOtpTtlSeconds();
+  const maxAttempts = readOtpMaxAttempts();
+
+  await client.query(
+    `
+      DELETE FROM panel_login_otp_challenges
+      WHERE admin_user_id = $1::uuid
+        AND (
+          consumed_at IS NOT NULL
+          OR expires_at < NOW() - INTERVAL '1 day'
+          OR failed_attempts >= max_attempts
+        )
+    `,
+    [user.id],
+  );
+
+  await client.query(
+    `
+      INSERT INTO panel_login_otp_challenges (
+        id,
+        admin_user_id,
+        challenge_token_hash,
+        otp_code_hash,
+        expires_at,
+        max_attempts,
+        ip_address,
+        user_agent,
+        metadata,
+        updated_at
+      )
+      VALUES (
+        $1::uuid,
+        $2::uuid,
+        $3,
+        crypt($4, gen_salt('bf', 8)),
+        NOW() + make_interval(secs => $5::int),
+        $6::int,
+        $7,
+        $8,
+        $9::jsonb,
+        NOW()
+      )
+    `,
+    [
+      challengeId,
+      user.id,
+      challengeTokenHash,
+      otpCode,
+      ttlSeconds,
+      maxAttempts,
+      ipAddress,
+      userAgent,
+      JSON.stringify({
+        email: normalizeEmail(user.email),
+        role,
+      }),
+    ],
+  );
+
+  return {
+    challengeId,
+    challengeToken,
+    otpCode,
+    ttlSeconds,
+    phoneE164: normalizedPhone,
+    maskedPhone: maskPiiPhone(normalizedPhone),
+  };
+}
+
+async function verifyOtpChallenge(client, {
+  challengeId,
+  challengeToken,
+  otpCode,
+  adminUserId,
+}) {
+  let challenge;
+  try {
+    const result = await client.query(
+      `
+        SELECT
+          id,
+          failed_attempts,
+          max_attempts,
+          expires_at,
+          consumed_at,
+          crypt($4, otp_code_hash) = otp_code_hash AS otp_ok
+        FROM panel_login_otp_challenges
+        WHERE id = $1::uuid
+          AND admin_user_id = $2::uuid
+          AND challenge_token_hash = $3
+        LIMIT 1
+        FOR UPDATE
+      `,
+      [challengeId, adminUserId, hashOpaqueToken(challengeToken), otpCode],
+    );
+    challenge = result.rows[0] || null;
+  } catch (error) {
+    if (safeTrim(error?.code) === '22P02') {
+      throw new HttpError(400, 'OTP challenge is invalid.', 'invalid_otp_challenge');
+    }
+    throw error;
+  }
+
+  if (!challenge) {
+    throw new HttpError(401, 'OTP challenge is invalid.', 'invalid_otp_challenge');
+  }
+
+  if (challenge.consumed_at) {
+    throw new HttpError(401, 'OTP challenge is already consumed.', 'otp_challenge_consumed');
+  }
+
+  const now = Date.now();
+  const expiresAt = new Date(challenge.expires_at).getTime();
+  if (!Number.isFinite(expiresAt) || expiresAt <= now) {
+    await client.query(
+      `
+        UPDATE panel_login_otp_challenges
+        SET consumed_at = NOW(), updated_at = NOW()
+        WHERE id = $1::uuid
+      `,
+      [challenge.id],
+    );
+    throw new HttpError(401, 'OTP challenge has expired.', 'otp_challenge_expired');
+  }
+
+  if (Number(challenge.failed_attempts) >= Number(challenge.max_attempts)) {
+    await client.query(
+      `
+        UPDATE panel_login_otp_challenges
+        SET consumed_at = NOW(), updated_at = NOW()
+        WHERE id = $1::uuid
+      `,
+      [challenge.id],
+    );
+    throw new HttpError(401, 'OTP challenge is locked.', 'otp_challenge_locked');
+  }
+
+  if (!challenge.otp_ok) {
+    const nextFailedAttempts = Number(challenge.failed_attempts) + 1;
+    const consumed = nextFailedAttempts >= Number(challenge.max_attempts);
+    await client.query(
+      `
+        UPDATE panel_login_otp_challenges
+        SET
+          failed_attempts = $2::int,
+          consumed_at = CASE WHEN $3::boolean THEN NOW() ELSE consumed_at END,
+          updated_at = NOW()
+        WHERE id = $1::uuid
+      `,
+      [challenge.id, nextFailedAttempts, consumed],
+    );
+    throw new HttpError(401, 'Invalid OTP code.', 'invalid_otp_code');
+  }
+
+  await client.query(
+    `
+      UPDATE panel_login_otp_challenges
+      SET consumed_at = NOW(), updated_at = NOW()
+      WHERE id = $1::uuid
+    `,
+    [challenge.id],
+  );
+}
+
 export default async function handler(req, res) {
   await handleRequest(req, res, async () => {
     methodGuard(req, ['POST']);
@@ -122,9 +505,18 @@ export default async function handler(req, res) {
 
     const email = normalizeEmail(body.email);
     const password = safeTrim(body.password);
-    const mfaCode = safeTrim(body.mfaCode || body.totpCode);
-    if (!email || !password || !mfaCode) {
-      throw new HttpError(400, 'email, password and mfaCode are required.', 'missing_login_fields');
+    const mfaCode = normalizeOtpCode(body.mfaCode || body.totpCode);
+    const otpCode = normalizeOtpCode(body.otpCode);
+    const challengeId = safeTrim(body.challengeId || body.challenge_id);
+    const challengeToken = safeTrim(body.challengeToken || body.challenge_token);
+    const usingOtpVerifyFlow = Boolean(otpCode && challengeId && challengeToken);
+    const usingLegacyTotpFlow = Boolean(mfaCode && !usingOtpVerifyFlow);
+
+    if (!email || !password) {
+      throw new HttpError(400, 'email and password are required.', 'missing_login_fields');
+    }
+    if (otpCode && (!challengeId || !challengeToken)) {
+      throw new HttpError(400, 'challengeId and challengeToken are required for otpCode verification.', 'missing_otp_challenge_fields');
     }
 
     const ttlMinutes = readPanelSessionTtlMinutes();
@@ -158,56 +550,35 @@ export default async function handler(req, res) {
       errorMessage: 'Too many login requests for this account. Please retry later.',
     });
 
-    let session;
+    if (usingOtpVerifyFlow) {
+      await enforceRateLimit(req, res, {
+        scope: 'panel_login_otp_verify_ip',
+        identity: ipAddress,
+        limitEnv: 'RL_PANEL_LOGIN_OTP_VERIFY_IP_LIMIT',
+        windowSecondsEnv: 'RL_PANEL_LOGIN_OTP_VERIFY_IP_WINDOW_SECONDS',
+        defaultLimit: 20,
+        defaultWindowSeconds: 5 * 60,
+        requireRedis: true,
+        errorCode: 'panel_login_otp_verify_ip_rate_limited',
+        errorMessage: 'Too many OTP verification attempts from this IP. Please retry later.',
+      });
+      await enforceRateLimit(req, res, {
+        scope: 'panel_login_otp_verify_challenge',
+        identity: challengeId,
+        limitEnv: 'RL_PANEL_LOGIN_OTP_VERIFY_CHALLENGE_LIMIT',
+        windowSecondsEnv: 'RL_PANEL_LOGIN_OTP_VERIFY_CHALLENGE_WINDOW_SECONDS',
+        defaultLimit: 10,
+        defaultWindowSeconds: 5 * 60,
+        requireRedis: true,
+        errorCode: 'panel_login_otp_verify_challenge_rate_limited',
+        errorMessage: 'Too many OTP verification attempts for this challenge. Please request a new code.',
+      });
+    }
+
     try {
-      session = await withTransaction(async (client) => {
-        const userResult = await client.query(
-          `
-          SELECT
-            u.id,
-            u.email,
-            u.full_name,
-            u.password_hash,
-            COALESCE((to_jsonb(u)->>'password_reset_required')::boolean, FALSE) AS password_reset_required,
-            u.status,
-            u.mfa_enabled,
-            u.mfa_totp_secret,
-            COALESCE(
-              array_agg(r.code) FILTER (WHERE r.code IS NOT NULL),
-              ARRAY[]::text[]
-            ) AS role_codes
-          FROM admin_users u
-          LEFT JOIN admin_user_roles ur ON ur.admin_user_id = u.id
-          LEFT JOIN roles r ON r.id = ur.role_id
-          WHERE lower(u.email) = lower($1)
-          GROUP BY u.id
-          LIMIT 1
-        `,
-          [email],
-        );
-
-        if (userResult.rowCount === 0) {
-          throw new HttpError(401, 'Invalid email or password.', 'invalid_credentials');
-        }
-
-        const user = userResult.rows[0];
-        if (safeTrim(user.status).toUpperCase() !== 'ACTIVE') {
-          throw new HttpError(403, 'Panel user is disabled.', 'panel_user_disabled');
-        }
-
-        const passwordOk = await verifyPassword(client, password, user.password_hash);
-        if (!passwordOk) {
-          throw new HttpError(401, 'Invalid email or password.', 'invalid_credentials');
-        }
-
-        if (!user.mfa_enabled) {
-          throw new HttpError(403, 'MFA must be enabled for panel users.', 'panel_mfa_not_enabled');
-        }
-
-        const mfaSecret = safeTrim(user.mfa_totp_secret);
-        if (!mfaSecret || !verifyTotpCode(mfaSecret, mfaCode)) {
-          throw new HttpError(401, 'Invalid MFA code.', 'invalid_mfa_code');
-        }
+      const outcome = await withTransaction(async (client) => {
+        const user = await readPanelUserByEmail(client, email);
+        await validateUserCredentials(client, user, password);
 
         const roleCodes = normalizeRoleCodes(user.role_codes);
         const role = pickPrimaryRole(roleCodes);
@@ -215,107 +586,209 @@ export default async function handler(req, res) {
           throw new HttpError(403, 'Panel user does not have an assigned role.', 'panel_role_missing');
         }
 
-        const passwordResetRequired = Boolean(user.password_reset_required);
+        if (usingLegacyTotpFlow) {
+          if (!isLegacyTotpAllowed()) {
+            throw new HttpError(403, 'TOTP login is disabled for panel.', 'panel_totp_disabled');
+          }
+          if (!user.mfa_enabled) {
+            throw new HttpError(403, 'MFA must be enabled for panel users.', 'panel_mfa_not_enabled');
+          }
+          const mfaSecret = safeTrim(user.mfa_totp_secret);
+          if (!mfaSecret || !verifyTotpCode(mfaSecret, mfaCode)) {
+            throw new HttpError(401, 'Invalid MFA code.', 'invalid_mfa_code');
+          }
 
-        const sessionId = randomUUID();
-        const tokenPayload = createPanelSessionToken({
-          userId: user.id,
-          sessionId,
-          role,
-          email: user.email,
-          mfaVerified: true,
-          ttlMinutes,
-        });
-        const tokenHash = hashPanelSessionToken(tokenPayload.token);
-
-        await client.query(
-          `
-          INSERT INTO admin_sessions (
-            id,
-            admin_user_id,
-            role_code,
-            token_hash,
-            mfa_verified_at,
-            issued_at,
-            expires_at,
-            ip_address,
-            user_agent,
-            last_seen_at,
-            updated_at
-          )
-          VALUES (
-            $1::uuid,
-            $2::uuid,
-            $3,
-            $4,
-            NOW(),
-            NOW(),
-            $5::timestamptz,
-            $6,
-            $7,
-            NOW(),
-            NOW()
-          )
-        `,
-          [
-            sessionId,
-            user.id,
+          const session = await createSessionForUser(client, {
+            user,
             role,
-            tokenHash,
-            tokenPayload.expiresAt,
             ipAddress,
             userAgent,
-          ],
-        );
+            ttlMinutes,
+            maxActiveSessions,
+          });
 
-        await client.query(
-          `
-          UPDATE admin_users
-          SET last_login_at = NOW(), updated_at = NOW()
-          WHERE id = $1::uuid
-        `,
-          [user.id],
-        );
+          return {
+            kind: 'session',
+            authMethod: 'TOTP',
+            session,
+          };
+        }
 
-        await client.query(
-          `
-          WITH ranked_sessions AS (
-            SELECT
-              id,
-              ROW_NUMBER() OVER (ORDER BY issued_at DESC, created_at DESC, id DESC) AS rn
-            FROM admin_sessions
-            WHERE admin_user_id = $1::uuid
-              AND revoked_at IS NULL
-              AND expires_at > NOW()
-          )
-          UPDATE admin_sessions s
-          SET revoked_at = NOW(), updated_at = NOW()
-          FROM ranked_sessions r
-          WHERE s.id = r.id
-            AND r.rn > $2
-            AND s.revoked_at IS NULL
-        `,
-          [user.id, maxActiveSessions],
-        );
+        if (usingOtpVerifyFlow) {
+          await verifyOtpChallenge(client, {
+            challengeId,
+            challengeToken,
+            otpCode,
+            adminUserId: user.id,
+          });
+
+          const session = await createSessionForUser(client, {
+            user,
+            role,
+            ipAddress,
+            userAgent,
+            ttlMinutes,
+            maxActiveSessions,
+          });
+
+          return {
+            kind: 'session',
+            authMethod: 'SMS_OTP',
+            session,
+          };
+        }
+
+        const challenge = await createOtpChallenge(client, {
+          user,
+          role,
+          ipAddress,
+          userAgent,
+        });
 
         return {
-          token: tokenPayload.token,
+          kind: 'otp_challenge',
           role,
-          expiresAt: tokenPayload.expiresAt,
-          sessionId,
-          passwordResetRequired,
           user: {
             id: user.id,
             email: normalizeEmail(user.email),
             fullName: safeTrim(user.full_name),
           },
+          challenge,
         };
       });
-    } catch (error) {
+
+      if (outcome.kind === 'otp_challenge') {
+        try {
+          await enqueueNotification({
+            campaignCode: readPanelOtpCampaignCode(),
+            candidateId: null,
+            attemptId: null,
+            resultId: null,
+            channel: 'SMS',
+            templateCode: OTP_TEMPLATE_CODE,
+            recipient: outcome.challenge.phoneE164,
+            payload: {
+              purpose: 'panel_login',
+              otp_code: outcome.challenge.otpCode,
+              expires_in_seconds: outcome.challenge.ttlSeconds,
+              email: outcome.user.email,
+              full_name: outcome.user.fullName || null,
+            },
+          });
+        } catch (dispatchError) {
+          await query(
+            `
+              UPDATE panel_login_otp_challenges
+              SET
+                consumed_at = NOW(),
+                updated_at = NOW(),
+                metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('dispatch_error', $2::text)
+              WHERE id = $1::uuid
+            `,
+            [outcome.challenge.challengeId, safeTrim(dispatchError?.message || dispatchError).slice(0, 180)],
+          );
+          throw new HttpError(503, 'SMS doğrulama kodu gönderilemedi. Lütfen tekrar deneyin.', 'panel_otp_dispatch_failed');
+        }
+
+        await clearLoginFailureState(ipAddress, email);
+        ok(res, {
+          next_step: 'otp_verify',
+          otp_required: true,
+          otp: {
+            challenge_id: outcome.challenge.challengeId,
+            challenge_token: outcome.challenge.challengeToken,
+            expires_in_seconds: outcome.challenge.ttlSeconds,
+            masked_phone: outcome.challenge.maskedPhone,
+          },
+          user: {
+            id: outcome.user.id,
+            email: outcome.user.email,
+            full_name: outcome.user.fullName,
+            role: outcome.role,
+            masked_phone: outcome.challenge.maskedPhone,
+          },
+        });
+
+        try {
+          await appendAuditLog({
+            actorType: 'PANEL_USER',
+            actorId: outcome.user.id,
+            actorRole: outcome.role,
+            action: 'PANEL_LOGIN_OTP_SENT',
+            targetType: 'PANEL_LOGIN_OTP_CHALLENGE',
+            targetId: outcome.challenge.challengeId,
+            requestId: requestContext.requestId,
+            ipAddress: requestContext.ipAddress || ipAddress,
+            userAgent: requestContext.userAgent || userAgent,
+            metadata: {
+              authMethod: 'SMS_OTP',
+              masked_phone: outcome.challenge.maskedPhone,
+              expires_in_seconds: outcome.challenge.ttlSeconds,
+              email: outcome.user.email,
+            },
+          });
+        } catch (auditError) {
+          console.error('[panel_login_otp_sent_audit_error]', auditError);
+        }
+        return;
+      }
+
+      const session = outcome.session;
+      await clearLoginFailureState(ipAddress, email);
+
+      const ttlSeconds = ttlMinutes * 60;
+      res.setHeader('Set-Cookie', buildPanelSessionCookie(session.token, req, ttlSeconds));
+      ok(res, {
+        next_step: session.passwordResetRequired ? 'password_reset' : null,
+        session: {
+          token: session.token,
+          expires_at: session.expiresAt,
+          session_id: session.sessionId,
+          password_reset_required: session.passwordResetRequired,
+        },
+        user: {
+          id: session.user.id,
+          email: session.user.email,
+          full_name: session.user.fullName,
+          role: session.role,
+          mfa_verified: true,
+          auth_method: outcome.authMethod,
+          password_reset_required: session.passwordResetRequired,
+        },
+      });
+
+      try {
+        await appendAuditLog({
+          actorType: 'PANEL_USER',
+          actorId: session.user.id,
+          actorRole: session.role,
+          action: 'PANEL_LOGIN_SUCCESS',
+          targetType: 'ADMIN_SESSION',
+          targetId: session.sessionId,
+          requestId: requestContext.requestId,
+          ipAddress: requestContext.ipAddress || ipAddress,
+          userAgent: requestContext.userAgent || userAgent,
+          metadata: {
+            email: session.user.email,
+            mfaVerified: true,
+            authMethod: outcome.authMethod,
+            expiresAt: session.expiresAt,
+          },
+        });
+      } catch (auditError) {
+        console.error('[panel_login_success_audit_error]', auditError);
+      }
+    } catch (rawError) {
+      const error = rawError instanceof HttpError ? rawError : rawError;
       if (error instanceof HttpError) {
         const isBruteForceCandidate = [
           'invalid_credentials',
           'invalid_mfa_code',
+          'invalid_otp_code',
+          'invalid_otp_challenge',
+          'otp_challenge_expired',
+          'otp_challenge_consumed',
+          'otp_challenge_locked',
           'panel_user_disabled',
           'panel_role_missing',
           'panel_mfa_not_enabled',
@@ -342,50 +815,8 @@ export default async function handler(req, res) {
       } catch (auditError) {
         console.error('[panel_login_failed_audit_error]', auditError);
       }
+
       throw error;
-    }
-
-    await clearLoginFailureState(ipAddress, email);
-
-    const ttlSeconds = ttlMinutes * 60;
-    res.setHeader('Set-Cookie', buildPanelSessionCookie(session.token, req, ttlSeconds));
-    ok(res, {
-      next_step: session.passwordResetRequired ? 'password_reset' : null,
-      session: {
-        token: session.token,
-        expires_at: session.expiresAt,
-        session_id: session.sessionId,
-        password_reset_required: session.passwordResetRequired,
-      },
-      user: {
-        id: session.user.id,
-        email: session.user.email,
-        full_name: session.user.fullName,
-        role: session.role,
-        mfa_verified: true,
-        password_reset_required: session.passwordResetRequired,
-      },
-    });
-
-    try {
-      await appendAuditLog({
-        actorType: 'PANEL_USER',
-        actorId: session.user.id,
-        actorRole: session.role,
-        action: 'PANEL_LOGIN_SUCCESS',
-        targetType: 'ADMIN_SESSION',
-        targetId: session.sessionId,
-        requestId: requestContext.requestId,
-        ipAddress: requestContext.ipAddress || ipAddress,
-        userAgent: requestContext.userAgent || userAgent,
-        metadata: {
-          email: session.user.email,
-          mfaVerified: true,
-          expiresAt: session.expiresAt,
-        },
-      });
-    } catch (auditError) {
-      console.error('[panel_login_success_audit_error]', auditError);
     }
   });
 }

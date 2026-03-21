@@ -21,6 +21,26 @@ function normalizeEmail(value) {
   return value.trim().toLowerCase();
 }
 
+function normalizePhoneE164(value) {
+  const raw = value.trim();
+  if (!raw) return '';
+  const compact = raw.replace(/[\s\-().]/g, '');
+  let normalized = compact;
+  if (normalized.startsWith('00')) {
+    normalized = `+${normalized.slice(2)}`;
+  } else if (normalized.startsWith('0') && normalized.length === 11) {
+    normalized = `+90${normalized.slice(1)}`;
+  } else if (!normalized.startsWith('+') && normalized.length === 10) {
+    normalized = `+90${normalized}`;
+  } else if (!normalized.startsWith('+')) {
+    normalized = `+${normalized}`;
+  }
+  if (!/^\+[1-9]\d{7,14}$/.test(normalized)) {
+    throw new Error('Invalid phone format. Use E.164 (example: +9053XXXXXXXX).');
+  }
+  return normalized;
+}
+
 function parseBooleanArg(name, fallback = false) {
   const raw = readArg(name);
   if (!raw) return fallback;
@@ -59,13 +79,21 @@ async function readAdminUserColumnAvailability(client) {
           WHERE table_schema = 'public'
             AND table_name = 'admin_users'
             AND column_name = 'password_updated_at'
-        ) AS has_password_updated_at
+        ) AS has_password_updated_at,
+        EXISTS (
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name = 'admin_users'
+            AND column_name = 'phone_e164'
+        ) AS has_phone_e164
     `,
   );
 
   return {
     hasPasswordResetRequired: Boolean(result.rows[0]?.has_password_reset_required),
     hasPasswordUpdatedAt: Boolean(result.rows[0]?.has_password_updated_at),
+    hasPhoneE164: Boolean(result.rows[0]?.has_phone_e164),
   };
 }
 
@@ -79,7 +107,14 @@ async function main() {
   const fullName = requireArg('name');
   const password = requireArg('password');
   const role = parseRole(requireArg('role'));
-  const totpSecret = requireArg('totp-secret').replace(/[\s-]/g, '').toUpperCase();
+  const rawTotpSecret = readArg('totp-secret');
+  const rawPhone = readArg('phone');
+  const totpSecret = rawTotpSecret ? rawTotpSecret.replace(/[\s-]/g, '').toUpperCase() : '';
+  const phoneE164 = rawPhone ? normalizePhoneE164(rawPhone) : '';
+  if (!totpSecret && !phoneE164) {
+    throw new Error('Either --phone (SMS OTP) or --totp-secret must be provided.');
+  }
+  const mfaEnabled = Boolean(totpSecret);
   const requirePasswordReset = parseBooleanArg('require-password-reset', false);
 
   const pool = getPool();
@@ -99,43 +134,61 @@ async function main() {
       [role, role.replace('_', ' ')],
     );
 
+    const columns = ['email', 'full_name', 'password_hash'];
+    const values = ['lower($1)', '$2', 'crypt($3, gen_salt(\'bf\', 12))'];
+    const params = [email, fullName, password];
+
+    if (availability.hasPasswordResetRequired) {
+      columns.push('password_reset_required');
+      params.push(requirePasswordReset);
+      values.push(`$${params.length}`);
+    }
+    if (availability.hasPasswordUpdatedAt) {
+      columns.push('password_updated_at');
+      values.push('NOW()');
+    }
+    if (availability.hasPhoneE164) {
+      columns.push('phone_e164');
+      params.push(phoneE164 || null);
+      values.push(`$${params.length}`);
+    }
+
+    columns.push('status');
+    values.push('\'ACTIVE\'');
+
+    columns.push('mfa_enabled');
+    params.push(mfaEnabled);
+    values.push(`$${params.length}`);
+
+    columns.push('mfa_totp_secret');
+    params.push(mfaEnabled ? totpSecret : null);
+    values.push(`$${params.length}`);
+
+    columns.push('updated_at');
+    values.push('NOW()');
+
+    const updates = [
+      'full_name = EXCLUDED.full_name',
+      'password_hash = EXCLUDED.password_hash',
+      availability.hasPasswordResetRequired ? 'password_reset_required = EXCLUDED.password_reset_required' : null,
+      availability.hasPasswordUpdatedAt ? 'password_updated_at = EXCLUDED.password_updated_at' : null,
+      availability.hasPhoneE164 ? 'phone_e164 = EXCLUDED.phone_e164' : null,
+      'status = \'ACTIVE\'',
+      'mfa_enabled = EXCLUDED.mfa_enabled',
+      'mfa_totp_secret = EXCLUDED.mfa_totp_secret',
+      'updated_at = NOW()',
+    ].filter(Boolean);
+
     const userResult = await client.query(
       `
-        INSERT INTO admin_users (
-          email,
-          full_name,
-          password_hash,
-          ${availability.hasPasswordResetRequired ? 'password_reset_required,' : ''}
-          ${availability.hasPasswordUpdatedAt ? 'password_updated_at,' : ''}
-          status,
-          mfa_enabled,
-          mfa_totp_secret,
-          updated_at
-        )
-        VALUES (
-          lower($1),
-          $2,
-          crypt($3, gen_salt('bf', 12)),
-          ${availability.hasPasswordResetRequired ? '$4,' : ''}
-          ${availability.hasPasswordUpdatedAt ? 'NOW(),' : ''}
-          'ACTIVE',
-          TRUE,
-          $5,
-          NOW()
-        )
+        INSERT INTO admin_users (${columns.join(', ')})
+        VALUES (${values.join(', ')})
         ON CONFLICT (email)
         DO UPDATE SET
-          full_name = EXCLUDED.full_name,
-          password_hash = EXCLUDED.password_hash,
-          ${availability.hasPasswordResetRequired ? 'password_reset_required = EXCLUDED.password_reset_required,' : ''}
-          ${availability.hasPasswordUpdatedAt ? 'password_updated_at = EXCLUDED.password_updated_at,' : ''}
-          status = 'ACTIVE',
-          mfa_enabled = TRUE,
-          mfa_totp_secret = EXCLUDED.mfa_totp_secret,
-          updated_at = NOW()
+          ${updates.join(',\n          ')}
         RETURNING id, email
       `,
-      [email, fullName, password, requirePasswordReset, totpSecret],
+      params,
     );
 
     const user = userResult.rows[0];
@@ -159,7 +212,12 @@ async function main() {
 
     await client.query('COMMIT');
     console.log(`Admin user ready: ${user.email} (${role})`);
-    console.log('MFA: enabled');
+    console.log(`auth_mode: ${mfaEnabled ? 'totp' : 'sms_otp'}`);
+    if (availability.hasPhoneE164) {
+      console.log(`phone_e164: ${phoneE164 || 'not_set'}`);
+    } else {
+      console.log('phone_e164: column_not_available');
+    }
     console.log(`password_reset_required: ${requirePasswordReset ? 'true' : 'false'}`);
   } catch (error) {
     await client.query('ROLLBACK');
