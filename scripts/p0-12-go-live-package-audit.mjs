@@ -234,6 +234,11 @@ function runDocumentChecks(checks) {
   const packageDocPath = resolve(ROOT, 'guidelines/p0-12-final-go-live-operations-package.md');
   const checklistPath = resolve(ROOT, 'guidelines/p0-12-cutover-checklist.json');
   const approvalPath = resolve(ROOT, 'guidelines/p0-12-go-live-approval.json');
+  const mandatoryGateIds = [
+    'panel_step20_final_closeout_freshness_gate',
+    'panel_slot_visibility_smoke_gate',
+    'appointment_schedule_capacity_smoke_gate',
+  ];
 
   if (!existsSync(packageDocPath)) {
     pushCheck(checks, 'package_doc_exists', STATUS.FAIL, 'P0-12 package document missing.', { path: packageDocPath });
@@ -271,6 +276,10 @@ function runDocumentChecks(checks) {
     'guidelines/p0-11-load-resilience-report-latest.json',
     'guidelines/p0-11-load-resilience-report-latest.md',
     'guidelines/p0-5-go-live-evidence-2026-03-11.md',
+    'guidelines/p0-panel-prod-slot-visibility-smoke-latest.json',
+    'guidelines/p0-panel-prod-slot-visibility-smoke-latest.md',
+    'guidelines/p0-appointment-schedule-capacity-smoke-latest.json',
+    'guidelines/p0-appointment-schedule-capacity-smoke-latest.md',
   ];
 
   const missingArtifacts = requiredArtifacts.filter((item) => !existsSync(resolve(ROOT, item)));
@@ -290,6 +299,9 @@ function runDocumentChecks(checks) {
     const checklist = readJson(checklistPath);
     const gates = Array.isArray(checklist.gates) ? checklist.gates : [];
     const pending = gates.filter((gate) => trim(gate.status).toUpperCase() !== 'DONE').map((gate) => gate.id);
+    const gateMap = new Map(gates.map((gate) => [trim(gate.id), trim(gate.status).toUpperCase()]));
+    const missingMandatory = mandatoryGateIds.filter((gateId) => !gateMap.has(gateId));
+    const mandatoryNotDone = mandatoryGateIds.filter((gateId) => gateMap.has(gateId) && gateMap.get(gateId) !== 'DONE');
 
     pushCheck(
       checks,
@@ -299,6 +311,20 @@ function runDocumentChecks(checks) {
         ? 'All cutover checklist gates are DONE.'
         : `Pending cutover gates: ${pending.join(', ')}`,
       { pending_gates: pending },
+    );
+
+    pushCheck(
+      checks,
+      'cutover_checklist_mandatory_gates',
+      missingMandatory.length === 0 && mandatoryNotDone.length === 0 ? STATUS.PASS : STATUS.FAIL,
+      missingMandatory.length === 0 && mandatoryNotDone.length === 0
+        ? 'Mandatory cutover gates exist and are DONE.'
+        : `Mandatory gate issues (missing: ${missingMandatory.join(', ') || 'none'}; not_done: ${mandatoryNotDone.join(', ') || 'none'}).`,
+      {
+        mandatory_gate_ids: mandatoryGateIds,
+        missing_mandatory_gates: missingMandatory,
+        mandatory_gates_not_done: mandatoryNotDone,
+      },
     );
   }
 

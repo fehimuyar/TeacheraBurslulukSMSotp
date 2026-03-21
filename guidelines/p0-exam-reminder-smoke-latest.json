@@ -1,0 +1,56 @@
+{
+  "timestamp": "2026-03-21T07:10:33.274Z",
+  "exam_api_base": "https://exam-api.teachera.com.tr",
+  "ops_api_base": "https://ops-api.teachera.com.tr",
+  "campaign_code": "P0_REMINDER_SMOKE_1774077027499",
+  "totals": {
+    "pass": 4,
+    "fail": 0,
+    "warn": 0,
+    "skip": 0
+  },
+  "overall_pass": true,
+  "checks": [
+    {
+      "id": "start_session",
+      "status": "PASS",
+      "detail": "HTTP 200",
+      "evidence": {
+        "status": 200,
+        "attempt_id": "d46a91d7-7358-4bf5-afe2-0dca5cb118a9",
+        "error": null,
+        "message": null
+      }
+    },
+    {
+      "id": "exam_reminder_broadcast_http",
+      "status": "PASS",
+      "detail": "HTTP 200",
+      "evidence": {
+        "status": 200,
+        "skipped_reason": null,
+        "enqueued": 1,
+        "scanned": 1,
+        "gate_exam_open_at": null
+      }
+    },
+    {
+      "id": "exam_reminder_enqueue",
+      "status": "PASS",
+      "detail": "enqueued=1",
+      "evidence": {
+        "enqueued": 1,
+        "skipped_reason": null
+      }
+    },
+    {
+      "id": "db_attempt_reminder_job",
+      "status": "PASS",
+      "detail": "attempt_reminder_jobs=1",
+      "evidence": {
+        "attempt_id": "d46a91d7-7358-4bf5-afe2-0dca5cb118a9",
+        "attempt_reminder_jobs": 1
+      }
+    }
+  ]
+}

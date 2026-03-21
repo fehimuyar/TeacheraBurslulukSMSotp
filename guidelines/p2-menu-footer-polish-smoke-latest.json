@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "checks": {
+    "desktop_navigation_no_special_bursluluk_cta": true,
+    "mobile_menu_has_bursluluk_basvuru_entry": true,
+    "mobile_menu_has_bursluluk_giris_entry": true,
+    "footer_site_map_has_bursluluk_basvuru_link": true,
+    "footer_site_map_has_bursluluk_giris_link": true,
+    "root_layout_footer_render_guard_kept": true,
+    "mobile_menu_core_entries_still_present": true,
+    "footer_contact_block_still_present": true
+  },
+  "generated_at_utc": "2026-03-21T10:48:56.301Z"
+}

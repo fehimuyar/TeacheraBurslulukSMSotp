@@ -1,0 +1,16 @@
+{
+  "ok": true,
+  "checks": {
+    "endpoint_exists": true,
+    "endpoint_auth_guard_present": true,
+    "endpoint_canonical_gate_keys_present": true,
+    "endpoint_season_settings_present": true,
+    "endpoint_dry_run_present": true,
+    "endpoint_window_decision_present": true,
+    "cron_registered_on_ops_api": true,
+    "cron_schedule_is_5_min": true,
+    "readme_has_endpoint_documentation": true,
+    "readme_has_settings_documentation": true
+  },
+  "generated_at_utc": "2026-03-21T07:42:41.664Z"
+}

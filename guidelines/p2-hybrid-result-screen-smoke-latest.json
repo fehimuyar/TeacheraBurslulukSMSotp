@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "checks": {
+    "component_exists": true,
+    "result_page_integration_present": true,
+    "hybrid_tabs_present": true,
+    "high_volume_program_catalog_present": true,
+    "program_search_present": true,
+    "program_pagination_present": true,
+    "pricing_table_present": true,
+    "package_cards_present": true,
+    "video_panel_present": true,
+    "analytics_tab_tracking_present": true,
+    "high_volume_program_catalog_count_at_least_20": true
+  },
+  "stats": {
+    "program_catalog_count": 24
+  },
+  "generated_at_utc": "2026-03-21T07:42:50.368Z"
+}

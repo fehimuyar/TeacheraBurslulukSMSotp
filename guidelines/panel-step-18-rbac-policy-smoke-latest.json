@@ -1,11 +1,11 @@
 {
-  "timestamp": "2026-03-17T20:19:31.449Z",
+  "timestamp": "2026-03-21T07:10:06.308Z",
   "mode": {
     "http": true,
     "static": true
   },
   "totals": {
-    "pass": 21,
+    "pass": 27,
     "fail": 0,
     "warn": 0,
     "skip": 0
@@ -18,7 +18,7 @@
       "detail": "RBAC marker found.",
       "evidence": {
         "file": "apps/panel-api/api/panel/dashboard.js",
-        "marker": "requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY])"
+        "marker": "['PANEL_DASHBOARD_READ']"
       }
     },
     {
@@ -27,7 +27,7 @@
       "detail": "RBAC marker found.",
       "evidence": {
         "file": "apps/panel-api/api/panel/candidates/index.js",
-        "marker": "requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY])"
+        "marker": "['PANEL_CANDIDATES_READ']"
       }
     },
     {
@@ -36,7 +36,7 @@
       "detail": "RBAC marker found.",
       "evidence": {
         "file": "apps/panel-api/api/panel/candidates/export.js",
-        "marker": "requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY])"
+        "marker": "['PANEL_CANDIDATES_EXPORT']"
       }
     },
     {
@@ -45,7 +45,7 @@
       "detail": "RBAC marker found.",
       "evidence": {
         "file": "apps/panel-api/api/panel/notifications/index.js",
-        "marker": "requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY])"
+        "marker": "['PANEL_NOTIFICATIONS_READ']"
       }
     },
     {
@@ -54,7 +54,7 @@
       "detail": "RBAC marker found.",
       "evidence": {
         "file": "apps/panel-api/api/panel/dlq/index.js",
-        "marker": "requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY])"
+        "marker": "['PANEL_DLQ_READ']"
       }
     },
     {
@@ -63,7 +63,7 @@
       "detail": "RBAC marker found.",
       "evidence": {
         "file": "apps/panel-api/api/panel/unviewed-results/index.js",
-        "marker": "requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY])"
+        "marker": "['PANEL_UNVIEWED_READ']"
       }
     },
     {
@@ -72,7 +72,7 @@
       "detail": "RBAC marker found.",
       "evidence": {
         "file": "apps/panel-api/api/panel/audit/index.js",
-        "marker": "requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY])"
+        "marker": "['PANEL_AUDIT_READ']"
       }
     },
     {
@@ -81,7 +81,7 @@
       "detail": "RBAC marker found.",
       "evidence": {
         "file": "apps/panel-api/api/panel/audit/export.js",
-        "marker": "requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY])"
+        "marker": "['PANEL_AUDIT_EXPORT']"
       }
     },
     {
@@ -90,7 +90,7 @@
       "detail": "RBAC marker found.",
       "evidence": {
         "file": "apps/panel-api/api/panel/candidates/actions.js",
-        "marker": "requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS])"
+        "marker": "['PANEL_CANDIDATES_ACTION']"
       }
     },
     {
@@ -99,7 +99,7 @@
       "detail": "RBAC marker found.",
       "evidence": {
         "file": "apps/panel-api/api/panel/notifications/actions.js",
-        "marker": "requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS])"
+        "marker": "['PANEL_NOTIFICATIONS_ACTION']"
       }
     },
     {
@@ -108,7 +108,7 @@
       "detail": "RBAC marker found.",
       "evidence": {
         "file": "apps/panel-api/api/panel/dlq/actions.js",
-        "marker": "requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS])"
+        "marker": "['PANEL_DLQ_ACTION']"
       }
     },
     {
@@ -117,7 +117,7 @@
       "detail": "RBAC marker found.",
       "evidence": {
         "file": "apps/panel-api/api/panel/unviewed-results/actions.js",
-        "marker": "requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS])"
+        "marker": "['PANEL_UNVIEWED_ACTION']"
       }
     },
     {
@@ -126,7 +126,52 @@
       "detail": "RBAC marker found.",
       "evidence": {
         "file": "apps/panel-api/api/panel/settings/index.js",
-        "marker": "requireRole(req, [ROLES.SUPER_ADMIN])"
+        "marker": "['PANEL_SETTINGS_WRITE']"
+      }
+    },
+    {
+      "id": "rbac_ip_policy_read",
+      "status": "PASS",
+      "detail": "RBAC marker found.",
+      "evidence": {
+        "file": "apps/panel-api/api/panel/security/ip-policy.js",
+        "marker": "['PANEL_IP_POLICY_READ']"
+      }
+    },
+    {
+      "id": "rbac_ip_policy_write",
+      "status": "PASS",
+      "detail": "RBAC marker found.",
+      "evidence": {
+        "file": "apps/panel-api/api/panel/security/ip-policy.js",
+        "marker": "['PANEL_IP_POLICY_WRITE']"
+      }
+    },
+    {
+      "id": "contract_unviewed_followup_result_unseen_mode",
+      "status": "PASS",
+      "detail": "Contract marker found.",
+      "evidence": {
+        "file": "apps/panel-api/api/panel/unviewed-results/actions.js",
+        "marker": "all/result_unseen/viewed_no_appointment/appointment_no_show"
+      }
+    },
+    {
+      "id": "contract_unviewed_followup_result_unseen_trigger",
+      "status": "PASS",
+      "detail": "Contract marker found.",
+      "evidence": {
+        "file": "apps/panel-api/api/panel/unviewed-results/actions.js",
+        "marker": "ops_unviewed_results_auto_whatsapp"
+      }
+    },
+    {
+      "id": "contract_unviewed_followup_result_unseen_delay",
+      "status": "PASS",
+      "detail": "Contract marker found.",
+      "evidence": {
+        "file": "apps/panel-api/api/panel/unviewed-results/actions.js",
+        "marker": "FOLLOWUP_RESULT_UNSEEN_DELAY_MINUTES"
       }
     },
     {
@@ -174,6 +219,19 @@
       "detail": "HTTP 401",
       "evidence": {
         "url": "https://panel-api.teachera.com.tr/api/panel/unviewed-results",
+        "method": "GET",
+        "status": 401,
+        "expected": [
+          401
+        ]
+      }
+    },
+    {
+      "id": "unauth_GET_/api/panel/security/ip-policy",
+      "status": "PASS",
+      "detail": "HTTP 401",
+      "evidence": {
+        "url": "https://panel-api.teachera.com.tr/api/panel/security/ip-policy",
         "method": "GET",
         "status": 401,
         "expected": [

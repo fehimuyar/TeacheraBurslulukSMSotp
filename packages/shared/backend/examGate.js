@@ -1,6 +1,9 @@
 import { query } from './db.js';
 import { safeTrim } from './http.js';
 
+const GATE_FORCE_OPEN_KEY = 'bursluluk.exam_force_open';
+const GATE_OPEN_AT_KEY = 'bursluluk.exam_open_at';
+
 function parseBooleanLike(value) {
   if (typeof value === 'boolean') return value;
   if (typeof value === 'number') return value !== 0;
@@ -92,18 +95,8 @@ function readEnvForceOpen() {
   return null;
 }
 
-function buildSettingKeys(campaignCode = '') {
-  const normalizedCampaign = safeTrim(campaignCode).toLowerCase().replace(/[^a-z0-9_-]/g, '');
-  const keys = [
-    'bursluluk.exam_force_open',
-    'bursluluk.exam_open_at',
-    'exam.force_open',
-    'exam.open_at',
-  ];
-  if (normalizedCampaign) {
-    keys.unshift(`${normalizedCampaign}.exam_force_open`, `${normalizedCampaign}.exam_open_at`);
-  }
-  return keys;
+function buildSettingKeys() {
+  return [GATE_FORCE_OPEN_KEY, GATE_OPEN_AT_KEY];
 }
 
 function readSettingValue(rows, key) {
@@ -111,19 +104,9 @@ function readSettingValue(rows, key) {
   return match ? match.value : null;
 }
 
-function resolveGateFromSettings(rows, campaignCode = '') {
-  const normalizedCampaign = safeTrim(campaignCode).toLowerCase().replace(/[^a-z0-9_-]/g, '');
-  const forceCandidates = [
-    normalizedCampaign ? `${normalizedCampaign}.exam_force_open` : '',
-    'bursluluk.exam_force_open',
-    'exam.force_open',
-  ].filter(Boolean);
-
-  const openAtCandidates = [
-    normalizedCampaign ? `${normalizedCampaign}.exam_open_at` : '',
-    'bursluluk.exam_open_at',
-    'exam.open_at',
-  ].filter(Boolean);
+function resolveGateFromSettings(rows) {
+  const forceCandidates = [GATE_FORCE_OPEN_KEY];
+  const openAtCandidates = [GATE_OPEN_AT_KEY];
 
   let forceOpen = null;
   let forceOpenSource = '';
@@ -154,7 +137,7 @@ function resolveGateFromSettings(rows, campaignCode = '') {
 }
 
 export async function resolveExamGateStatus(campaignCode = '') {
-  const settingKeys = buildSettingKeys(campaignCode);
+  const settingKeys = buildSettingKeys();
   const { rows } = await query(
     `
       SELECT key, value
@@ -164,7 +147,7 @@ export async function resolveExamGateStatus(campaignCode = '') {
     [settingKeys],
   );
 
-  const fromSettings = resolveGateFromSettings(rows, campaignCode);
+  const fromSettings = resolveGateFromSettings(rows);
   const envForceOpen = readEnvForceOpen();
   const envOpenAt = readEnvOpenAt();
 
@@ -185,6 +168,7 @@ export async function resolveExamGateStatus(campaignCode = '') {
   return {
     exam_open: examOpen,
     exam_open_at: openAt,
+    exam_force_open: forceOpen,
     server_time_utc: now.toISOString(),
     remaining_seconds: remainingSeconds,
     source,

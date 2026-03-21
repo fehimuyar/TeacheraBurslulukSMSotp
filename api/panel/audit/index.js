@@ -79,7 +79,11 @@ function buildFilters(listQuery) {
 export default async function handler(req, res) {
   await handleRequest(req, res, async () => {
     methodGuard(req, ['GET']);
-    await requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY]);
+    await requireRole(
+      req,
+      [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY],
+      ['PANEL_AUDIT_READ'],
+    );
 
     const listQuery = parseListQuery(req, AUDIT_SORT_COLUMNS, 'seq', 'desc');
     const { whereClause, params } = buildFilters(listQuery);

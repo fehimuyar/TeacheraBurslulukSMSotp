@@ -114,6 +114,12 @@ Aşağıdaki kapılar `DONE` olmalı:
 - Panel MFA zorunlu ve admin login doğrulandı
 - Queue DLQ replay doğrulandı
 - Queue çalışma modeli runbook ile uyumlu doğrulandı (`DB queue authoritative`, SQS infra optional)
+- Panel final closeout freshness gate zorunlu çalıştırıldı:
+  - `npm run panel:step20:final-closeout`
+  - `npm run p0:panel:slot-visibility:smoke`
+  - `npm run p0:appointment:schedule:smoke`
+  - `PANEL_STEP20_ARTIFACT_MAX_AGE_HOURS` ve `PANEL_STEP20_STEP21_MAX_AGE_HOURS` eşikleri production env'de set
+  - `PII_CRYPTO_STRICT=true` ve panel-api PII/AWS env seti doğrulandı
 - Runbook ve rollback adımları dry-run edildi
 - War-room rol ataması tamamlandı
 - Final approval imzalandı
@@ -139,5 +145,9 @@ npm run p0:go-live:approve -- \
 - `guidelines/p0-11-load-resilience-report-latest.json`
 - `guidelines/p0-11-load-resilience-report-latest.md`
 - `guidelines/p0-5-go-live-evidence-2026-03-11.md`
+- `guidelines/p0-panel-prod-slot-visibility-smoke-latest.json`
+- `guidelines/p0-panel-prod-slot-visibility-smoke-latest.md`
+- `guidelines/p0-appointment-schedule-capacity-smoke-latest.json`
+- `guidelines/p0-appointment-schedule-capacity-smoke-latest.md`
 - `guidelines/p0-12-go-live-package-audit-latest.json`
 - `guidelines/p0-12-go-live-approval.json`

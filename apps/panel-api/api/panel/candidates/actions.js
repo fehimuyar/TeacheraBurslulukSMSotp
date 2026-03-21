@@ -12,6 +12,16 @@ function normalizeCandidateIds(raw) {
   return raw.map((item) => safeTrim(item)).filter(Boolean).slice(0, 1000);
 }
 
+function readOptionalTimestamp(rawValue, fieldName) {
+  const value = safeTrim(rawValue);
+  if (!value) return null;
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) {
+    throw new HttpError(400, `${fieldName} must be a valid datetime.`, 'invalid_datetime');
+  }
+  return date.toISOString();
+}
+
 async function getCandidatesByIds(candidateIds) {
   const { rows } = await query(
     `
@@ -41,7 +51,11 @@ async function getCandidatesByIds(candidateIds) {
 
 export default async function handler(req, res) {
   await handleRequest(req, res, async () => {
-    const identity = await requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS]);
+    const identity = await requireRole(
+      req,
+      [ROLES.SUPER_ADMIN, ROLES.OPERATIONS],
+      ['PANEL_CANDIDATES_ACTION'],
+    );
     methodGuard(req, ['POST']);
 
     const body = await parseBody(req);
@@ -55,7 +69,7 @@ export default async function handler(req, res) {
       throw new HttpError(400, 'candidateIds is required.', 'missing_candidate_ids');
     }
 
-    if (!['sms_retry', 'wa_send', 'add_note'].includes(action)) {
+    if (!['sms_retry', 'wa_send', 'add_note', 'appointment_booked', 'appointment_attended', 'appointment_no_show'].includes(action)) {
       throw new HttpError(400, 'Unsupported action.', 'invalid_action');
     }
 
@@ -70,26 +84,53 @@ export default async function handler(req, res) {
       throw new HttpError(404, 'No matching candidates found.', 'candidates_not_found');
     }
 
-    if (action === 'add_note') {
+    if (action === 'add_note' || action === 'appointment_booked' || action === 'appointment_attended' || action === 'appointment_no_show') {
       const note = safeTrim(body.note).slice(0, 2000);
-      if (!note) {
+      const appointmentAt = readOptionalTimestamp(body.appointment_at ?? body.appointmentAt, 'appointment_at');
+      const eventType = action === 'add_note'
+        ? 'OPERATOR_NOTE'
+        : action === 'appointment_booked'
+          ? 'APPOINTMENT_BOOKED'
+          : action === 'appointment_attended'
+            ? 'APPOINTMENT_ATTENDED'
+            : 'APPOINTMENT_NO_SHOW';
+      const auditAction = action === 'add_note'
+        ? 'PANEL_CANDIDATE_NOTE_ADD'
+        : action === 'appointment_booked'
+          ? 'PANEL_CANDIDATE_APPOINTMENT_BOOKED'
+          : action === 'appointment_attended'
+            ? 'PANEL_CANDIDATE_APPOINTMENT_ATTENDED'
+            : 'PANEL_CANDIDATE_APPOINTMENT_NO_SHOW';
+
+      if (action === 'add_note' && !note) {
         throw new HttpError(400, 'note is required for add_note action.', 'missing_note');
       }
 
       await withTransaction(async (client) => {
+        const createdAt = new Date().toISOString();
         for (const candidate of candidates) {
+          const payload =
+            action === 'add_note'
+              ? {
+                  note,
+                  createdAt,
+                }
+              : {
+                  action,
+                  note: note || null,
+                  appointment_at: action === 'appointment_booked' ? appointmentAt || createdAt : appointmentAt || null,
+                  createdAt,
+                };
           await client.query(
             `
               INSERT INTO activity_events (candidate_id, attempt_id, event_type, event_payload)
-              VALUES ($1, $2, 'OPERATOR_NOTE', $3::jsonb)
+              VALUES ($1, $2, $3, $4::jsonb)
             `,
             [
               candidate.candidate_id,
               candidate.attempt_id,
-              JSON.stringify({
-                note,
-                createdAt: new Date().toISOString(),
-              }),
+              eventType,
+              JSON.stringify(payload),
             ],
           );
         }
@@ -103,7 +144,7 @@ export default async function handler(req, res) {
       const ctx = readRequestContext(req);
       await appendAuditLog({
         ...buildPanelActor(identity),
-        action: 'PANEL_CANDIDATE_NOTE_ADD',
+        action: auditAction,
         targetType: 'CANDIDATE_BATCH',
         targetId: String(candidates.length),
         requestId: ctx.requestId,
@@ -112,6 +153,8 @@ export default async function handler(req, res) {
         metadata: {
           candidateIds: candidates.map((item) => item.candidate_id),
           noteLength: note.length,
+          appointmentAt,
+          eventType,
         },
       });
       return;

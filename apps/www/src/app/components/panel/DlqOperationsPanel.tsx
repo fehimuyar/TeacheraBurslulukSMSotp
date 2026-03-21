@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { panelFetch } from '../../api/panelApi';
-import { canOperatePanelActions, isReadOnlyPanelRole } from './panelRoleAccess';
+import { canOperateDlq, isReadOnlyPanelRole } from './panelRoleAccess';
 
 type DlqRow = {
   id: string;
@@ -123,7 +123,15 @@ function buildDlqPath(query: string, filters: DlqFilters, page: number, perPage:
   return `/api/panel/dlq?${params.toString()}`;
 }
 
-export default function DlqOperationsPanel({ active, role }: { active: boolean; role?: string }) {
+export default function DlqOperationsPanel({
+  active,
+  role,
+  permissions,
+}: {
+  active: boolean;
+  role?: string;
+  permissions?: string[];
+}) {
   const [query, setQuery] = useState('');
   const [draftFilters, setDraftFilters] = useState<DlqFilters>(defaultFilters);
   const [appliedQuery, setAppliedQuery] = useState('');
@@ -141,7 +149,7 @@ export default function DlqOperationsPanel({ active, role }: { active: boolean; 
   const [isActionRunning, setIsActionRunning] = useState(false);
   const [message, setMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  const canOperate = canOperatePanelActions(role);
+  const canOperate = canOperateDlq(role, permissions);
   const isReadOnly = isReadOnlyPanelRole(role);
 
   const pageCount = useMemo(() => {

@@ -208,6 +208,9 @@ async function run() {
         ['marker_action_sms_resend', 'Manual SMS Resend'],
         ['marker_action_wa_single', 'Tekil WA'],
         ['marker_action_wa_bulk', 'Toplu WhatsApp Gönder'],
+        ['marker_action_result_unseen_scan', 'Sonuç Görmeyen Tara'],
+        ['marker_result_unseen_mode', 'result_unseen'],
+        ['marker_result_unseen_delay', 'result_unseen_delay_minutes'],
         ['marker_action_csv_export', 'CSV Export'],
         ['marker_action_xls_export', 'XLS Export'],
       ];

@@ -66,3 +66,12 @@ Bu doküman, `api/*` altında eklenen backend’in 10.000 aday hedefi için oper
   - `npm run panel:create-admin -- --email admin@teachera.com --name "Panel Admin" --password "StrongPassword!" --role SUPER_ADMIN --totp-secret "<BASE32_SECRET>"`
 - Login endpoint:
   - `POST /api/panel/auth/login` body: `email`, `password`, `mfaCode`
+
+## 7) Panel Final Closeout Freshness Gate
+- Step-20 final closeout zinciri artık artifact tazeliğini zorunlu kontrol eder.
+- Varsayılan operasyonel eşikler:
+  - `PANEL_STEP20_ARTIFACT_MAX_AGE_HOURS=168` (step14/16/17/18/19 genel eşik)
+  - `PANEL_STEP20_STEP21_MAX_AGE_HOURS=24` (step21 için daha sıkı eşik)
+- Eşik aşılırsa `panel:step20:final-closeout` sonucu FAIL olur (`overall_ready_for_step_20=false`).
+- Operasyon komutu:
+  - `set -a; source ./.env.production.local; set +a; npm run panel:step20:final-closeout`

@@ -1,8 +1,8 @@
 # Panel Step-16 Ops Grid Smoke
 
-- Timestamp: 2026-03-17T21:26:04.132Z
+- Timestamp: 2026-03-21T07:10:02.813Z
 - overall_ready_for_step_16: **true**
-- pass: 46, fail: 0, warn: 0, skip: 0
+- pass: 49, fail: 0, warn: 0, skip: 0
 
 ## Checks
 
@@ -22,8 +22,8 @@
 | unauth_post_/api/panel/notifications/actions | PASS | HTTP 401 |
 | unauth_post_/api/panel/dlq/actions | PASS | HTTP 401 |
 | unauth_post_/api/panel/unviewed-results/actions | PASS | HTTP 401 |
-| bundle_index_path | PASS | Found /assets/index-Bzm-7yTJ.js |
-| bundle_dashboard_chunk | PASS | Found assets/PanelDashboardPage-CBI34tY-.js |
+| bundle_index_path | PASS | Found /assets/index-DZuxQwIn.js |
+| bundle_dashboard_chunk | PASS | Found assets/PanelDashboardPage-BnJr58Vh.js |
 | marker_focus_candidates_route | PASS | Marker found: /panel/candidates |
 | marker_candidates_api | PASS | Marker found: /api/panel/candidates |
 | marker_notifications_api | PASS | Marker found: /api/panel/notifications |
@@ -52,6 +52,9 @@
 | marker_action_sms_resend | PASS | Marker found: Manual SMS Resend |
 | marker_action_wa_single | PASS | Marker found: Tekil WA |
 | marker_action_wa_bulk | PASS | Marker found: Toplu WhatsApp Gönder |
+| marker_action_result_unseen_scan | PASS | Marker found: Sonuç Görmeyen Tara |
+| marker_result_unseen_mode | PASS | Marker found: result_unseen |
+| marker_result_unseen_delay | PASS | Marker found: result_unseen_delay_minutes |
 | marker_action_csv_export | PASS | Marker found: CSV Export |
 | marker_action_xls_export | PASS | Marker found: XLS Export |
 

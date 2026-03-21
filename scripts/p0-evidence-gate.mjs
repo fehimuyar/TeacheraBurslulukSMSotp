@@ -199,7 +199,17 @@ function applyObservabilityDefaults() {
   return {
     applied,
     ops_project_env_loaded: opsEnv.loaded,
+    ops_values: opsEnv.values || {},
   };
+}
+
+function resolveOpsWorkerSecret(opsValues = {}) {
+  const keys = ['CRON_SECRET', 'NOTIFICATION_WORKER_SECRET', 'CRM_EXPORT_WORKER_SECRET'];
+  for (const key of keys) {
+    const value = trim(opsValues?.[key]).replace(/\\[rn]/g, '').trim();
+    if (value) return value;
+  }
+  return '';
 }
 
 function runStep(label, command, commandArgs) {
@@ -225,6 +235,21 @@ function runStep(label, command, commandArgs) {
 function main() {
   const envMeta = loadEnvFile(resolve(ROOT, '.env.production.local'));
   const defaultsMeta = applyObservabilityDefaults();
+
+  if (!trim(process.env.SMOKE_OPS_WORKER_SECRET)) {
+    const discoveredOpsSecret = resolveOpsWorkerSecret(defaultsMeta.ops_values);
+    if (discoveredOpsSecret) {
+      process.env.SMOKE_OPS_WORKER_SECRET = discoveredOpsSecret;
+    }
+  }
+
+  if (!trim(process.env.SMOKE_EXPECT_SCHEDULE_FIELDS)) {
+    process.env.SMOKE_EXPECT_SCHEDULE_FIELDS = '1';
+  }
+
+  if (!trim(process.env.SMOKE_REQUIRE_TIMEOUT_BLOCK)) {
+    process.env.SMOKE_REQUIRE_TIMEOUT_BLOCK = '1';
+  }
 
   const signingKey = trim(process.env.P0_11_REPORT_SIGNING_KEY || process.env.CRON_SECRET);
   if (!signingKey) {
@@ -299,6 +324,117 @@ function main() {
     && steps[8]?.ok
     && steps[9]?.ok
   ) {
+    steps.push(runStep('p0-pii-crypto-preflight', npmCmd, ['run', 'p0:pii:crypto:preflight']));
+  }
+
+  if (
+    steps[0].ok
+    && steps[1]?.ok
+    && steps[2]?.ok
+    && steps[3]?.ok
+    && steps[4]?.ok
+    && steps[5]?.ok
+    && steps[6]?.ok
+    && steps[7]?.ok
+    && steps[8]?.ok
+    && steps[9]?.ok
+    && steps[10]?.ok
+  ) {
+    steps.push(runStep('p0-candidate-credentials-smoke', npmCmd, ['run', 'p0:candidate:credentials:smoke']));
+  }
+
+  if (
+    steps[0].ok
+    && steps[1]?.ok
+    && steps[2]?.ok
+    && steps[3]?.ok
+    && steps[4]?.ok
+    && steps[5]?.ok
+    && steps[6]?.ok
+    && steps[7]?.ok
+    && steps[8]?.ok
+    && steps[9]?.ok
+    && steps[10]?.ok
+    && steps[11]?.ok
+  ) {
+    steps.push(runStep('p0-attribution-smoke', npmCmd, ['run', 'p0:attribution:smoke']));
+  }
+
+  if (
+    steps[0].ok
+    && steps[1]?.ok
+    && steps[2]?.ok
+    && steps[3]?.ok
+    && steps[4]?.ok
+    && steps[5]?.ok
+    && steps[6]?.ok
+    && steps[7]?.ok
+    && steps[8]?.ok
+    && steps[9]?.ok
+    && steps[10]?.ok
+    && steps[11]?.ok
+    && steps[12]?.ok
+  ) {
+    steps.push(runStep('p0-exam-reminder-smoke', npmCmd, ['run', 'p0:exam-reminder:smoke']));
+  }
+
+  if (
+    steps[0].ok
+    && steps[1]?.ok
+    && steps[2]?.ok
+    && steps[3]?.ok
+    && steps[4]?.ok
+    && steps[5]?.ok
+    && steps[6]?.ok
+    && steps[7]?.ok
+    && steps[8]?.ok
+    && steps[9]?.ok
+    && steps[10]?.ok
+    && steps[11]?.ok
+    && steps[12]?.ok
+    && steps[13]?.ok
+  ) {
+    steps.push(runStep('p0-exam-runtime-smoke', npmCmd, ['run', 'p0:exam-runtime:smoke']));
+  }
+
+  if (
+    steps[0].ok
+    && steps[1]?.ok
+    && steps[2]?.ok
+    && steps[3]?.ok
+    && steps[4]?.ok
+    && steps[5]?.ok
+    && steps[6]?.ok
+    && steps[7]?.ok
+    && steps[8]?.ok
+    && steps[9]?.ok
+    && steps[10]?.ok
+    && steps[11]?.ok
+    && steps[12]?.ok
+    && steps[13]?.ok
+    && steps[14]?.ok
+  ) {
+    steps.push(runStep('p0-appointment-schedule-smoke', npmCmd, ['run', 'p0:appointment:schedule:smoke']));
+  }
+
+  if (
+    steps[0].ok
+    && steps[1]?.ok
+    && steps[2]?.ok
+    && steps[3]?.ok
+    && steps[4]?.ok
+    && steps[5]?.ok
+    && steps[6]?.ok
+    && steps[7]?.ok
+    && steps[8]?.ok
+    && steps[9]?.ok
+    && steps[10]?.ok
+    && steps[11]?.ok
+    && steps[12]?.ok
+    && steps[13]?.ok
+    && steps[14]?.ok
+    && steps[15]?.ok
+  ) {
     steps.push(runStep('frontend-uat-rc', npmCmd, ['run', 'frontend:uat:rc']));
   }
 
@@ -316,6 +452,12 @@ function main() {
       panel_step_18_rbac_policy_included: true,
       panel_step_19_data_contract_included: true,
       panel_step_20_final_closeout_included: true,
+      pii_crypto_preflight_included: true,
+      candidate_credentials_smoke_included: true,
+      attribution_smoke_included: true,
+      exam_reminder_smoke_included: true,
+      exam_runtime_smoke_included: true,
+      appointment_schedule_smoke_included: true,
       frontend_uat_rc_included: true,
     },
     env: {
@@ -325,6 +467,9 @@ function main() {
       signing_key_present: Boolean(signingKey),
       applied_observability_defaults: defaultsMeta.applied,
       ops_project_env_loaded: defaultsMeta.ops_project_env_loaded,
+      smoke_ops_worker_secret_present: Boolean(trim(process.env.SMOKE_OPS_WORKER_SECRET)),
+      smoke_expect_schedule_fields: trim(process.env.SMOKE_EXPECT_SCHEDULE_FIELDS) || null,
+      runtime_smoke_strict_mode: trim(process.env.SMOKE_REQUIRE_TIMEOUT_BLOCK) || null,
     },
     steps,
   };

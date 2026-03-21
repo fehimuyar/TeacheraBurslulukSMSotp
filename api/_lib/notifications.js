@@ -8,6 +8,8 @@ import { NOTIFICATION_CHANNELS } from './constants.js';
 // Retry delays: 1m, 5m, 15m, 60m, 6h
 const RETRY_BACKOFF_SECONDS = [60, 5 * 60, 15 * 60, 60 * 60, 6 * 60 * 60];
 const CREDENTIALS_SMS_TEMPLATE_CODES = new Set(['CREDENTIALS_SMS', 'LOGIN_CREDENTIALS']);
+const RESULT_SMS_TEMPLATE_CODES = new Set(['RESULT', 'RESULT_SMS']);
+const RESULT_WHATSAPP_TEMPLATE_CODES = new Set(['WA_RESULT', 'RESULT']);
 
 export function assertChannel(channel) {
   const normalized = String(channel || '').toUpperCase();
@@ -23,6 +25,108 @@ function isCredentialsSmsTemplate(templateCode) {
 
 function isCredentialsSmsJob(job) {
   return String(job?.channel || '').toUpperCase() === 'SMS' && isCredentialsSmsTemplate(job?.template_code);
+}
+
+function isResultSmsTemplate(templateCode) {
+  return RESULT_SMS_TEMPLATE_CODES.has(String(templateCode || '').toUpperCase());
+}
+
+function readBooleanFlag(value, fallback) {
+  if (typeof value === 'boolean') return value;
+  const normalized = String(value ?? '')
+    .trim()
+    .toLowerCase();
+  if (!normalized) return fallback;
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+  return fallback;
+}
+
+function canUseWhatsappFallback(payload) {
+  const source = payload && typeof payload === 'object' ? payload : {};
+  if (Object.prototype.hasOwnProperty.call(source, 'enable_whatsapp_fallback')) {
+    return readBooleanFlag(source.enable_whatsapp_fallback, true);
+  }
+  if (Object.prototype.hasOwnProperty.call(source, 'enableWhatsappFallback')) {
+    return readBooleanFlag(source.enableWhatsappFallback, true);
+  }
+  if (Object.prototype.hasOwnProperty.call(source, 'enqueue_whatsapp')) {
+    return readBooleanFlag(source.enqueue_whatsapp, true);
+  }
+  if (Object.prototype.hasOwnProperty.call(source, 'enqueueWhatsapp')) {
+    return readBooleanFlag(source.enqueueWhatsapp, true);
+  }
+  return true;
+}
+
+async function enqueueWhatsappFallbackForResultSms(sourceJob, reasonCode) {
+  if (!sourceJob?.result_id) {
+    return {
+      enqueued: false,
+      reason: 'missing_result_id',
+      job_id: null,
+    };
+  }
+  if (!canUseWhatsappFallback(sourceJob.payload)) {
+    return {
+      enqueued: false,
+      reason: 'fallback_disabled',
+      job_id: null,
+    };
+  }
+
+  const existing = await query(
+    `
+      SELECT id
+      FROM notification_jobs
+      WHERE result_id = $1
+        AND channel = 'WHATSAPP'
+        AND UPPER(COALESCE(template_code, '')) = ANY($2::text[])
+        AND status IN ('QUEUED', 'RETRYING', 'SENT', 'DELIVERED', 'READ')
+      ORDER BY created_at DESC
+      LIMIT 1
+    `,
+    [sourceJob.result_id, [...RESULT_WHATSAPP_TEMPLATE_CODES]],
+  );
+  if (existing.rowCount > 0) {
+    return {
+      enqueued: false,
+      reason: 'already_exists',
+      job_id: existing.rows[0].id,
+    };
+  }
+
+  const recipient = String(sourceJob.recipient || '').trim();
+  if (!recipient) {
+    return {
+      enqueued: false,
+      reason: 'missing_recipient',
+      job_id: null,
+    };
+  }
+
+  const created = await enqueueNotification({
+    campaignCode: sourceJob.campaign_code,
+    candidateId: sourceJob.candidate_id,
+    attemptId: sourceJob.attempt_id,
+    resultId: sourceJob.result_id,
+    channel: 'WHATSAPP',
+    templateCode: 'WA_RESULT',
+    recipient,
+    payload: {
+      trigger: 'sms_failed_whatsapp_fallback',
+      source_job_id: sourceJob.id,
+      source_status: sourceJob.status,
+      source_template_code: sourceJob.template_code,
+      source_error_code: reasonCode || sourceJob.last_error_code || null,
+    },
+  });
+
+  return {
+    enqueued: Boolean(created?.jobId),
+    reason: created?.jobId ? 'enqueued' : 'enqueue_failed',
+    job_id: created?.jobId || null,
+  };
 }
 
 async function syncApplicationCredentialsSmsStatusByCandidate(candidateId, status) {
@@ -234,7 +338,7 @@ export async function markNotificationFailed(jobId, errorCode) {
         updated_at = NOW(),
         last_error_code = $4
       WHERE id = $1
-      RETURNING id, retry_count, status, next_retry_at, candidate_id, channel, template_code
+      RETURNING id, retry_count, status, next_retry_at, candidate_id, attempt_id, result_id, campaign_code, channel, template_code, recipient, payload, last_error_code
     `,
     [jobId, retryLimit, nextRetryAt, errorCode || 'provider_failed'],
   );
@@ -244,10 +348,21 @@ export async function markNotificationFailed(jobId, errorCode) {
     await syncApplicationCredentialsSmsStatusByCandidate(updated.candidate_id, updated.status);
   }
 
+  let fallback = null;
+  if (
+    updated
+    && updated.status === 'DLQ'
+    && String(updated.channel || '').toUpperCase() === 'SMS'
+    && isResultSmsTemplate(updated.template_code)
+  ) {
+    fallback = await enqueueWhatsappFallbackForResultSms(updated, errorCode || 'provider_failed');
+  }
+
   return updated
     ? {
         ...updated,
         effective_retry_limit: retryLimit,
+        whatsapp_fallback: fallback,
       }
     : null;
 }

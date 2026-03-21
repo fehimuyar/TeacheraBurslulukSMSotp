@@ -76,7 +76,11 @@ function buildFilters(listQuery) {
 export default async function handler(req, res) {
   await handleRequest(req, res, async () => {
     methodGuard(req, ['GET']);
-    const identity = await requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY]);
+    const identity = await requireRole(
+      req,
+      [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY],
+      ['PANEL_UNVIEWED_READ'],
+    );
 
     const listQuery = parseListQuery(req, UNVIEWED_RESULTS_COLUMNS, 'result_published_at', 'desc');
     const { whereClause, params } = buildFilters(listQuery);

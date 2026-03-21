@@ -83,7 +83,11 @@ function buildFilterState(req) {
 export default async function handler(req, res) {
   await handleRequest(req, res, async () => {
     methodGuard(req, ['GET']);
-    const identity = await requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY]);
+    const identity = await requireRole(
+      req,
+      [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY],
+      ['PANEL_AUDIT_EXPORT'],
+    );
     const exportFormat = readExportFormat(req.query?.format);
     const { whereClause, params } = buildFilterState(req);
 

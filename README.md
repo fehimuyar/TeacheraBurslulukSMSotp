@@ -175,6 +175,7 @@ npm run panel:create-admin -- --email admin@teachera.com --name "Panel Admin" --
 - `GET /api/panel/dlq`
 - `POST /api/panel/dlq/actions`
 - `GET|PUT /api/panel/settings`
+- `GET /api/panel/settings/release-gate`
 - `POST /api/panel/auth/login`
 - `GET /api/panel/auth/me`
 - `POST /api/panel/auth/logout`
@@ -184,6 +185,18 @@ npm run panel:create-admin -- --email admin@teachera.com --name "Panel Admin" --
 - `GET|POST /api/notifications/dlq-replay`
 - `GET|POST /api/ops/observability/collect`
 - `GET /api/health`
+
+### Release Gate (Canonical Gate Keys)
+- Aktivasyon niyeti sadece canonical gate key'lerle hesaplanır:
+  - `bursluluk.exam_force_open` (`true` olduğunda aktivasyon niyeti oluşur)
+  - `bursluluk.exam_open_at` (geçerli datetime olduğunda aktivasyon niyeti oluşur)
+- Legacy gate key'ler (`exam.force_open`, `exam.open_at`, `bursluluk.campaign.exam_force_open`, `bursluluk.campaign.exam_open_at`) release-gate aktivasyon niyeti üretmez.
+- Legacy gate key ile `PUT /api/panel/settings` çağrısı `400 legacy_gate_keys_not_supported` döner.
+- `GET /api/panel/settings/release-gate` response gövdesi:
+  - `campaign_code`
+  - `release_gate.passed`, `release_gate.enabled`, `release_gate.checked_at`
+  - `release_gate.checks[]` (`code`, `passed`, `metrics`, `thresholds`, `reasons`)
+  - `release_gate.failed_checks[]`
 
 ### Hybrid Phase-2: Host Boundary Guard + Service Env Preflight
 - API host + route boundary guard merkezi olarak aktiftir (`api/_lib/http.js`).
@@ -228,6 +241,7 @@ npm run service-env:preflight:www
 - `api/notifications/worker` artık `GET` ve `POST` kabul eder.
 - `api/ops/exam-open-broadcast` ops scheduler uç noktasıdır; sınav açıldığında toplu `EXAM_OPEN_SMS` kuyruğa alınır.
 - `api/ops/unviewed-results/auto-whatsapp` ops scheduler uç noktasıdır; sonucu görüntülemeyen adaylara gecikmeli WA kuyruğu üretir.
+- `api/ops/campaign-season-sync` ops scheduler uç noktasıdır; kampanya sezon penceresine göre canonical gate key'lerini (`bursluluk.exam_force_open`, `bursluluk.exam_open_at`) otomatik günceller.
 - Vercel cron her dakika worker’ı çağıracak şekilde `vercel.json` içinde tanımlıdır.
 - Worker doğrudan DB queue (`notification_jobs`) tüketir; SQS yokluğu worker doğruluğunu bozmaz.
 - Worker ownership `ops-api` runtime’a sabitlenmiştir (`SERVICE_RUNTIME=ops-api`, `NOTIFICATION_WORKER_RUNTIME=ops-api`).
@@ -239,7 +253,15 @@ npm run service-env:preflight:www
 curl -X POST "https://ops-api.teachera.com.tr/api/notifications/worker?limit=100&reconcile_limit=100&worker_secret=YOUR_SECRET"
 curl -X POST "https://ops-api.teachera.com.tr/api/ops/exam-open-broadcast?limit=500&worker_secret=YOUR_SECRET"
 curl -X POST "https://ops-api.teachera.com.tr/api/ops/unviewed-results/auto-whatsapp?limit=250&delay_minutes=30&worker_secret=YOUR_SECRET"
+curl -X POST "https://ops-api.teachera.com.tr/api/ops/campaign-season-sync?worker_secret=YOUR_SECRET"
 ```
+
+Campaign season automation settings (`app_settings`):
+- `bursluluk.season.automation.enabled` (`true/false`)
+- `bursluluk.season.automation.open_at` (ISO datetime)
+- `bursluluk.season.automation.close_at` (ISO datetime)
+- `bursluluk.season.automation.next_open_at` (opsiyonel ISO datetime, sezon kapanışı sonrası bir sonraki dönem)
+- `bursluluk.season.automation.force_open_within_window` (opsiyonel, default `true`)
 
 ### Panel Auth (P0-6 Hardened)
 - Panel uçları artık client-provided role/header ile yetkilendirme yapmaz.
@@ -274,6 +296,9 @@ curl -X POST "https://ops-api.teachera.com.tr/api/ops/unviewed-results/auto-what
 - Şifreleme modeli KMS-backed data-key envelope yapısıdır:
   - `PII_KMS_ENCRYPTED_DATA_KEY_B64`, `PII_KMS_REGION`, `PII_KMS_KEY_ID`
   - lookup/dedupe için `PII_LOOKUP_HMAC_KEY`
+- `PII_CRYPTO_STRICT=true` üretimde önerilen canonical moddur:
+  - panel-api env setinde `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` zorunlu olmalıdır.
+  - PII/KMS env değerleri literal `\n` ve çift-tırnak bozulması içermemelidir.
 - Panelde PII erişimi role-scoped:
   - `SUPER_ADMIN`, `OPERATIONS`: full PII
   - `READ_ONLY`: masked PII

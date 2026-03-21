@@ -14,7 +14,11 @@ function normalizeDlqIds(raw) {
 export default async function handler(req, res) {
   await handleRequest(req, res, async () => {
     methodGuard(req, ['POST']);
-    const identity = await requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS]);
+    const identity = await requireRole(
+      req,
+      [ROLES.SUPER_ADMIN, ROLES.OPERATIONS],
+      ['PANEL_DLQ_ACTION'],
+    );
 
     const body = await parseBody(req);
     if (!body || typeof body !== 'object') {

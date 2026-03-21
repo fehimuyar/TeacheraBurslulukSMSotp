@@ -3,6 +3,7 @@ import { requireRole } from '../../_lib/auth.js';
 import { appendAuditLog, buildPanelActor, readRequestContext } from '../../_lib/auditLog.js';
 import {
   APPLICATION_STATUS,
+  CRM_EXPORT_STATUS,
   CREDENTIALS_SMS_STATUS,
   EXAM_STATUS,
   RESULT_STATUS,
@@ -58,7 +59,7 @@ function buildFilterState(req) {
   if (q) {
     params.push(`%${q.toLowerCase()}%`);
     clauses.push(
-      `(LOWER(student_full_name) LIKE $${params.length} OR LOWER(parent_full_name) LIKE $${params.length} OR LOWER(parent_phone_e164) LIKE $${params.length} OR LOWER(application_no) LIKE $${params.length})`,
+      `(LOWER(student_full_name) LIKE $${params.length} OR LOWER(parent_full_name) LIKE $${params.length} OR LOWER(parent_phone_e164) LIKE $${params.length} OR LOWER(application_no) LIKE $${params.length} OR LOWER(COALESCE(section, '')) LIKE $${params.length})`,
     );
   }
 
@@ -72,6 +73,27 @@ function buildFilterState(req) {
   if (schoolQuery) {
     params.push(`%${schoolQuery.toLowerCase()}%`);
     clauses.push(`LOWER(school_name) LIKE $${params.length}`);
+  }
+
+  const attributionSource = safeTrim(filters.attribution_source || filters.attributionSource).toLowerCase();
+  if (attributionSource) {
+    params.push(`%${attributionSource}%`);
+    clauses.push(
+      `EXISTS (
+        SELECT 1
+        FROM activity_events ev
+        WHERE ev.candidate_id = candidate_id
+          AND ev.event_type = 'ATTRIBUTION_CAPTURED'
+          AND LOWER(
+            COALESCE(
+              ev.event_payload ->> 'utm_source',
+              ev.event_payload ->> 'last_touch_utm_source',
+              ev.event_payload ->> 'first_touch_utm_source',
+              ''
+            )
+          ) LIKE $${params.length}
+      )`,
+    );
   }
 
   const grades = normalizeArrayFilter(filters.grade || filters.grades).map((item) => Number.parseInt(item, 10)).filter(Number.isFinite);
@@ -120,6 +142,12 @@ function buildFilterState(req) {
     clauses.push(`wa_result_status = ANY($${params.length})`);
   }
 
+  const crmStatuses = normalizeArrayFilter(filters.crm_export_status || filters.crmExportStatus, CRM_EXPORT_STATUS);
+  if (crmStatuses.length > 0) {
+    params.push(crmStatuses);
+    clauses.push(`crm_export_status = ANY($${params.length}::crm_export_status[])`);
+  }
+
   const range = parseDateRange(filters);
   if (range.from) {
     params.push(range.from);
@@ -139,7 +167,11 @@ function buildFilterState(req) {
 export default async function handler(req, res) {
   await handleRequest(req, res, async () => {
     methodGuard(req, ['GET']);
-    const identity = await requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY]);
+    const identity = await requireRole(
+      req,
+      [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY],
+      ['PANEL_CANDIDATES_EXPORT'],
+    );
     const exportFormat = readExportFormat(req.query?.format);
 
     const { whereClause, params } = buildFilterState(req);
@@ -151,6 +183,7 @@ export default async function handler(req, res) {
           v.student_full_name AS student_full_name_legacy,
           v.student_full_name_enc,
           v.grade,
+          v.section,
           v.school_name,
           v.parent_full_name AS parent_full_name_legacy,
           v.parent_full_name_enc,
@@ -162,15 +195,70 @@ export default async function handler(req, res) {
           v.exam_status,
           v.exam_started_at,
           v.exam_submitted_at,
+          v.exam_scheduled_at,
+          v.exam_slot_label,
           v.result_status,
           v.result_score,
           v.result_viewed_at,
           v.wa_result_status,
+          appt.appointment_status,
+          appt.appointment_status_at,
+          appt_booked.appointment_booked_at,
+          crm.crm_export_status,
+          crm.crm_retry_count,
+          crm.crm_processed_at,
+          crm.crm_error_code,
+          bot.bot_last_trigger,
+          bot.bot_last_mode,
+          bot.bot_last_status,
+          bot.bot_last_enqueued_at,
+          bot.bot_last_status_at,
+          bot7.bot_followup_count_7d,
+          attr.attribution_source,
+          attr.attribution_medium,
+          attr.attribution_campaign,
+          attr.attribution_click_id,
+          attr.attribution_captured_at,
           v.last_error_code,
           note.operator_note,
           note.operator_note_at,
           v.updated_at
         FROM v_candidate_operations v
+        LEFT JOIN LATERAL (
+          SELECT
+            CASE ev.event_type
+              WHEN 'APPOINTMENT_BOOKED' THEN 'BOOKED'
+              WHEN 'APPOINTMENT_ATTENDED' THEN 'ATTENDED'
+              WHEN 'APPOINTMENT_NO_SHOW' THEN 'NO_SHOW'
+              ELSE NULL
+            END AS appointment_status,
+            ev.occurred_at AS appointment_status_at
+          FROM activity_events ev
+          WHERE ev.candidate_id = v.candidate_id
+            AND ev.event_type IN ('APPOINTMENT_BOOKED', 'APPOINTMENT_ATTENDED', 'APPOINTMENT_NO_SHOW')
+          ORDER BY ev.occurred_at DESC
+          LIMIT 1
+        ) appt ON TRUE
+        LEFT JOIN LATERAL (
+          SELECT
+            ev.occurred_at AS appointment_booked_at
+          FROM activity_events ev
+          WHERE ev.candidate_id = v.candidate_id
+            AND ev.event_type = 'APPOINTMENT_BOOKED'
+          ORDER BY ev.occurred_at DESC
+          LIMIT 1
+        ) appt_booked ON TRUE
+        LEFT JOIN LATERAL (
+          SELECT
+            ce.status AS crm_export_status,
+            ce.retry_count AS crm_retry_count,
+            ce.processed_at AS crm_processed_at,
+            ce.error_code AS crm_error_code
+          FROM crm_export_jobs ce
+          WHERE ce.candidate_id = v.candidate_id
+          ORDER BY ce.created_at DESC
+          LIMIT 1
+        ) crm ON TRUE
         LEFT JOIN LATERAL (
           SELECT
             ev.event_payload ->> 'note' AS operator_note,
@@ -181,6 +269,88 @@ export default async function handler(req, res) {
           ORDER BY ev.occurred_at DESC
           LIMIT 1
         ) note ON TRUE
+        LEFT JOIN LATERAL (
+          SELECT
+            COALESCE(nj.payload ->> 'trigger', '') AS bot_last_trigger,
+            CASE
+              WHEN COALESCE(nj.payload ->> 'mode', '') <> '' THEN nj.payload ->> 'mode'
+              WHEN COALESCE(nj.payload ->> 'trigger', '') = 'ops_unviewed_results_auto_whatsapp' THEN 'unviewed_result'
+              ELSE NULL
+            END AS bot_last_mode,
+            nj.status AS bot_last_status,
+            nj.created_at AS bot_last_enqueued_at,
+            nj.updated_at AS bot_last_status_at
+          FROM notification_jobs nj
+          WHERE nj.candidate_id = v.candidate_id
+            AND nj.channel = 'WHATSAPP'
+            AND nj.template_code = 'WA_RESULT'
+            AND COALESCE(nj.payload ->> 'trigger', '') IN (
+              'ops_unviewed_results_auto_whatsapp',
+              'ops_viewed_no_appointment_auto_whatsapp',
+              'ops_appointment_no_show_auto_whatsapp'
+            )
+          ORDER BY nj.created_at DESC
+          LIMIT 1
+        ) bot ON TRUE
+        LEFT JOIN LATERAL (
+          SELECT
+            COUNT(*)::int AS bot_followup_count_7d
+          FROM notification_jobs nj
+          WHERE nj.candidate_id = v.candidate_id
+            AND nj.channel = 'WHATSAPP'
+            AND nj.template_code = 'WA_RESULT'
+            AND COALESCE(nj.payload ->> 'trigger', '') IN (
+              'ops_unviewed_results_auto_whatsapp',
+              'ops_viewed_no_appointment_auto_whatsapp',
+              'ops_appointment_no_show_auto_whatsapp'
+            )
+            AND nj.created_at >= NOW() - INTERVAL '7 days'
+        ) bot7 ON TRUE
+        LEFT JOIN LATERAL (
+          SELECT
+            NULLIF(
+              COALESCE(
+                ev.event_payload ->> 'utm_source',
+                ev.event_payload ->> 'last_touch_utm_source',
+                ev.event_payload ->> 'first_touch_utm_source',
+                ''
+              ),
+              ''
+            ) AS attribution_source,
+            NULLIF(
+              COALESCE(
+                ev.event_payload ->> 'utm_medium',
+                ev.event_payload ->> 'last_touch_utm_medium',
+                ev.event_payload ->> 'first_touch_utm_medium',
+                ''
+              ),
+              ''
+            ) AS attribution_medium,
+            NULLIF(
+              COALESCE(
+                ev.event_payload ->> 'utm_campaign',
+                ev.event_payload ->> 'last_touch_utm_campaign',
+                ev.event_payload ->> 'first_touch_utm_campaign',
+                ''
+              ),
+              ''
+            ) AS attribution_campaign,
+            NULLIF(
+              COALESCE(
+                ev.event_payload ->> 'gclid',
+                ev.event_payload ->> 'fbclid',
+                ev.event_payload ->> 'msclkid',
+                ''
+              ),
+              ''
+            ) AS attribution_click_id,
+            ev.occurred_at AS attribution_captured_at
+          FROM activity_events ev
+          WHERE ev.candidate_id = v.candidate_id
+            AND ev.event_type = 'ATTRIBUTION_CAPTURED'
+          ORDER BY ev.occurred_at DESC
+          LIMIT 1
+        ) attr ON TRUE
         ${whereClause}
         ORDER BY v.updated_at DESC
         LIMIT 100000
@@ -193,6 +363,7 @@ export default async function handler(req, res) {
       'application_no',
       'student_full_name',
       'grade',
+      'section',
       'school_name',
       'parent_full_name',
       'parent_phone_e164',
@@ -202,10 +373,30 @@ export default async function handler(req, res) {
       'exam_status',
       'exam_started_at',
       'exam_submitted_at',
+      'exam_scheduled_at',
+      'exam_slot_label',
       'result_status',
       'result_score',
       'result_viewed_at',
       'wa_result_status',
+      'appointment_status',
+      'appointment_status_at',
+      'appointment_booked_at',
+      'crm_export_status',
+      'crm_retry_count',
+      'crm_processed_at',
+      'crm_error_code',
+      'bot_last_trigger',
+      'bot_last_mode',
+      'bot_last_status',
+      'bot_last_enqueued_at',
+      'bot_last_status_at',
+      'bot_followup_count_7d',
+      'attribution_source',
+      'attribution_medium',
+      'attribution_campaign',
+      'attribution_click_id',
+      'attribution_captured_at',
       'last_error_code',
       'operator_note',
       'operator_note_at',

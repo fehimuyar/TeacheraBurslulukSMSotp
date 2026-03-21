@@ -1,10 +1,10 @@
 {
-  "timestamp": "2026-03-17T21:26:04.132Z",
+  "timestamp": "2026-03-21T07:10:02.813Z",
   "mode": {
     "http": true
   },
   "totals": {
-    "pass": 46,
+    "pass": 49,
     "fail": 0,
     "warn": 0,
     "skip": 0
@@ -182,13 +182,13 @@
     {
       "id": "bundle_index_path",
       "status": "PASS",
-      "detail": "Found /assets/index-Bzm-7yTJ.js",
+      "detail": "Found /assets/index-DZuxQwIn.js",
       "evidence": {}
     },
     {
       "id": "bundle_dashboard_chunk",
       "status": "PASS",
-      "detail": "Found assets/PanelDashboardPage-CBI34tY-.js",
+      "detail": "Found assets/PanelDashboardPage-BnJr58Vh.js",
       "evidence": {}
     },
     {
@@ -357,6 +357,24 @@
       "id": "marker_action_wa_bulk",
       "status": "PASS",
       "detail": "Marker found: Toplu WhatsApp Gönder",
+      "evidence": {}
+    },
+    {
+      "id": "marker_action_result_unseen_scan",
+      "status": "PASS",
+      "detail": "Marker found: Sonuç Görmeyen Tara",
+      "evidence": {}
+    },
+    {
+      "id": "marker_result_unseen_mode",
+      "status": "PASS",
+      "detail": "Marker found: result_unseen",
+      "evidence": {}
+    },
+    {
+      "id": "marker_result_unseen_delay",
+      "status": "PASS",
+      "detail": "Marker found: result_unseen_delay_minutes",
       "evidence": {}
     },
     {

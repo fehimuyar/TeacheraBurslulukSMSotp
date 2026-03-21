@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { panelFetch } from '../../api/panelApi';
+import PanelIpPolicyPanel from './PanelIpPolicyPanel';
+import { canWriteSettings } from './panelRoleAccess';
 
 type SettingItem = {
   key: string;
@@ -12,9 +14,31 @@ type SettingsPayload = {
   items?: SettingItem[];
 };
 
+type ReleaseGateCheck = {
+  code?: string;
+  passed?: boolean;
+  metrics?: Record<string, unknown>;
+  thresholds?: Record<string, unknown>;
+};
+
+type ReleaseGateReport = {
+  passed?: boolean;
+  enabled?: boolean;
+  campaign_code?: string | null;
+  checked_at?: string | null;
+  failed_checks?: string[];
+  checks?: ReleaseGateCheck[];
+};
+
+type ReleaseGatePayload = {
+  campaign_code?: string | null;
+  release_gate?: ReleaseGateReport;
+};
+
 const SETTINGS_KEYS = {
   campaignCode: 'bursluluk.campaign.code',
-  examOpenAt: 'bursluluk.campaign.exam_open_at',
+  examForceOpen: 'bursluluk.exam_force_open',
+  examOpenAt: 'bursluluk.exam_open_at',
   examCloseAt: 'bursluluk.campaign.exam_close_at',
   smsCredentialsTemplate: 'bursluluk.template.sms_credentials',
   smsExamOpenTemplate: 'bursluluk.template.sms_exam_open',
@@ -23,8 +47,15 @@ const SETTINGS_KEYS = {
   panelAllowedRoles: 'bursluluk.panel.allowed_roles',
 } as const;
 
+const LEGACY_SETTINGS_KEYS = {
+  examForceOpen: 'exam.force_open',
+  examOpenAt: 'bursluluk.campaign.exam_open_at',
+  examOpenAtGlobal: 'exam.open_at',
+} as const;
+
 type FormState = {
   campaignCode: string;
+  examForceOpen: boolean;
   examOpenAt: string;
   examCloseAt: string;
   smsCredentialsTemplate: string;
@@ -36,6 +67,7 @@ type FormState = {
 
 const DEFAULT_FORM: FormState = {
   campaignCode: '2026_BURSLULUK',
+  examForceOpen: false,
   examOpenAt: '',
   examCloseAt: '',
   smsCredentialsTemplate:
@@ -90,11 +122,64 @@ function toDateTimeLocal(value: unknown) {
   )}`;
 }
 
+function toBoolean(value: unknown, fallback: boolean | null = false): boolean | null {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+    if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+  }
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const source = value as { enabled?: unknown; value?: unknown; force_open?: unknown; forceOpen?: unknown };
+    const nestedCandidates = [source.enabled, source.value, source.force_open, source.forceOpen];
+    for (const item of nestedCandidates) {
+      const nested = toBoolean(item, null);
+      if (typeof nested === 'boolean') return nested;
+    }
+  }
+  return fallback;
+}
+
 function formatDateTime(value: string | null | undefined) {
   if (!value) return '-';
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return value;
   return date.toLocaleString('tr-TR');
+}
+
+function formatPercent(value: unknown) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return '-';
+  return `${num.toFixed(2)}%`;
+}
+
+function formatGateCheckLabel(code: string) {
+  const normalized = String(code || '').trim().toLowerCase();
+  if (normalized === 'sms_credentials_flow') return 'SMS Şifre Akışı';
+  if (normalized === 'panel_write_update_flow') return 'Panel Write/Update Akışı';
+  return code || '-';
+}
+
+function summarizeGateCheck(check: ReleaseGateCheck) {
+  const metrics = check?.metrics && typeof check.metrics === 'object' ? check.metrics : {};
+  const code = String(check?.code || '').trim().toLowerCase();
+  if (code === 'sms_credentials_flow') {
+    return [
+      `Toplam: ${String(metrics.total_jobs ?? '-')}`,
+      `Başarı: ${formatPercent(metrics.success_rate_pct)}`,
+      `Fail: ${formatPercent(metrics.failed_rate_pct)}`,
+      `Stuck: ${String(metrics.stuck_jobs ?? '-')}`,
+    ].join(' • ');
+  }
+  if (code === 'panel_write_update_flow') {
+    return [
+      `Toplam write: ${String(metrics.total_writes ?? '-')}`,
+      `Domain: ${String(metrics.domain_count ?? '-')}`,
+      `Son write: ${formatDateTime(String(metrics.last_write_at || ''))}`,
+    ].join(' • ');
+  }
+  return 'Detay mevcut.';
 }
 
 function readError(payload: unknown, fallback: string) {
@@ -117,10 +202,12 @@ async function safeJson<T>(response: Response): Promise<T | null> {
 export default function SettingsOperationsPanel({
   active,
   role,
+  permissions,
   initialCount,
 }: {
   active: boolean;
   role?: string;
+  permissions?: string[];
   initialCount: number;
 }) {
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
@@ -129,7 +216,37 @@ export default function SettingsOperationsPanel({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const canEdit = role === 'SUPER_ADMIN';
+  const [releaseGate, setReleaseGate] = useState<ReleaseGateReport | null>(null);
+  const [releaseGateLoading, setReleaseGateLoading] = useState(false);
+  const [releaseGateError, setReleaseGateError] = useState('');
+  const [releaseGateCampaignCode, setReleaseGateCampaignCode] = useState('');
+  const canEdit = canWriteSettings(role, permissions);
+  const settingsQueryKeys = useMemo(
+    () =>
+      Array.from(new Set([...Object.values(SETTINGS_KEYS), ...Object.values(LEGACY_SETTINGS_KEYS)])).join(','),
+    [],
+  );
+
+  const loadReleaseGate = useCallback(async (campaignCodeHint = '') => {
+    setReleaseGateLoading(true);
+    setReleaseGateError('');
+    try {
+      const campaignCode = campaignCodeHint.trim();
+      const suffix = campaignCode ? `?campaign_code=${encodeURIComponent(campaignCode)}` : '';
+      const response = await panelFetch(`/api/panel/settings/release-gate${suffix}`, { method: 'GET' });
+      const payload = await safeJson<ReleaseGatePayload>(response);
+      if (!response.ok || !payload?.release_gate) {
+        throw new Error(readError(payload, 'Release gate durumu alınamadı.'));
+      }
+      setReleaseGate(payload.release_gate || null);
+      setReleaseGateCampaignCode(String(payload.campaign_code || campaignCode || '').trim());
+    } catch (releaseError) {
+      setReleaseGate(null);
+      setReleaseGateError(releaseError instanceof Error ? releaseError.message : 'Release gate durumu alınamadı.');
+    } finally {
+      setReleaseGateLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!active) return;
@@ -140,8 +257,7 @@ export default function SettingsOperationsPanel({
       setError('');
       setSuccess('');
       try {
-        const keyList = Object.values(SETTINGS_KEYS).join(',');
-        const response = await panelFetch(`/api/panel/settings?keys=${encodeURIComponent(keyList)}`, { method: 'GET' });
+        const response = await panelFetch(`/api/panel/settings?keys=${encodeURIComponent(settingsQueryKeys)}`, { method: 'GET' });
         const payload = await safeJson<SettingsPayload>(response);
         if (!response.ok) {
           throw new Error(readError(payload, 'Ayarlar alınamadı.'));
@@ -150,9 +266,18 @@ export default function SettingsOperationsPanel({
         const map = Object.fromEntries((payload?.items || []).map((item) => [item.key, item]));
         if (cancelled) return;
         setSettingsMap(map);
+        const resolvedCampaignCode = toDisplayString(map[SETTINGS_KEYS.campaignCode]?.value) || DEFAULT_FORM.campaignCode;
         setForm({
-          campaignCode: toDisplayString(map[SETTINGS_KEYS.campaignCode]?.value) || DEFAULT_FORM.campaignCode,
-          examOpenAt: toDateTimeLocal(map[SETTINGS_KEYS.examOpenAt]?.value),
+          campaignCode: resolvedCampaignCode,
+          examForceOpen: toBoolean(
+            map[SETTINGS_KEYS.examForceOpen]?.value ?? map[LEGACY_SETTINGS_KEYS.examForceOpen]?.value,
+            DEFAULT_FORM.examForceOpen,
+          ),
+          examOpenAt: toDateTimeLocal(
+            map[SETTINGS_KEYS.examOpenAt]?.value
+              ?? map[LEGACY_SETTINGS_KEYS.examOpenAt]?.value
+              ?? map[LEGACY_SETTINGS_KEYS.examOpenAtGlobal]?.value,
+          ),
           examCloseAt: toDateTimeLocal(map[SETTINGS_KEYS.examCloseAt]?.value),
           smsCredentialsTemplate:
             toDisplayString(map[SETTINGS_KEYS.smsCredentialsTemplate]?.value) || DEFAULT_FORM.smsCredentialsTemplate,
@@ -165,6 +290,7 @@ export default function SettingsOperationsPanel({
               ',',
             ),
         });
+        void loadReleaseGate(resolvedCampaignCode);
       } catch (loadError) {
         if (!cancelled) {
           setError(loadError instanceof Error ? loadError.message : 'Ayarlar alınamadı.');
@@ -178,7 +304,7 @@ export default function SettingsOperationsPanel({
     return () => {
       cancelled = true;
     };
-  }, [active]);
+  }, [active, loadReleaseGate, settingsQueryKeys]);
 
   const trackedItems = useMemo(
     () =>
@@ -198,6 +324,7 @@ export default function SettingsOperationsPanel({
     try {
       const items = [
         { key: SETTINGS_KEYS.campaignCode, value: form.campaignCode.trim() },
+        { key: SETTINGS_KEYS.examForceOpen, value: form.examForceOpen },
         { key: SETTINGS_KEYS.examOpenAt, value: form.examOpenAt.trim() || null },
         { key: SETTINGS_KEYS.examCloseAt, value: form.examCloseAt.trim() || null },
         { key: SETTINGS_KEYS.smsCredentialsTemplate, value: form.smsCredentialsTemplate.trim() },
@@ -221,13 +348,14 @@ export default function SettingsOperationsPanel({
       }
       setSuccess(`Ayarlar kaydedildi. Güncellenen anahtar sayısı: ${payload?.updated ?? items.length}.`);
 
-      const refresh = await panelFetch(`/api/panel/settings?keys=${encodeURIComponent(Object.values(SETTINGS_KEYS).join(','))}`, {
+      const refresh = await panelFetch(`/api/panel/settings?keys=${encodeURIComponent(settingsQueryKeys)}`, {
         method: 'GET',
       });
       const refreshedPayload = await safeJson<SettingsPayload>(refresh);
       if (refresh.ok && refreshedPayload?.items) {
         setSettingsMap(Object.fromEntries(refreshedPayload.items.map((item) => [item.key, item])));
       }
+      await loadReleaseGate(form.campaignCode);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Ayarlar kaydedilemedi.');
     } finally {
@@ -236,123 +364,202 @@ export default function SettingsOperationsPanel({
   };
 
   return (
-    <section className="rounded-[22px] border border-[#1A273A] bg-[#071021]/82 p-5 shadow-[0_14px_38px_rgba(0,0,0,0.28)]">
-      <p className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white/54">Ayarlar</p>
-      <h3 className="mt-2 text-[22px] font-semibold text-white">Kampanya + Şablon + Rol Konfigürasyonu</h3>
-      <p className="mt-2 text-[13px] leading-[1.7] text-white/64">
-        Bu ekran kampanya zaman penceresi, SMS/WhatsApp şablonları, okul arama kapsamı ve panel rol matrisini tek yerden yönetir.
-      </p>
+    <div className="space-y-4">
+      <section className="rounded-[22px] border border-[#1A273A] bg-[#071021]/82 p-5 shadow-[0_14px_38px_rgba(0,0,0,0.28)]">
+        <p className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white/54">Ayarlar</p>
+        <h3 className="mt-2 text-[22px] font-semibold text-white">Kampanya + Şablon + Rol Konfigürasyonu</h3>
+        <p className="mt-2 text-[13px] leading-[1.7] text-white/64">
+          Bu ekran kampanya zaman penceresi, SMS/WhatsApp şablonları, okul arama kapsamı ve panel rol matrisini tek yerden yönetir.
+        </p>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
-          <p className="text-[12px] text-white/52">Toplam App Settings</p>
-          <p className="mt-1 text-[22px] font-semibold text-white">{initialCount}</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
+            <p className="text-[12px] text-white/52">Toplam App Settings</p>
+            <p className="mt-1 text-[22px] font-semibold text-white">{initialCount}</p>
+          </div>
+          <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
+            <p className="text-[12px] text-white/52">Yönetilen Anahtar</p>
+            <p className="mt-1 text-[22px] font-semibold text-white">{trackedItems.length}</p>
+          </div>
+          <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
+            <p className="text-[12px] text-white/52">Yazma Yetkisi</p>
+            <p className="mt-1 text-[14px] font-semibold text-white">{canEdit ? 'PANEL_SETTINGS_WRITE (Aktif)' : 'Read-only'}</p>
+          </div>
         </div>
-        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
-          <p className="text-[12px] text-white/52">Yönetilen Anahtar</p>
-          <p className="mt-1 text-[22px] font-semibold text-white">{trackedItems.length}</p>
+
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          <input
+            value={form.campaignCode}
+            onChange={(event) => setForm((prev) => ({ ...prev, campaignCode: event.target.value }))}
+            placeholder="Kampanya kodu"
+            className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          />
+          <label className="flex h-[42px] items-center gap-2 rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90">
+            <input
+              type="checkbox"
+              checked={form.examForceOpen}
+              onChange={(event) => setForm((prev) => ({ ...prev, examForceOpen: event.target.checked }))}
+              className="h-4 w-4 accent-[#D92E27]"
+            />
+            <span>Exam Force Open (`bursluluk.exam_force_open`)</span>
+          </label>
+          <input
+            type="text"
+            value={form.schoolSearchCity}
+            onChange={(event) => setForm((prev) => ({ ...prev, schoolSearchCity: event.target.value }))}
+            placeholder="Okul arama şehri (örn: Konya)"
+            className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          />
+          <input
+            type="datetime-local"
+            value={form.examOpenAt}
+            onChange={(event) => setForm((prev) => ({ ...prev, examOpenAt: event.target.value }))}
+            className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          />
+          <input
+            type="datetime-local"
+            value={form.examCloseAt}
+            onChange={(event) => setForm((prev) => ({ ...prev, examCloseAt: event.target.value }))}
+            className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          />
         </div>
-        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
-          <p className="text-[12px] text-white/52">Yazma Yetkisi</p>
-          <p className="mt-1 text-[14px] font-semibold text-white">{canEdit ? 'SUPER_ADMIN (Aktif)' : 'Read-only'}</p>
+
+        <div className="mt-3 grid gap-3">
+          <textarea
+            value={form.smsCredentialsTemplate}
+            onChange={(event) => setForm((prev) => ({ ...prev, smsCredentialsTemplate: event.target.value }))}
+            rows={3}
+            className="rounded-xl border border-[#1A273A] bg-[#030B18] px-3 py-2 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+            placeholder="Credentials SMS şablonu"
+          />
+          <textarea
+            value={form.smsExamOpenTemplate}
+            onChange={(event) => setForm((prev) => ({ ...prev, smsExamOpenTemplate: event.target.value }))}
+            rows={3}
+            className="rounded-xl border border-[#1A273A] bg-[#030B18] px-3 py-2 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+            placeholder="Exam open SMS şablonu"
+          />
+          <textarea
+            value={form.waResultTemplate}
+            onChange={(event) => setForm((prev) => ({ ...prev, waResultTemplate: event.target.value }))}
+            rows={3}
+            className="rounded-xl border border-[#1A273A] bg-[#030B18] px-3 py-2 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+            placeholder="WhatsApp sonuç şablonu"
+          />
+          <input
+            value={form.panelAllowedRoles}
+            onChange={(event) => setForm((prev) => ({ ...prev, panelAllowedRoles: event.target.value }))}
+            placeholder="Panel roller (virgülle)"
+            className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          />
         </div>
-      </div>
 
-      <div className="mt-4 grid gap-3 lg:grid-cols-2">
-        <input
-          value={form.campaignCode}
-          onChange={(event) => setForm((prev) => ({ ...prev, campaignCode: event.target.value }))}
-          placeholder="Kampanya kodu"
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
-        />
-        <input
-          type="text"
-          value={form.schoolSearchCity}
-          onChange={(event) => setForm((prev) => ({ ...prev, schoolSearchCity: event.target.value }))}
-          placeholder="Okul arama şehri (örn: Konya)"
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
-        />
-        <input
-          type="datetime-local"
-          value={form.examOpenAt}
-          onChange={(event) => setForm((prev) => ({ ...prev, examOpenAt: event.target.value }))}
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
-        />
-        <input
-          type="datetime-local"
-          value={form.examCloseAt}
-          onChange={(event) => setForm((prev) => ({ ...prev, examCloseAt: event.target.value }))}
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
-        />
-      </div>
-
-      <div className="mt-3 grid gap-3">
-        <textarea
-          value={form.smsCredentialsTemplate}
-          onChange={(event) => setForm((prev) => ({ ...prev, smsCredentialsTemplate: event.target.value }))}
-          rows={3}
-          className="rounded-xl border border-[#1A273A] bg-[#030B18] px-3 py-2 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
-          placeholder="Credentials SMS şablonu"
-        />
-        <textarea
-          value={form.smsExamOpenTemplate}
-          onChange={(event) => setForm((prev) => ({ ...prev, smsExamOpenTemplate: event.target.value }))}
-          rows={3}
-          className="rounded-xl border border-[#1A273A] bg-[#030B18] px-3 py-2 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
-          placeholder="Exam open SMS şablonu"
-        />
-        <textarea
-          value={form.waResultTemplate}
-          onChange={(event) => setForm((prev) => ({ ...prev, waResultTemplate: event.target.value }))}
-          rows={3}
-          className="rounded-xl border border-[#1A273A] bg-[#030B18] px-3 py-2 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
-          placeholder="WhatsApp sonuç şablonu"
-        />
-        <input
-          value={form.panelAllowedRoles}
-          onChange={(event) => setForm((prev) => ({ ...prev, panelAllowedRoles: event.target.value }))}
-          placeholder="Panel roller (virgülle)"
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
-        />
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => void handleSave()}
-          disabled={loading || saving || !canEdit}
-          className="rounded-xl bg-[#D92E27] px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.11em] text-white transition hover:bg-[#bf251f] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {saving ? 'Kaydediliyor...' : 'Ayarları Kaydet'}
-        </button>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void handleSave()}
+            disabled={loading || saving || !canEdit}
+            className="rounded-xl bg-[#D92E27] px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.11em] text-white transition hover:bg-[#bf251f] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {saving ? 'Kaydediliyor...' : 'Ayarları Kaydet'}
+          </button>
         {!canEdit ? (
-          <span className="text-[12px] text-white/62">Bu ekranı görüntüleyebilirsiniz, güncelleme için SUPER_ADMIN gerekir.</span>
+          <span className="text-[12px] text-white/62">Bu ekranı görüntüleyebilirsiniz, güncelleme için PANEL_SETTINGS_WRITE gerekir.</span>
         ) : null}
-      </div>
+        </div>
 
-      {success ? <p className="mt-3 rounded-lg border border-[#244B39] bg-[#0E261E] px-3 py-2 text-[12px] text-[#9FE4D0]">{success}</p> : null}
-      {error ? <p className="mt-3 rounded-lg border border-[#6F2824] bg-[#2B1214]/80 px-3 py-2 text-[12px] text-[#FFB8B1]">{error}</p> : null}
+        {success ? <p className="mt-3 rounded-lg border border-[#244B39] bg-[#0E261E] px-3 py-2 text-[12px] text-[#9FE4D0]">{success}</p> : null}
+        {error ? <p className="mt-3 rounded-lg border border-[#6F2824] bg-[#2B1214]/80 px-3 py-2 text-[12px] text-[#FFB8B1]">{error}</p> : null}
 
-      <div className="mt-4 overflow-x-auto">
-        <table className="min-w-[860px] text-left text-[12px] text-white/80">
-          <thead>
-            <tr className="border-b border-white/12 text-white/56">
-              <th className="px-2 py-2">Setting Key</th>
-              <th className="px-2 py-2">Son Güncelleyen</th>
-              <th className="px-2 py-2">Son Güncelleme</th>
-            </tr>
-          </thead>
-          <tbody>
-            {trackedItems.map((item) => (
-              <tr key={item.key} className="border-b border-white/6">
-                <td className="px-2 py-2">{item.key}</td>
-                <td className="px-2 py-2">{item.updatedBy}</td>
-                <td className="px-2 py-2">{item.updatedAt}</td>
+        <div className="mt-4 rounded-xl border border-[#1A273A] bg-[#071021]/92 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-[12px] uppercase tracking-[0.12em] text-white/54">Release Gate</p>
+              <p className="mt-1 text-[14px] font-semibold text-white">Kampanya Aktivasyon Kontrolü</p>
+              <p className="mt-1 text-[12px] text-white/62">
+                SMS şifre akışı ve panel write/update sağlığı geçmeden aktivasyon write bloklanır.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void loadReleaseGate(form.campaignCode)}
+              disabled={releaseGateLoading}
+              className="rounded-lg border border-[#1A273A] bg-[#0A192B]/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.11em] text-white/78 hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {releaseGateLoading ? 'Yenileniyor...' : 'Gate Yenile'}
+            </button>
+          </div>
+
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-lg border border-[#1A273A] bg-[#030B18] px-3 py-2">
+              <p className="text-[11px] text-white/54">Durum</p>
+              <p className={`mt-1 text-[13px] font-semibold ${releaseGate?.passed ? 'text-[#9FE4D0]' : 'text-[#FFB8B1]'}`}>
+                {releaseGate?.enabled === false ? 'DISABLED' : releaseGate?.passed ? 'PASS' : 'BLOCKED'}
+              </p>
+            </div>
+            <div className="rounded-lg border border-[#1A273A] bg-[#030B18] px-3 py-2">
+              <p className="text-[11px] text-white/54">Kampanya</p>
+              <p className="mt-1 text-[13px] font-semibold text-white/88">{releaseGateCampaignCode || '-'}</p>
+            </div>
+            <div className="rounded-lg border border-[#1A273A] bg-[#030B18] px-3 py-2">
+              <p className="text-[11px] text-white/54">Son Kontrol</p>
+              <p className="mt-1 text-[13px] font-semibold text-white/88">{formatDateTime(releaseGate?.checked_at || null)}</p>
+            </div>
+          </div>
+
+          {releaseGateError ? (
+            <p className="mt-3 rounded-lg border border-[#6F2824] bg-[#2B1214]/80 px-3 py-2 text-[12px] text-[#FFB8B1]">{releaseGateError}</p>
+          ) : null}
+
+          {Array.isArray(releaseGate?.checks) && releaseGate.checks.length > 0 ? (
+            <div className="mt-3 overflow-x-auto">
+              <table className="min-w-[760px] text-left text-[12px] text-white/80">
+                <thead>
+                  <tr className="border-b border-white/12 text-white/56">
+                    <th className="px-2 py-2">Kontrol</th>
+                    <th className="px-2 py-2">Durum</th>
+                    <th className="px-2 py-2">Özet</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {releaseGate.checks.map((check, index) => (
+                    <tr key={`${check.code || 'check'}-${index}`} className="border-b border-white/6">
+                      <td className="px-2 py-2">{formatGateCheckLabel(String(check.code || '-'))}</td>
+                      <td className={`px-2 py-2 font-semibold ${check.passed ? 'text-[#9FE4D0]' : 'text-[#FFB8B1]'}`}>
+                        {check.passed ? 'PASS' : 'FAIL'}
+                      </td>
+                      <td className="px-2 py-2 text-white/70">{summarizeGateCheck(check)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="mt-4 overflow-x-auto">
+          <table className="min-w-[860px] text-left text-[12px] text-white/80">
+            <thead>
+              <tr className="border-b border-white/12 text-white/56">
+                <th className="px-2 py-2">Setting Key</th>
+                <th className="px-2 py-2">Son Güncelleyen</th>
+                <th className="px-2 py-2">Son Güncelleme</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
+            </thead>
+            <tbody>
+              {trackedItems.map((item) => (
+                <tr key={item.key} className="border-b border-white/6">
+                  <td className="px-2 py-2">{item.key}</td>
+                  <td className="px-2 py-2">{item.updatedBy}</td>
+                  <td className="px-2 py-2">{item.updatedAt}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <PanelIpPolicyPanel active={active} role={role} permissions={permissions} />
+    </div>
   );
 }

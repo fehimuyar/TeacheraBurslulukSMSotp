@@ -1,0 +1,53 @@
+{
+  "ok": true,
+  "generated_at_utc": "2026-03-21T07:10:12.153Z",
+  "checks": [
+    {
+      "id": "pii_crypto_strict_enabled",
+      "ok": true,
+      "detail": "PII_CRYPTO_STRICT=true"
+    },
+    {
+      "id": "pii_lookup_hmac_key_present",
+      "ok": true,
+      "detail": "PII_LOOKUP_HMAC_KEY is set."
+    },
+    {
+      "id": "pii_kms_encrypted_data_key_present",
+      "ok": true,
+      "detail": "PII_KMS_ENCRYPTED_DATA_KEY_B64 is set."
+    },
+    {
+      "id": "pii_kms_region_present",
+      "ok": true,
+      "detail": "PII_KMS_REGION/AWS_REGION is set."
+    },
+    {
+      "id": "pii_kms_key_id_present",
+      "ok": true,
+      "detail": "PII_KMS_KEY_ID is set.",
+      "warnOnly": true
+    },
+    {
+      "id": "kms_decrypt_data_key",
+      "ok": true,
+      "detail": "KMS decrypt succeeded with context #2.",
+      "evidence": {
+        "context": {
+          "app": "teachera",
+          "scope": "pii"
+        },
+        "plaintext_length": 32
+      }
+    },
+    {
+      "id": "exam_api_start_pii_runtime",
+      "ok": true,
+      "detail": "HTTP 200 (session start succeeded).",
+      "evidence": {
+        "status": 200,
+        "attempt_id": "88a1c40d-28ba-4f64-b3c5-a81ae060e10b"
+      }
+    }
+  ]
+}

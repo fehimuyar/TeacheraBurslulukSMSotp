@@ -387,6 +387,8 @@ async function run() {
     parentEmail: `uat.${runId}@teachera.com.tr`,
     schoolName: 'UAT Smoke School',
     grade: 8,
+    section: '8-A',
+    selectedExamAt: '2026-03-28T10:00:00.000Z',
     ageRange: '13-14',
     language: 'EN',
     source: 'frontend_uat_bugfix_freeze',

@@ -2,20 +2,37 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { panelApiHref, panelFetch } from '../../api/panelApi';
 import CandidateOperationsPanel from './CandidateOperationsPanel';
+import ConsultantOverviewPanel from './ConsultantOverviewPanel';
 import NotificationCenterPanel from './NotificationCenterPanel';
 import UnviewedResultsPanel from './UnviewedResultsPanel';
 import DlqOperationsPanel from './DlqOperationsPanel';
 import SettingsOperationsPanel from './SettingsOperationsPanel';
 import PanelAuditTrailPanel from './PanelAuditTrailPanel';
+import ResultReviewPanel from './ResultReviewPanel';
+import ResultsAuditExportPanel from './ResultsAuditExportPanel';
+import CrmExportPanel from './CrmExportPanel';
+import {
+  canReadAudit,
+  canReadCandidates,
+  canReadDashboard,
+  canReadDlq,
+  canReadNotifications,
+  canPushCrm,
+  canReviewResults,
+  canReadSettings,
+  canReadUnviewed,
+  resolvePanelRoleLabel,
+} from './panelRoleAccess';
 
 type PanelView = 'inbox' | 'operations' | 'tasks' | 'settings' | 'audit';
-type PanelOpsFocus = 'candidates' | 'notifications' | 'dlq' | 'unviewed' | null;
+type PanelOpsFocus = 'candidates' | 'consultant' | 'notifications' | 'dlq' | 'unviewed' | 'results' | 'crm' | null;
 
 type PanelIdentity = {
   user_id: string;
   email: string;
   full_name: string;
   role: string;
+  permissions?: string[];
   mfa_verified: boolean;
   session_id: string;
   password_reset_required?: boolean;
@@ -37,6 +54,16 @@ type DashboardChannelStatusItem = {
   count?: number;
 };
 
+type DashboardSchoolPerformanceItem = {
+  school_name?: string;
+  total_applications?: number;
+  class_distribution?: Record<string, number> | null;
+  unviewed_results?: number;
+  appointment_no_show?: number;
+  crm_problematic?: number;
+  follow_up_needed?: number;
+};
+
 type DashboardPayload = {
   summary?: {
     total_applications?: number;
@@ -45,6 +72,11 @@ type DashboardPayload = {
     exam_completion_rate?: number;
     result_view_rate?: number;
     wa_delivery_rate?: number;
+    bot_followup_total_24h?: number;
+    bot_followup_unviewed_24h?: number;
+    bot_followup_viewed_no_appointment_24h?: number;
+    bot_followup_no_show_24h?: number;
+    bot_followup_problematic_24h?: number;
   };
   operations?: {
     open_dlq_jobs?: number;
@@ -54,6 +86,7 @@ type DashboardPayload = {
   };
   hourly_application_trend?: DashboardTrendItem[];
   channel_status_distribution?: DashboardChannelStatusItem[];
+  school_performance?: DashboardSchoolPerformanceItem[];
 };
 
 type SettingsPayload = {
@@ -100,6 +133,8 @@ const PANEL_VIEW_ROUTE_MAP: Record<PanelView, string> = {
 };
 
 const defaultTasks: Array<{ label: string; to: string }> = [
+  { label: 'Sonuç review/override/publish kuyruğunu kontrol et ve aksiyonları tamamla.', to: '/panel/results' },
+  { label: 'CRM push kuyruğunu (status/error/retry) kontrol et ve aksiyonları tamamla.', to: '/panel/crm' },
   { label: 'DLQ kuyruğunu kontrol et ve gerekli retry/assign işlemlerini tamamla.', to: '/panel/dlq' },
   { label: 'Sonuç görüntülemeyen adaylara WhatsApp planını gözden geçir.', to: '/panel/unviewed-results' },
   { label: 'Yeni kampanya ayarlarının app_settings üzerinde aktif olduğunu doğrula.', to: '/panel/settings' },
@@ -116,10 +151,64 @@ function readView(raw: string | null): PanelView {
 
 function readOpsFocus(raw: string | null): PanelOpsFocus {
   const normalized = String(raw || '').toLowerCase();
-  if (normalized === 'candidates' || normalized === 'notifications' || normalized === 'dlq' || normalized === 'unviewed') {
+  if (
+    normalized === 'candidates'
+    || normalized === 'consultant'
+    || normalized === 'notifications'
+    || normalized === 'dlq'
+    || normalized === 'unviewed'
+    || normalized === 'results'
+    || normalized === 'crm'
+  ) {
     return normalized;
   }
   return null;
+}
+
+function canAccessView(view: PanelView, role?: string, permissions?: string[]) {
+  if (view === 'operations') {
+    return (
+      canReadDashboard(role, permissions)
+      || canReadCandidates(role, permissions)
+      || canReadNotifications(role, permissions)
+      || canReadUnviewed(role, permissions)
+      || canReadDlq(role, permissions)
+      || canReviewResults(role, permissions)
+      || canPushCrm(role, permissions)
+    );
+  }
+  if (view === 'inbox') {
+    return canReadNotifications(role, permissions) || canReadUnviewed(role, permissions) || canPushCrm(role, permissions);
+  }
+  if (view === 'tasks') {
+    return (
+      canReadCandidates(role, permissions)
+      || canReadDlq(role, permissions)
+      || canReadSettings(role, permissions)
+      || canReviewResults(role, permissions)
+      || canPushCrm(role, permissions)
+    );
+  }
+  if (view === 'settings') {
+    return canReadSettings(role, permissions);
+  }
+  if (view === 'audit') {
+    return canReadAudit(role, permissions);
+  }
+  return false;
+}
+
+function resolveAllowedView(requested: PanelView, role?: string, permissions?: string[]) {
+  if (canAccessView(requested, role, permissions)) {
+    return requested;
+  }
+  const fallbackOrder: PanelView[] = ['operations', 'inbox', 'tasks', 'settings', 'audit'];
+  for (const candidate of fallbackOrder) {
+    if (canAccessView(candidate, role, permissions)) {
+      return candidate;
+    }
+  }
+  return 'operations';
 }
 
 async function readJsonSafe<T>(response: Response): Promise<T | null> {
@@ -150,6 +239,25 @@ function formatHour(value: string | undefined) {
     day: '2-digit',
     month: '2-digit',
   });
+}
+
+function formatClassDistribution(value: Record<string, number> | null | undefined) {
+  if (!value || typeof value !== 'object') return '-';
+  const rows = Object.entries(value)
+    .map(([label, count]) => ({ label: String(label), count: Number(count || 0) }))
+    .filter((item) => item.label && Number.isFinite(item.count))
+    .sort((a, b) => {
+      const aGrade = Number.parseInt(a.label, 10);
+      const bGrade = Number.parseInt(b.label, 10);
+      const aNumeric = Number.isFinite(aGrade);
+      const bNumeric = Number.isFinite(bGrade);
+      if (aNumeric && bNumeric) return aGrade - bGrade;
+      if (aNumeric) return -1;
+      if (bNumeric) return 1;
+      return a.label.localeCompare(b.label, 'tr');
+    });
+  if (rows.length === 0) return '-';
+  return rows.map((item) => `${item.label}: ${formatNumber(item.count)}`).join(' • ');
 }
 
 function formatLiveClock(value: Date) {
@@ -185,6 +293,24 @@ export default function PanelDashboardPage() {
   const [liveClock, setLiveClock] = useState(() => new Date());
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
   const activeOpsFocus = useMemo(() => readOpsFocus(searchParams.get('focus')), [searchParams]);
+  const identityRole = identity?.role;
+  const identityPermissions = identity?.permissions || [];
+  const canAccessOperationsDashboard = canReadDashboard(identityRole, identityPermissions);
+  const canAccessCandidates = canReadCandidates(identityRole, identityPermissions);
+  const canAccessNotifications = canReadNotifications(identityRole, identityPermissions);
+  const canAccessUnviewed = canReadUnviewed(identityRole, identityPermissions);
+  const canAccessDlq = canReadDlq(identityRole, identityPermissions);
+  const canAccessResults = canReviewResults(identityRole, identityPermissions);
+  const canAccessCrmPush = canPushCrm(identityRole, identityPermissions);
+  const canAccessSettings = canReadSettings(identityRole, identityPermissions);
+  const canAccessAudit = canReadAudit(identityRole, identityPermissions);
+  const visibleViews = useMemo(
+    () =>
+      identity
+        ? VIEW_ITEMS.filter((item) => canAccessView(item.id, identity.role, identity.permissions || []))
+        : VIEW_ITEMS,
+    [identity],
+  );
 
   const loadPanelData = useCallback(
     async (options?: { silent?: boolean }) => {
@@ -212,6 +338,9 @@ export default function PanelDashboardPage() {
           window.location.assign('/panel/password-reset');
           return;
         }
+        const nextIdentity = mePayload.identity;
+        const canReadDashboardData = canReadDashboard(nextIdentity.role, nextIdentity.permissions || []);
+        const canReadSettingsData = canReadSettings(nextIdentity.role, nextIdentity.permissions || []);
 
         const dashboardFilters: Record<string, unknown> = {};
         if (appliedCampaign.trim()) {
@@ -225,19 +354,19 @@ export default function PanelDashboardPage() {
           : '/api/panel/dashboard';
 
         const [dashboardResponse, settingsResponse] = await Promise.all([
-          panelFetch(dashboardPath, { method: 'GET' }),
-          panelFetch('/api/panel/settings', { method: 'GET' }),
+          canReadDashboardData ? panelFetch(dashboardPath, { method: 'GET' }) : Promise.resolve(null),
+          canReadSettingsData ? panelFetch('/api/panel/settings', { method: 'GET' }) : Promise.resolve(null),
         ]);
 
-        const dashboardPayload = await readJsonSafe<DashboardPayload>(dashboardResponse);
-        const settingsPayload = await readJsonSafe<SettingsPayload>(settingsResponse);
+        const dashboardPayload = dashboardResponse ? await readJsonSafe<DashboardPayload>(dashboardResponse) : null;
+        const settingsPayload = settingsResponse ? await readJsonSafe<SettingsPayload>(settingsResponse) : null;
 
-        setIdentity(mePayload.identity);
-        setDashboard(dashboardResponse.ok ? dashboardPayload : null);
+        setIdentity(nextIdentity);
+        setDashboard(dashboardResponse?.ok ? dashboardPayload : null);
         setSettingsCount(Array.isArray(settingsPayload?.items) ? settingsPayload.items.length : 0);
         setLastRefreshedAt(new Date());
 
-        if (!dashboardResponse.ok) {
+        if (dashboardResponse && !dashboardResponse.ok) {
           setErrorMessage('Panel dashboard verileri şu anda yüklenemiyor. Oturum doğrulandı, ekran kısmi modda açıldı.');
         }
       } catch {
@@ -254,7 +383,12 @@ export default function PanelDashboardPage() {
   );
 
   useEffect(() => {
-    setActiveView(readView(searchParams.get('view')));
+    const requestedView = readView(searchParams.get('view'));
+    if (identity) {
+      setActiveView(resolveAllowedView(requestedView, identity.role, identity.permissions || []));
+    } else {
+      setActiveView(requestedView);
+    }
     const routeCampaign = String(searchParams.get('campaign') || '').trim();
     const routeQuery = String(searchParams.get('q') || '').trim();
     if (routeCampaign && routeCampaign !== appliedCampaign) {
@@ -265,7 +399,7 @@ export default function PanelDashboardPage() {
       setGlobalSearchInput(routeQuery);
       setAppliedGlobalSearch(routeQuery);
     }
-  }, [searchParams, appliedCampaign, appliedGlobalSearch]);
+  }, [searchParams, appliedCampaign, appliedGlobalSearch, identity]);
 
   useEffect(() => {
     void loadPanelData();
@@ -291,13 +425,27 @@ export default function PanelDashboardPage() {
   }, [autoRefresh, loadPanelData]);
 
   const viewMeta = useMemo(
-    () => VIEW_ITEMS.find((item) => item.id === activeView) || VIEW_ITEMS[0],
-    [activeView],
+    () => visibleViews.find((item) => item.id === activeView) || visibleViews[0] || VIEW_ITEMS[0],
+    [activeView, visibleViews],
   );
   const criticalErrors = dashboard?.operations?.critical_error_codes || [];
   const trendRows = dashboard?.hourly_application_trend || [];
   const channelRows = dashboard?.channel_status_distribution || [];
+  const schoolPerformanceRows = dashboard?.school_performance || [];
   const lastRefreshLabel = lastRefreshedAt ? formatLiveClock(lastRefreshedAt) : '-';
+  const visibleTasks = useMemo(
+    () =>
+      defaultTasks.filter((task) => {
+        if (task.to === '/panel/results') return canAccessResults;
+        if (task.to === '/panel/crm') return canAccessCrmPush;
+        if (task.to === '/panel/dlq') return canAccessDlq;
+        if (task.to === '/panel/unviewed-results') return canAccessUnviewed;
+        if (task.to === '/panel/settings') return canAccessSettings;
+        if (task.to === '/panel/candidates') return canAccessCandidates;
+        return true;
+      }),
+    [canAccessCandidates, canAccessCrmPush, canAccessDlq, canAccessResults, canAccessSettings, canAccessUnviewed],
+  );
 
   const handleApplyGlobalFilters = () => {
     setAppliedCampaign(campaignInput.trim());
@@ -402,7 +550,8 @@ export default function PanelDashboardPage() {
                 <div className="rounded-2xl border border-[#1A273A] bg-[#071021]/82 px-4 py-3 text-right">
                   <p className="text-[12px] uppercase tracking-[0.14em] text-white/48">Oturum</p>
                   <p className="text-[14px] font-semibold text-white/85">{identity?.full_name || '-'}</p>
-                  <p className="text-[12px] text-white/55">{identity?.role || '-'}</p>
+                  <p className="text-[12px] text-white/55">{resolvePanelRoleLabel(identity?.role)}</p>
+                  <p className="text-[11px] text-white/45">Izin: {identityPermissions.length || 0}</p>
                 </div>
 
                 <button
@@ -418,7 +567,7 @@ export default function PanelDashboardPage() {
           </div>
 
           <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            {VIEW_ITEMS.map((item) => {
+            {visibleViews.map((item) => {
               const active = item.id === activeView;
               return (
                 <Link
@@ -459,6 +608,16 @@ export default function PanelDashboardPage() {
               <div className="mt-4 rounded-xl border border-[#1D3047] bg-[#0A192B]/82 p-4 text-[13px] text-white/70">
                 Entegrasyon durumu: hazır yüzey. Canlı CRM/Mobikob API bağlantısı aktif olduğunda bu karta gerçek konuşma listesi bağlanır.
               </div>
+              {canAccessCrmPush ? (
+                <div className="mt-4 flex flex-wrap gap-2 text-[12px]">
+                  <Link className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" to="/panel/crm">
+                    CRM Queue Paneli
+                  </Link>
+                  <a className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" href={panelApiHref('/api/panel/crm')} target="_blank" rel="noreferrer">
+                    CRM API
+                  </a>
+                </div>
+              ) : null}
             </section>
 
             <section className={sectionClassName}>
@@ -485,8 +644,16 @@ export default function PanelDashboardPage() {
                 </table>
               </div>
               <div className="mt-4 flex flex-wrap gap-2 text-[12px]">
-                <Link className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" to="/panel/notifications">Bildirim Merkezine Git</Link>
-                <Link className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" to="/panel/unviewed-results">Sonuç Görmeyenler</Link>
+                {canAccessNotifications ? (
+                  <Link className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" to="/panel/notifications">
+                    Bildirim Merkezine Git
+                  </Link>
+                ) : null}
+                {canAccessUnviewed ? (
+                  <Link className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" to="/panel/unviewed-results">
+                    Sonuç Görmeyenler
+                  </Link>
+                ) : null}
               </div>
             </section>
           </div>
@@ -494,28 +661,46 @@ export default function PanelDashboardPage() {
 
         {!isLoading && activeView === 'operations' ? (
           <div className="grid gap-4 lg:grid-cols-2">
-            <section className={sectionClassName}>
-              <p className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white/54">Bursluluk KPI</p>
-              <h2 className="mt-2 text-[24px] font-semibold text-white">Operasyon Özeti</h2>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-[#1A273A] bg-[#071021]/82 p-3">
-                  <p className="text-[12px] text-white/52">Toplam Başvuru</p>
-                  <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(dashboard?.summary?.total_applications)}</p>
+            {canAccessOperationsDashboard ? (
+              <section className={sectionClassName}>
+                <p className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white/54">Bursluluk KPI</p>
+                <h2 className="mt-2 text-[24px] font-semibold text-white">Operasyon Özeti</h2>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl border border-[#1A273A] bg-[#071021]/82 p-3">
+                    <p className="text-[12px] text-white/52">Toplam Başvuru</p>
+                    <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(dashboard?.summary?.total_applications)}</p>
+                  </div>
+                  <div className="rounded-xl border border-[#1A273A] bg-[#071021]/82 p-3">
+                    <p className="text-[12px] text-white/52">SMS Başarı</p>
+                    <p className="mt-1 text-[22px] font-semibold text-white">{formatPercent(dashboard?.summary?.sms_success_rate)}</p>
+                  </div>
+                  <div className="rounded-xl border border-[#1A273A] bg-[#071021]/82 p-3">
+                    <p className="text-[12px] text-white/52">Sınav Tamamlama</p>
+                    <p className="mt-1 text-[22px] font-semibold text-white">{formatPercent(dashboard?.summary?.exam_completion_rate)}</p>
+                  </div>
+                  <div className="rounded-xl border border-[#1A273A] bg-[#071021]/82 p-3">
+                    <p className="text-[12px] text-white/52">Sonuç Görüntüleme</p>
+                    <p className="mt-1 text-[22px] font-semibold text-white">{formatPercent(dashboard?.summary?.result_view_rate)}</p>
+                  </div>
                 </div>
-                <div className="rounded-xl border border-[#1A273A] bg-[#071021]/82 p-3">
-                  <p className="text-[12px] text-white/52">SMS Başarı</p>
-                  <p className="mt-1 text-[22px] font-semibold text-white">{formatPercent(dashboard?.summary?.sms_success_rate)}</p>
+                <div className="mt-3 rounded-xl border border-[#1A273A] bg-[#071021]/82 p-3">
+                  <p className="text-[12px] uppercase tracking-[0.12em] text-white/54">Bot Otomasyon (Son 24 Saat)</p>
+                  <div className="mt-2 grid gap-2 text-[12px] text-white/78 sm:grid-cols-2">
+                    <p>Toplam: <span className="font-semibold text-white">{formatNumber(dashboard?.summary?.bot_followup_total_24h)}</span></p>
+                    <p>Problemli: <span className="font-semibold text-white">{formatNumber(dashboard?.summary?.bot_followup_problematic_24h)}</span></p>
+                    <p>Sonuç Görmedi: <span className="font-semibold text-white">{formatNumber(dashboard?.summary?.bot_followup_unviewed_24h)}</span></p>
+                    <p>Gördü/Randevu Yok: <span className="font-semibold text-white">{formatNumber(dashboard?.summary?.bot_followup_viewed_no_appointment_24h)}</span></p>
+                    <p>No-show: <span className="font-semibold text-white">{formatNumber(dashboard?.summary?.bot_followup_no_show_24h)}</span></p>
+                  </div>
                 </div>
-                <div className="rounded-xl border border-[#1A273A] bg-[#071021]/82 p-3">
-                  <p className="text-[12px] text-white/52">Sınav Tamamlama</p>
-                  <p className="mt-1 text-[22px] font-semibold text-white">{formatPercent(dashboard?.summary?.exam_completion_rate)}</p>
-                </div>
-                <div className="rounded-xl border border-[#1A273A] bg-[#071021]/82 p-3">
-                  <p className="text-[12px] text-white/52">Sonuç Görüntüleme</p>
-                  <p className="mt-1 text-[22px] font-semibold text-white">{formatPercent(dashboard?.summary?.result_view_rate)}</p>
-                </div>
-              </div>
-            </section>
+              </section>
+            ) : (
+              <section className={sectionClassName}>
+                <p className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white/54">Bursluluk KPI</p>
+                <h2 className="mt-2 text-[24px] font-semibold text-white">Operasyon Özeti</h2>
+                <p className="mt-3 text-[13px] text-white/64">Bu bolum icin PANEL_DASHBOARD_READ izni gerekir.</p>
+              </section>
+            )}
 
             <section className={sectionClassName}>
               <p className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white/54">Operasyon Sağlığı</p>
@@ -550,28 +735,155 @@ export default function PanelDashboardPage() {
                 </div>
               </div>
               <div className="mt-4 flex flex-wrap gap-2 text-[12px]">
-                <Link className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" to="/panel/candidates">Adaylar</Link>
-                <Link className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" to="/panel/notifications">Bildirimler</Link>
-                <Link className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" to="/panel/dlq">DLQ</Link>
-                <Link className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" to="/panel/unviewed-results">Sonuç Görmeyenler</Link>
-                <a className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" href={panelApiHref('/api/panel/candidates')} target="_blank" rel="noreferrer">Aday API</a>
-                <a className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" href={panelApiHref('/api/panel/notifications')} target="_blank" rel="noreferrer">Bildirim API</a>
-                <a className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" href={panelApiHref('/api/panel/dlq')} target="_blank" rel="noreferrer">DLQ API</a>
-                <a className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" href={panelApiHref('/api/panel/unviewed-results')} target="_blank" rel="noreferrer">Unviewed API</a>
+                {canAccessCandidates ? (
+                  <Link className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" to="/panel/consultant">
+                    Danisman Kartlari
+                  </Link>
+                ) : null}
+                {canAccessCandidates ? (
+                  <Link className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" to="/panel/candidates">
+                    Adaylar
+                  </Link>
+                ) : null}
+                {canAccessNotifications ? (
+                  <Link className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" to="/panel/notifications">
+                    Bildirimler
+                  </Link>
+                ) : null}
+                {canAccessDlq ? (
+                  <Link className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" to="/panel/dlq">
+                    DLQ
+                  </Link>
+                ) : null}
+                {canAccessUnviewed ? (
+                  <Link className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" to="/panel/unviewed-results">
+                    Sonuç Görmeyenler
+                  </Link>
+                ) : null}
+                {canAccessResults ? (
+                  <Link className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" to="/panel/results">
+                    Sonuç Review
+                  </Link>
+                ) : null}
+                {canAccessCrmPush ? (
+                  <Link className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" to="/panel/crm">
+                    CRM Queue
+                  </Link>
+                ) : null}
+                {canAccessCandidates ? (
+                  <a className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" href={panelApiHref('/api/panel/candidates')} target="_blank" rel="noreferrer">
+                    Aday API
+                  </a>
+                ) : null}
+                {canAccessNotifications ? (
+                  <a className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" href={panelApiHref('/api/panel/notifications')} target="_blank" rel="noreferrer">
+                    Bildirim API
+                  </a>
+                ) : null}
+                {canAccessDlq ? (
+                  <a className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" href={panelApiHref('/api/panel/dlq')} target="_blank" rel="noreferrer">
+                    DLQ API
+                  </a>
+                ) : null}
+                {canAccessUnviewed ? (
+                  <a className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" href={panelApiHref('/api/panel/unviewed-results')} target="_blank" rel="noreferrer">
+                    Unviewed API
+                  </a>
+                ) : null}
+                {canAccessResults ? (
+                  <a className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" href={panelApiHref('/api/panel/results')} target="_blank" rel="noreferrer">
+                    Results API
+                  </a>
+                ) : null}
+                {canAccessCrmPush ? (
+                  <a className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" href={panelApiHref('/api/panel/crm')} target="_blank" rel="noreferrer">
+                    CRM API
+                  </a>
+                ) : null}
               </div>
             </section>
 
-            {activeOpsFocus === 'candidates' ? (
+            {canAccessOperationsDashboard ? (
+              <section className={`${sectionClassName} lg:col-span-2`}>
+                <p className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white/54">Okul Performansı</p>
+                <h2 className="mt-2 text-[24px] font-semibold text-white">Okul Bazlı Başvuru ve Follow-up İhtiyacı</h2>
+                <p className="mt-2 text-[13px] leading-[1.7] text-white/62">
+                  Okul bazında başvuru yoğunluğu, sınıf hareketi ve manuel takip ihtiyacı tek tabloda izlenir.
+                </p>
+                <div className="mt-4 overflow-x-auto">
+                  <table className="min-w-[980px] text-left text-[12px] text-white/80">
+                    <thead>
+                      <tr className="border-b border-white/12 text-white/56">
+                        <th className="px-2 py-2">Okul</th>
+                        <th className="px-2 py-2 text-right">Başvuru</th>
+                        <th className="px-2 py-2">Sınıf Hareketi</th>
+                        <th className="px-2 py-2 text-right">Sonuç Görmeyen</th>
+                        <th className="px-2 py-2 text-right">No-show</th>
+                        <th className="px-2 py-2 text-right">CRM Sorunlu</th>
+                        <th className="px-2 py-2 text-right">Follow-up</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(schoolPerformanceRows.length > 0 ? schoolPerformanceRows : [{ school_name: '-', total_applications: 0 }]).slice(0, 12).map((row, index) => (
+                        <tr key={`${row.school_name || 'na'}-${index}`} className="border-b border-white/6 align-top">
+                          <td className="px-2 py-2">{row.school_name || '-'}</td>
+                          <td className="px-2 py-2 text-right">{formatNumber(Number(row.total_applications || 0))}</td>
+                          <td className="max-w-[360px] px-2 py-2">{formatClassDistribution(row.class_distribution || null)}</td>
+                          <td className="px-2 py-2 text-right">{formatNumber(Number(row.unviewed_results || 0))}</td>
+                          <td className="px-2 py-2 text-right">{formatNumber(Number(row.appointment_no_show || 0))}</td>
+                          <td className="px-2 py-2 text-right">{formatNumber(Number(row.crm_problematic || 0))}</td>
+                          <td className="px-2 py-2 text-right font-semibold text-[#FFD2CE]">{formatNumber(Number(row.follow_up_needed || 0))}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2 text-[12px]">
+                  {canAccessCandidates ? (
+                    <Link className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" to="/panel/candidates">
+                      Aday Operasyonuna Git
+                    </Link>
+                  ) : null}
+                </div>
+              </section>
+            ) : null}
+
+            {activeOpsFocus === 'candidates' && canAccessCandidates ? (
               <CandidateOperationsPanel
                 active
                 seedQuery={appliedGlobalSearch}
                 seedCampaignCode={appliedCampaign}
                 role={identity?.role}
+                permissions={identityPermissions}
               />
             ) : null}
-            {activeOpsFocus === 'notifications' ? <NotificationCenterPanel active role={identity?.role} /> : null}
-            {activeOpsFocus === 'unviewed' ? <UnviewedResultsPanel active role={identity?.role} /> : null}
-            {activeOpsFocus === 'dlq' ? <DlqOperationsPanel active role={identity?.role} /> : null}
+            {activeOpsFocus === 'consultant' && canAccessCandidates ? (
+              <ConsultantOverviewPanel
+                active
+                seedQuery={appliedGlobalSearch}
+                seedCampaignCode={appliedCampaign}
+                role={identity?.role}
+                permissions={identityPermissions}
+              />
+            ) : null}
+            {activeOpsFocus === 'notifications' && canAccessNotifications ? (
+              <NotificationCenterPanel active role={identity?.role} permissions={identityPermissions} />
+            ) : null}
+            {activeOpsFocus === 'unviewed' && canAccessUnviewed ? (
+              <UnviewedResultsPanel active role={identity?.role} permissions={identityPermissions} />
+            ) : null}
+            {activeOpsFocus === 'dlq' && canAccessDlq ? (
+              <DlqOperationsPanel active role={identity?.role} permissions={identityPermissions} />
+            ) : null}
+            {activeOpsFocus === 'results' && canAccessResults ? (
+              <>
+                <ResultReviewPanel active role={identity?.role} permissions={identityPermissions} />
+                <ResultsAuditExportPanel active role={identity?.role} permissions={identityPermissions} />
+              </>
+            ) : null}
+            {activeOpsFocus === 'crm' && canAccessCrmPush ? (
+              <CrmExportPanel active role={identity?.role} permissions={identityPermissions} />
+            ) : null}
           </div>
         ) : null}
 
@@ -580,7 +892,7 @@ export default function PanelDashboardPage() {
             <p className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white/54">Görevler</p>
             <h2 className="mt-2 text-[24px] font-semibold text-white">Operasyon Kontrol Listesi</h2>
             <ul className="mt-4 space-y-3 text-[14px] leading-[1.7] text-white/72">
-              {defaultTasks.map((task) => (
+              {visibleTasks.map((task) => (
                 <li key={task.label} className="rounded-xl border border-[#1A273A] bg-[#071021]/82 px-4 py-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span>• {task.label}</span>
@@ -595,15 +907,32 @@ export default function PanelDashboardPage() {
               ))}
             </ul>
             <div className="mt-3 flex flex-wrap gap-2 text-[12px]">
-              <a className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" href={panelApiHref('/api/panel/dashboard')} target="_blank" rel="noreferrer">Dashboard API</a>
-              <a className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" href={panelApiHref('/api/panel/settings')} target="_blank" rel="noreferrer">Settings API</a>
+              {canAccessOperationsDashboard ? (
+                <a className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" href={panelApiHref('/api/panel/dashboard')} target="_blank" rel="noreferrer">
+                  Dashboard API
+                </a>
+              ) : null}
+              {canAccessSettings ? (
+                <a className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" href={panelApiHref('/api/panel/settings')} target="_blank" rel="noreferrer">
+                  Settings API
+                </a>
+              ) : null}
+              {canAccessCrmPush ? (
+                <a className="rounded-full border border-[#1A273A] bg-[#071021]/82 px-3 py-2 text-white/72 hover:border-[#2D4363]" href={panelApiHref('/api/panel/crm')} target="_blank" rel="noreferrer">
+                  CRM API
+                </a>
+              ) : null}
             </div>
           </section>
         ) : null}
 
-        {!isLoading && activeView === 'settings' ? <SettingsOperationsPanel active role={identity?.role} initialCount={settingsCount} /> : null}
+        {!isLoading && activeView === 'settings' ? (
+          <SettingsOperationsPanel active role={identity?.role} permissions={identityPermissions} initialCount={settingsCount} />
+        ) : null}
 
-        {!isLoading && activeView === 'audit' ? <PanelAuditTrailPanel active /> : null}
+        {!isLoading && activeView === 'audit' ? (
+          <PanelAuditTrailPanel active role={identity?.role} permissions={identityPermissions} />
+        ) : null}
       </div>
     </section>
   );

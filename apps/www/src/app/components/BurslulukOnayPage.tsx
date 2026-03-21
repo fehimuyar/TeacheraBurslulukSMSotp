@@ -40,10 +40,19 @@ export default function BurslulukOnayPage() {
           <p className="text-[12px] uppercase tracking-[0.16em] text-white/52">Basvuru onayi</p>
           <h1 className="mt-3 text-[36px] font-semibold text-white sm:text-[44px]">Basvurunuz Alindi</h1>
           <p className="mt-4 text-[18px] leading-[1.8] text-white/72">
-            Basvuru no: <span className="font-semibold text-white">{session.applicationNo}</span>
+            Aday kodu: <span className="font-semibold text-white">{session.candidateCode || session.applicationNo}</span>
           </p>
           <p className="mt-2 text-[18px] leading-[1.8] text-white/72">
             SMS durumu: <span className="font-semibold text-white">{smsStatusLabel(session.credentialsSmsStatus)}</span>
+          </p>
+          <p className="mt-2 text-[16px] leading-[1.8] text-white/72">
+            Sube: <span className="font-semibold text-white">{session.section || '-'}</span>
+          </p>
+          <p className="mt-1 text-[16px] leading-[1.8] text-white/72">
+            Sinav oturumu:{' '}
+            <span className="font-semibold text-white">
+              {session.examSlotLabel || new Date(session.examOpenAt).toLocaleString('tr-TR')}
+            </span>
           </p>
 
           <div className="mt-6 rounded-2xl border border-white/10 bg-[#071021]/90 p-5">

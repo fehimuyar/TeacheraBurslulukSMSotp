@@ -1,14 +1,14 @@
 {
-  "timestamp": "2026-03-17T08:08:01.055Z",
+  "timestamp": "2026-03-21T14:02:18.381Z",
   "mode": {
-    "http": true,
+    "http": false,
     "aws": false
   },
   "totals": {
-    "pass": 10,
+    "pass": 6,
     "fail": 0,
     "warn": 0,
-    "skip": 1
+    "skip": 2
   },
   "overall_ready_for_p0_12": true,
   "checks": [
@@ -17,7 +17,7 @@
       "status": "PASS",
       "detail": "P0-12 package document exists.",
       "evidence": {
-        "path": "/Users/aliye/Downloads/Teachera Website Bursluluk/guidelines/p0-12-final-go-live-operations-package.md"
+        "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-12-final-go-live-operations-package.md"
       }
     },
     {
@@ -31,7 +31,7 @@
     {
       "id": "package_evidence_files",
       "status": "PASS",
-      "detail": "All required evidence files exist (6).",
+      "detail": "All required evidence files exist (10).",
       "evidence": {
         "missing_files": []
       }
@@ -45,6 +45,20 @@
       }
     },
     {
+      "id": "cutover_checklist_mandatory_gates",
+      "status": "PASS",
+      "detail": "Mandatory cutover gates exist and are DONE.",
+      "evidence": {
+        "mandatory_gate_ids": [
+          "panel_step20_final_closeout_freshness_gate",
+          "panel_slot_visibility_smoke_gate",
+          "appointment_schedule_capacity_smoke_gate"
+        ],
+        "missing_mandatory_gates": [],
+        "mandatory_gates_not_done": []
+      }
+    },
+    {
       "id": "go_live_approval_state",
       "status": "PASS",
       "detail": "Go-live approval is signed.",
@@ -55,66 +69,10 @@
       }
     },
     {
-      "id": "www_bursluluk_route",
-      "status": "PASS",
-      "detail": "HTTP 200",
-      "evidence": {
-        "url": "https://teachera.com.tr/bursluluk-2026",
-        "status": 200,
-        "expected": [
-          200
-        ]
-      }
-    },
-    {
-      "id": "www_panel_login_route",
-      "status": "PASS",
-      "detail": "HTTP 200",
-      "evidence": {
-        "url": "https://teachera.com.tr/panel/login",
-        "status": 200,
-        "expected": [
-          200
-        ]
-      }
-    },
-    {
-      "id": "exam_health_http",
-      "status": "PASS",
-      "detail": "HTTP 200",
-      "evidence": {
-        "url": "https://exam-api.teachera.com.tr/api/health",
-        "status": 200,
-        "expected": [
-          200
-        ]
-      }
-    },
-    {
-      "id": "panel_auth_http",
-      "status": "PASS",
-      "detail": "HTTP 401",
-      "evidence": {
-        "url": "https://panel-api.teachera.com.tr/api/panel/auth/me",
-        "status": 401,
-        "expected": [
-          200,
-          401,
-          403
-        ]
-      }
-    },
-    {
-      "id": "ops_health_http",
-      "status": "PASS",
-      "detail": "HTTP 200",
-      "evidence": {
-        "url": "https://ops-api.teachera.com.tr/api/health",
-        "status": 200,
-        "expected": [
-          200
-        ]
-      }
+      "id": "http_checks",
+      "status": "SKIP",
+      "detail": "HTTP checks disabled (use --http).",
+      "evidence": {}
     },
     {
       "id": "aws_checks",

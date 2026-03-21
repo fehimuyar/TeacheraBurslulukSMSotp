@@ -18,12 +18,24 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/api/ops/exam-reminder-broadcast?limit=500",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/ops/campaign-season-sync",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/api/ops/unviewed-results/auto-whatsapp?limit=250&delay_minutes=30",
       "schedule": "*/10 * * * *"
     },
     {
       "path": "/api/ops/observability/collect?sample_size=5&timeout_ms=4500",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/ops/crm/worker?limit=100",
+      "schedule": "*/2 * * * *"
     }
   ]
 }

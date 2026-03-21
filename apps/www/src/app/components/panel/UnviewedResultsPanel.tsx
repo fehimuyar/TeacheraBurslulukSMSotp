@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { panelFetch } from '../../api/panelApi';
-import { canOperatePanelActions, isReadOnlyPanelRole } from './panelRoleAccess';
+import { canOperateUnviewed, isReadOnlyPanelRole } from './panelRoleAccess';
 
 type UnviewedRow = {
   candidate_id: string;
@@ -30,9 +30,32 @@ type UnviewedListResponse = {
 };
 
 type UnviewedActionResponse = {
+  action?: string;
+  campaign_code?: string;
+  mode?: string;
   requested?: number;
   enqueued?: number;
   skipped?: number;
+  result_unseen?: {
+    scanned?: number;
+    enqueued?: number;
+    skipped_no_phone?: number;
+  };
+  viewed_no_appointment?: {
+    scanned?: number;
+    enqueued?: number;
+    skipped_no_phone?: number;
+  };
+  appointment_no_show?: {
+    scanned?: number;
+    enqueued?: number;
+    skipped_no_phone?: number;
+  };
+  totals?: {
+    scanned?: number;
+    enqueued?: number;
+    skipped_no_phone?: number;
+  };
   message?: string;
   error?: string;
 };
@@ -56,6 +79,7 @@ const defaultFilters: UnviewedFilters = {
 const WA_STATUS_OPTIONS = ['NOT_QUEUED', 'QUEUED', 'SENT', 'DELIVERED', 'READ', 'FAILED', 'RETRYING', 'DLQ'] as const;
 const GRADE_OPTIONS = Array.from({ length: 10 }, (_, index) => String(index + 2));
 const TEMPLATE_OPTIONS = ['WA_RESULT', 'WA_RESULT_REMINDER'] as const;
+const FOLLOW_UP_SCAN_MODES = ['result_unseen', 'viewed_no_appointment', 'appointment_no_show'] as const;
 
 function formatNumber(value: number | undefined) {
   if (!Number.isFinite(value)) return '-';
@@ -108,9 +132,22 @@ function buildUnviewedPath(query: string, filters: UnviewedFilters, page: number
   return `/api/panel/unviewed-results?${params.toString()}`;
 }
 
-export default function UnviewedResultsPanel({ active, role }: { active: boolean; role?: string }) {
+export default function UnviewedResultsPanel({
+  active,
+  role,
+  permissions,
+}: {
+  active: boolean;
+  role?: string;
+  permissions?: string[];
+}) {
   const [query, setQuery] = useState('');
   const [templateCode, setTemplateCode] = useState<(typeof TEMPLATE_OPTIONS)[number]>('WA_RESULT');
+  const [followupCampaignCode, setFollowupCampaignCode] = useState('');
+  const [followupLimit, setFollowupLimit] = useState('250');
+  const [followupResultUnseenDelayMinutes, setFollowupResultUnseenDelayMinutes] = useState('30');
+  const [followupViewedDelayMinutes, setFollowupViewedDelayMinutes] = useState('180');
+  const [followupNoShowDelayMinutes, setFollowupNoShowDelayMinutes] = useState('30');
   const [draftFilters, setDraftFilters] = useState<UnviewedFilters>(defaultFilters);
   const [appliedQuery, setAppliedQuery] = useState('');
   const [appliedFilters, setAppliedFilters] = useState<UnviewedFilters>(defaultFilters);
@@ -124,7 +161,7 @@ export default function UnviewedResultsPanel({ active, role }: { active: boolean
   const [isActionRunning, setIsActionRunning] = useState(false);
   const [message, setMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  const canOperate = canOperatePanelActions(role);
+  const canOperate = canOperateUnviewed(role, permissions);
   const isReadOnly = isReadOnlyPanelRole(role);
 
   const pageCount = useMemo(() => {
@@ -228,6 +265,70 @@ export default function UnviewedResultsPanel({ active, role }: { active: boolean
     }
   };
 
+  const runFollowupScan = async (mode: (typeof FOLLOW_UP_SCAN_MODES)[number]) => {
+    if (!canOperate) {
+      setErrorMessage('Bu rol için işlem aksiyonları kapalıdır (READ_ONLY).');
+      return;
+    }
+    if (isActionRunning) return;
+
+    setIsActionRunning(true);
+    setMessage('');
+    setErrorMessage('');
+
+    const limitValue = Number.parseInt(followupLimit, 10);
+    const resultUnseenDelayValue = Number.parseInt(followupResultUnseenDelayMinutes, 10);
+    const viewedDelayValue = Number.parseInt(followupViewedDelayMinutes, 10);
+    const noShowDelayValue = Number.parseInt(followupNoShowDelayMinutes, 10);
+
+    try {
+      const response = await panelFetch('/api/panel/unviewed-results/actions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'run_followup_auto_whatsapp',
+          mode,
+          campaign_code: followupCampaignCode.trim() || undefined,
+          limit: Number.isFinite(limitValue) ? limitValue : undefined,
+          result_unseen_delay_minutes: Number.isFinite(resultUnseenDelayValue) ? resultUnseenDelayValue : undefined,
+          viewed_no_appointment_delay_minutes: Number.isFinite(viewedDelayValue) ? viewedDelayValue : undefined,
+          appointment_no_show_delay_minutes: Number.isFinite(noShowDelayValue) ? noShowDelayValue : undefined,
+        }),
+      });
+
+      const payload = (await response.json()) as UnviewedActionResponse;
+      if (!response.ok) {
+        throw new Error(normalizeMessage(payload, 'Bot follow-up taraması başarısız.'));
+      }
+
+      const unseen = payload.result_unseen || {};
+      const viewed = payload.viewed_no_appointment || {};
+      const noShow = payload.appointment_no_show || {};
+      const totals = payload.totals || {};
+
+      setMessage(
+        `Bot follow-up taraması tamamlandı (${mode}). ResultUnseen: ${formatNumber(unseen.scanned)} scanned / ${formatNumber(unseen.enqueued)} enqueued • ViewedNoAppointment: ${formatNumber(viewed.scanned)} scanned / ${formatNumber(viewed.enqueued)} enqueued • NoShow: ${formatNumber(noShow.scanned)} scanned / ${formatNumber(noShow.enqueued)} enqueued • Total: ${formatNumber(totals.scanned)} scanned / ${formatNumber(totals.enqueued)} enqueued.`,
+      );
+
+      const refresh = await panelFetch(buildUnviewedPath(appliedQuery, appliedFilters, page, perPage), { method: 'GET' });
+      if (refresh.ok) {
+        const refreshedPayload = (await refresh.json()) as UnviewedListResponse;
+        const refreshedItems = Array.isArray(refreshedPayload.items) ? refreshedPayload.items : [];
+        setItems(refreshedItems);
+        setTotal(Number(refreshedPayload.total || 0));
+        setSummary(refreshedPayload.summary || {});
+        setSelectedIds((prev) => prev.filter((id) => refreshedItems.some((item) => item.candidate_id === id)));
+      }
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Bot follow-up taraması tamamlanamadı.');
+    } finally {
+      setIsActionRunning(false);
+    }
+  };
+
   return (
     <section className="rounded-[22px] border border-[#1A273A] bg-[#071021]/82 p-5 shadow-[0_14px_38px_rgba(0,0,0,0.28)] lg:col-span-2">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -268,6 +369,83 @@ export default function UnviewedResultsPanel({ active, role }: { active: boolean
         <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
           <p className="text-[12px] text-white/50">WA Ulaştı</p>
           <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary.wa_reached)}</p>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-[#1A273A] bg-[#050f1f]/95 p-3">
+        <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-white/54">Bot Follow-up Manuel Tetikleme (L1)</p>
+        <p className="mt-1 text-[12px] text-white/62">
+          Davranış bazlı bot taramasını panelden manuel çalıştırın: <span className="text-white/78">result_unseen</span>, <span className="text-white/78">viewed_no_appointment</span> ve <span className="text-white/78">appointment_no_show</span>.
+        </p>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          <input
+            value={followupCampaignCode}
+            onChange={(event) => setFollowupCampaignCode(event.target.value)}
+            placeholder="Campaign code (boşsa DEFAULT_CAMPAIGN_CODE)"
+            className="h-[40px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[12px] text-white/90 outline-none focus:border-[#2D4363]"
+          />
+          <input
+            type="number"
+            min={1}
+            max={2000}
+            value={followupLimit}
+            onChange={(event) => setFollowupLimit(event.target.value)}
+            placeholder="Limit (1-2000)"
+            className="h-[40px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[12px] text-white/90 outline-none focus:border-[#2D4363]"
+          />
+          <input
+            type="number"
+            min={0}
+            max={1440}
+            value={followupResultUnseenDelayMinutes}
+            onChange={(event) => setFollowupResultUnseenDelayMinutes(event.target.value)}
+            placeholder="Unseen delay (dk)"
+            className="h-[40px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[12px] text-white/90 outline-none focus:border-[#2D4363]"
+          />
+          <input
+            type="number"
+            min={0}
+            max={1440}
+            value={followupViewedDelayMinutes}
+            onChange={(event) => setFollowupViewedDelayMinutes(event.target.value)}
+            placeholder="Viewed delay (dk)"
+            className="h-[40px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[12px] text-white/90 outline-none focus:border-[#2D4363]"
+          />
+          <input
+            type="number"
+            min={0}
+            max={1440}
+            value={followupNoShowDelayMinutes}
+            onChange={(event) => setFollowupNoShowDelayMinutes(event.target.value)}
+            placeholder="No-show delay (dk)"
+            className="h-[40px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[12px] text-white/90 outline-none focus:border-[#2D4363]"
+          />
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => void runFollowupScan('result_unseen')}
+            disabled={!canOperate || isActionRunning}
+            className="rounded-xl border border-[#2C3F5D] bg-[#111D32]/90 px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-[#C3D7FF] transition hover:border-[#3A5A86] disabled:cursor-not-allowed disabled:opacity-55"
+          >
+            Sonuç Görmeyen Tara
+          </button>
+          <button
+            type="button"
+            onClick={() => void runFollowupScan('viewed_no_appointment')}
+            disabled={!canOperate || isActionRunning}
+            className="rounded-xl border border-[#1A273A] bg-[#0A192B]/90 px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+          >
+            Viewed/Randevu Yok Tara
+          </button>
+          <button
+            type="button"
+            onClick={() => void runFollowupScan('appointment_no_show')}
+            disabled={!canOperate || isActionRunning}
+            className="rounded-xl border border-[#6F2824] bg-[#2B1214]/80 px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-[#FFB8B1] transition hover:border-[#8D3430] disabled:cursor-not-allowed disabled:opacity-55"
+          >
+            No-show Tara
+          </button>
         </div>
       </div>
 
@@ -362,7 +540,7 @@ export default function UnviewedResultsPanel({ active, role }: { active: boolean
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {isReadOnly ? (
           <p className="rounded-lg border border-[#274063] bg-[#0A192B]/80 px-3 py-2 text-[12px] text-[#9FC7FF]">
-            READ_ONLY modu: WhatsApp gönderim aksiyonları kapalıdır.
+            READ_ONLY modu: WhatsApp gönderim ve bot follow-up tarama aksiyonları kapalıdır.
           </p>
         ) : null}
         <button

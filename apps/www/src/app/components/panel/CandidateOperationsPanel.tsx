@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { panelFetch } from '../../api/panelApi';
-import { canExportPanelData, canOperatePanelActions, isReadOnlyPanelRole } from './panelRoleAccess';
+import { canExportPanelData, canOperatePanelActions, canPushCrm, isReadOnlyPanelRole } from './panelRoleAccess';
 
 type CandidateRow = {
   candidate_id: string;
   application_no: string | null;
   student_full_name: string | null;
   grade: number | null;
+  section: string | null;
   school_name: string | null;
   application_status: string | null;
   credentials_sms_status: string | null;
@@ -14,10 +15,30 @@ type CandidateRow = {
   exam_status: string | null;
   exam_started_at: string | null;
   exam_submitted_at: string | null;
+  exam_scheduled_at: string | null;
+  exam_slot_label: string | null;
   result_status: string | null;
   result_score: number | null;
   result_viewed_at: string | null;
   wa_result_status: string | null;
+  appointment_status: string | null;
+  appointment_status_at: string | null;
+  appointment_booked_at: string | null;
+  crm_export_status: string | null;
+  crm_retry_count: number | null;
+  crm_processed_at: string | null;
+  crm_error_code: string | null;
+  bot_last_trigger: string | null;
+  bot_last_mode: string | null;
+  bot_last_status: string | null;
+  bot_last_enqueued_at: string | null;
+  bot_last_status_at: string | null;
+  bot_followup_count_7d: number | null;
+  attribution_source: string | null;
+  attribution_medium: string | null;
+  attribution_campaign: string | null;
+  attribution_click_id: string | null;
+  attribution_captured_at: string | null;
   last_error_code: string | null;
   operator_note: string | null;
   updated_at: string | null;
@@ -28,6 +49,15 @@ type CandidateSummary = {
   exam_completed?: number;
   result_viewed?: number;
   wa_problematic?: number;
+  appointment_booked?: number;
+  appointment_no_show?: number;
+  crm_succeeded?: number;
+  crm_pending?: number;
+  crm_problematic?: number;
+  bot_followup_active?: number;
+  bot_followup_problematic?: number;
+  bot_followup_recent_candidates?: number;
+  bot_followup_events_7d?: number;
 };
 
 type CandidateListResponse = {
@@ -52,12 +82,14 @@ type CandidateActionResponse = {
 type CandidateFilters = {
   campaignCode: string;
   schoolQuery: string;
+  attributionSource: string;
   grade: string;
   smsStatus: string;
   loginStatus: string;
   examStatus: string;
   resultViewedStatus: string;
   waStatus: string;
+  crmStatus: string;
 };
 
 type CandidateFilterPreset = {
@@ -72,20 +104,23 @@ type CandidateFilterPreset = {
 const defaultFilters: CandidateFilters = {
   campaignCode: '',
   schoolQuery: '',
+  attributionSource: '',
   grade: '',
   smsStatus: '',
   loginStatus: '',
   examStatus: '',
   resultViewedStatus: '',
   waStatus: '',
+  crmStatus: '',
 };
 
 const SMS_STATUS_OPTIONS = ['NOT_QUEUED', 'QUEUED', 'SENT', 'DELIVERED', 'FAILED', 'RETRYING', 'DLQ'] as const;
 const EXAM_STATUS_OPTIONS = ['WAITING', 'OPEN', 'STARTED', 'SUBMITTED', 'TIMEOUT', 'ABANDONED'] as const;
 const WA_STATUS_OPTIONS = ['NOT_QUEUED', 'QUEUED', 'SENT', 'DELIVERED', 'READ', 'FAILED', 'RETRYING', 'DLQ'] as const;
+const CRM_STATUS_OPTIONS = ['QUEUED', 'PROCESSING', 'RETRYING', 'SUCCEEDED', 'FAILED', 'DLQ', 'CANCELLED'] as const;
 const LOGIN_STATUS_OPTIONS = ['LOGGED_IN', 'NOT_LOGGED_IN'] as const;
 const RESULT_VIEWED_STATUS_OPTIONS = ['VIEWED', 'NOT_VIEWED'] as const;
-const GRADE_OPTIONS = Array.from({ length: 10 }, (_, index) => String(index + 2));
+const GRADE_OPTIONS = Array.from({ length: 12 }, (_, index) => String(index + 1));
 const CANDIDATE_PRESET_STORAGE_KEY = 'teachera.panel.candidates.filter-presets.v1';
 
 const ERROR_CODE_DICTIONARY: Record<string, string> = {
@@ -99,6 +134,9 @@ const ERROR_CODE_DICTIONARY: Record<string, string> = {
   captcha_failed: 'Turnstile doğrulaması başarısız. Kullanıcıya captcha yenilemesi önerin.',
   rate_limited: 'İstek hız limiti aşıldı. Kısa süre bekleyip tekrar deneyin.',
   db_unavailable: 'Veritabanı erişimi geçici olarak kesildi. Altyapı health metriklerini kontrol edin.',
+  missing_crm_provider_endpoint: 'CRM provider endpoint ayarı eksik. Ops env yapılandırmasını kontrol edin.',
+  crm_provider_timeout: 'CRM provider timeout verdi. Retry/backoff akışıyla tekrar denenecek.',
+  crm_provider_rejected: 'CRM provider isteği reddetti. Yetki/payload sözleşmesini kontrol edin.',
 };
 
 function formatNumber(value: number | undefined) {
@@ -125,18 +163,71 @@ function readActionBoolean(value: boolean) {
   return value ? 'Evet' : 'Hayır';
 }
 
+function formatAppointmentStatus(value: string | null | undefined) {
+  const normalized = String(value || '')
+    .trim()
+    .toUpperCase();
+  if (!normalized) return 'Randevu Yok';
+  if (normalized === 'BOOKED') return 'Randevu Alındı';
+  if (normalized === 'ATTENDED') return 'Görüşmeye Geldi';
+  if (normalized === 'NO_SHOW') return 'No-show';
+  return normalized;
+}
+
+function formatBotTrigger(value: string | null | undefined) {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase();
+  if (!normalized) return 'Temas Yok';
+  if (normalized === 'ops_unviewed_results_auto_whatsapp') return 'Sonuç Görmedi';
+  if (normalized === 'ops_viewed_no_appointment_auto_whatsapp') return 'Gördü/Randevu Yok';
+  if (normalized === 'ops_appointment_no_show_auto_whatsapp') return 'Randevu No-show';
+  return normalized;
+}
+
+function formatBotMode(value: string | null | undefined) {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase();
+  if (!normalized) return '-';
+  if (normalized === 'unviewed_result') return 'unviewed_result';
+  if (normalized === 'viewed_no_appointment') return 'viewed_no_appointment';
+  if (normalized === 'appointment_no_show') return 'appointment_no_show';
+  return normalized;
+}
+
+function formatAttributionSummary(item: CandidateRow) {
+  const source = String(item.attribution_source || '').trim();
+  const medium = String(item.attribution_medium || '').trim();
+  const campaign = String(item.attribution_campaign || '').trim();
+  const clickId = String(item.attribution_click_id || '').trim();
+
+  const channel = [source, medium].filter(Boolean).join(' / ');
+  const campaignLabel = campaign || '-';
+  const clickLabel = clickId ? `${clickId.slice(0, 18)}${clickId.length > 18 ? '…' : ''}` : '-';
+
+  return {
+    channel: channel || '-',
+    campaign: campaignLabel,
+    click: clickLabel,
+  };
+}
+
 function buildFiltersPayload(filters: CandidateFilters) {
   const payload: Record<string, unknown> = {};
   const campaignCode = filters.campaignCode.trim();
   if (campaignCode) payload.campaign_code = campaignCode;
   const schoolQuery = filters.schoolQuery.trim();
   if (schoolQuery) payload.school_query = schoolQuery;
+  const attributionSource = filters.attributionSource.trim();
+  if (attributionSource) payload.attribution_source = attributionSource;
   if (filters.grade) payload.grade = [filters.grade];
   if (filters.smsStatus) payload.credentials_sms_status = [filters.smsStatus];
   if (filters.loginStatus) payload.login_status = [filters.loginStatus];
   if (filters.examStatus) payload.exam_status = [filters.examStatus];
   if (filters.resultViewedStatus) payload.result_viewed_status = [filters.resultViewedStatus];
   if (filters.waStatus) payload.wa_result_status = [filters.waStatus];
+  if (filters.crmStatus) payload.crm_export_status = [filters.crmStatus];
   return payload;
 }
 
@@ -185,6 +276,14 @@ function readBooleanStates(row: CandidateRow) {
   const resultPublished = ['PUBLISHED', 'VIEWED'].includes(resultStatus);
   const resultViewed = Boolean(row.result_viewed_at) || resultStatus === 'VIEWED';
   const waSent = ['QUEUED', 'SENT', 'DELIVERED', 'READ'].includes(waStatus);
+  const appointmentStatus = String(row.appointment_status || '')
+    .trim()
+    .toUpperCase();
+  const appointmentBooked = ['BOOKED', 'ATTENDED', 'NO_SHOW'].includes(appointmentStatus) || Boolean(row.appointment_booked_at);
+  const appointmentAttended = appointmentStatus === 'ATTENDED';
+  const appointmentNoShow = appointmentStatus === 'NO_SHOW';
+  const crmStatus = String(row.crm_export_status || '').trim().toUpperCase();
+  const crmPushed = crmStatus === 'SUCCEEDED';
 
   return {
     credentialsSmsSent,
@@ -195,6 +294,10 @@ function readBooleanStates(row: CandidateRow) {
     resultPublished,
     resultViewed,
     waSent,
+    appointmentBooked,
+    appointmentAttended,
+    appointmentNoShow,
+    crmPushed,
   };
 }
 
@@ -251,11 +354,13 @@ export default function CandidateOperationsPanel({
   seedQuery = '',
   seedCampaignCode = '',
   role,
+  permissions,
 }: {
   active: boolean;
   seedQuery?: string;
   seedCampaignCode?: string;
   role?: string;
+  permissions?: string[];
 }) {
   const normalizedSeedQuery = seedQuery.trim();
   const normalizedSeedCampaignCode = seedCampaignCode.trim();
@@ -283,8 +388,10 @@ export default function CandidateOperationsPanel({
   const [selectedPresetId, setSelectedPresetId] = useState('');
   const [message, setMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  const canOperate = canOperatePanelActions(role);
-  const canExport = canExportPanelData(role);
+  const canOperate = canOperatePanelActions(role, permissions);
+  const canCrmPush = canPushCrm(role, permissions);
+  const canSelectRows = canOperate || canCrmPush;
+  const canExport = canExportPanelData(role, permissions);
   const isReadOnly = isReadOnlyPanelRole(role);
 
   const pageCount = useMemo(() => {
@@ -415,7 +522,7 @@ export default function CandidateOperationsPanel({
   }, [active, appliedFilters, appliedQuery, page, perPage]);
 
   const runAction = async (
-    action: 'sms_retry' | 'wa_send' | 'add_note',
+    action: 'sms_retry' | 'wa_send' | 'add_note' | 'appointment_booked' | 'appointment_attended' | 'appointment_no_show',
     candidateIds: string[],
     extraBody: Record<string, unknown> = {},
   ) => {
@@ -445,8 +552,16 @@ export default function CandidateOperationsPanel({
         throw new Error(normalizeMessage(payload, 'Aksiyon başarısız.'));
       }
 
-      if (action === 'add_note') {
-        setMessage(`Operatör notu kaydedildi. İşlenen aday: ${formatNumber(payload.processed)}.`);
+      if (action === 'add_note' || action === 'appointment_booked' || action === 'appointment_attended' || action === 'appointment_no_show') {
+        const actionLabel =
+          action === 'add_note'
+            ? 'Operatör notu kaydedildi'
+            : action === 'appointment_booked'
+              ? 'Randevu alındı olarak işaretlendi'
+              : action === 'appointment_attended'
+                ? 'Görüşmeye geldi olarak işaretlendi'
+                : 'No-show olarak işaretlendi';
+        setMessage(`${actionLabel}. İşlenen aday: ${formatNumber(payload.processed)}.`);
       } else {
         setMessage(
           `Aksiyon tamamlandı. Requested: ${formatNumber(payload.requested)} • Enqueued: ${formatNumber(payload.enqueued)} • Skipped: ${formatNumber(payload.skipped)}`,
@@ -463,6 +578,52 @@ export default function CandidateOperationsPanel({
       }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Aksiyon tamamlanamadı.');
+    } finally {
+      setIsActionRunning(false);
+    }
+  };
+
+  const runCrmEnqueue = async (candidateIds: string[]) => {
+    if (!canCrmPush) {
+      setErrorMessage('Bu rol için CRM push yetkisi bulunmuyor.');
+      return;
+    }
+    if (candidateIds.length === 0 || isActionRunning) return;
+
+    setIsActionRunning(true);
+    setErrorMessage('');
+    setMessage('');
+    try {
+      const response = await panelFetch('/api/panel/crm/actions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'enqueue',
+          candidate_ids: candidateIds,
+        }),
+      });
+      const payload = (await response.json()) as CandidateActionResponse;
+      if (!response.ok) {
+        throw new Error(normalizeMessage(payload, 'CRM enqueue işlemi başarısız.'));
+      }
+
+      setMessage(
+        `CRM enqueue tamamlandı. Requested: ${formatNumber(payload.requested)} • Enqueued: ${formatNumber(payload.enqueued)} • Skipped: ${formatNumber(payload.skipped)}`,
+      );
+
+      const refresh = await panelFetch(buildCandidatesPath(appliedQuery, appliedFilters, page, perPage), { method: 'GET' });
+      if (refresh.ok) {
+        const refreshedPayload = (await refresh.json()) as CandidateListResponse;
+        const refreshedItems = Array.isArray(refreshedPayload.items) ? refreshedPayload.items : [];
+        setItems(refreshedItems);
+        setTotal(Number(refreshedPayload.total || 0));
+        setSummary(refreshedPayload.summary || {});
+      }
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'CRM enqueue işlemi tamamlanamadı.');
     } finally {
       setIsActionRunning(false);
     }
@@ -517,7 +678,7 @@ export default function CandidateOperationsPanel({
           <p className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white/54">Aday Operasyon Gridi</p>
           <h3 className="mt-2 text-[22px] font-semibold text-white">Bursluluk Durum Takibi</h3>
           <p className="mt-2 text-[13px] leading-[1.7] text-white/64">
-            Başvuru, SMS, login, sınav, sonuç ve WhatsApp akışını aday bazında tek tabloda yönetin.
+            Başvuru, SMS, login, sınav, sonuç, bot follow-up ve WhatsApp akışını aday bazında tek tabloda yönetin.
           </p>
           {appliedFilters.campaignCode ? (
             <p className="mt-2 inline-flex rounded-full border border-[#1A273A] bg-[#0A192B]/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-white/70">
@@ -546,7 +707,7 @@ export default function CandidateOperationsPanel({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-10">
         <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
           <p className="text-[12px] text-white/50">Toplam Aday</p>
           <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary.total_candidates ?? total)}</p>
@@ -562,6 +723,30 @@ export default function CandidateOperationsPanel({
         <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
           <p className="text-[12px] text-white/50">WA Problemli</p>
           <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary.wa_problematic)}</p>
+        </div>
+        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
+          <p className="text-[12px] text-white/50">Randevu Alınan</p>
+          <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary.appointment_booked)}</p>
+        </div>
+        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
+          <p className="text-[12px] text-white/50">No-show</p>
+          <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary.appointment_no_show)}</p>
+        </div>
+        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
+          <p className="text-[12px] text-white/50">CRM Başarılı</p>
+          <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary.crm_succeeded)}</p>
+        </div>
+        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
+          <p className="text-[12px] text-white/50">CRM Problemli</p>
+          <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary.crm_problematic)}</p>
+        </div>
+        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
+          <p className="text-[12px] text-white/50">Bot Follow-up (7g)</p>
+          <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary.bot_followup_events_7d)}</p>
+        </div>
+        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
+          <p className="text-[12px] text-white/50">Bot Problemli</p>
+          <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary.bot_followup_problematic)}</p>
         </div>
       </div>
 
@@ -621,6 +806,12 @@ export default function CandidateOperationsPanel({
           value={draftFilters.schoolQuery}
           onChange={(event) => setDraftFilters((prev) => ({ ...prev, schoolQuery: event.target.value }))}
           placeholder="Okul filtresi (metin)"
+          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+        />
+        <input
+          value={draftFilters.attributionSource}
+          onChange={(event) => setDraftFilters((prev) => ({ ...prev, attributionSource: event.target.value }))}
+          placeholder="Kanal filtresi (utm_source)"
           className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
         />
         <select
@@ -695,6 +886,18 @@ export default function CandidateOperationsPanel({
             </option>
           ))}
         </select>
+        <select
+          value={draftFilters.crmStatus}
+          onChange={(event) => setDraftFilters((prev) => ({ ...prev, crmStatus: event.target.value }))}
+          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+        >
+          <option value="">CRM durumu (tümü)</option>
+          {CRM_STATUS_OPTIONS.map((value) => (
+            <option key={value} value={value}>
+              {value}
+            </option>
+          ))}
+        </select>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -732,7 +935,7 @@ export default function CandidateOperationsPanel({
       <div className="mt-4 flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => void runAction('sms_retry', selectedIds)}
+          onClick={() => void runAction('sms_retry', selectedIds)}
             disabled={!canOperate || isActionRunning || selectedIds.length === 0}
           className="rounded-xl border border-[#1A273A] bg-[#0A192B]/90 px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
         >
@@ -745,6 +948,38 @@ export default function CandidateOperationsPanel({
           className="rounded-xl border border-[#1A273A] bg-[#0A192B]/90 px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
         >
           Toplu WhatsApp Gönder ({selectedIds.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => void runCrmEnqueue(selectedIds)}
+          disabled={!canCrmPush || isActionRunning || selectedIds.length === 0}
+          className="rounded-xl border border-[#1A273A] bg-[#0A192B]/90 px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+        >
+          Toplu CRM Push ({selectedIds.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => void runAction('appointment_booked', selectedIds)}
+          disabled={!canOperate || isActionRunning || selectedIds.length === 0}
+          className="rounded-xl border border-[#1A273A] bg-[#0A192B]/90 px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+        >
+          Randevu Alındı ({selectedIds.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => void runAction('appointment_attended', selectedIds)}
+          disabled={!canOperate || isActionRunning || selectedIds.length === 0}
+          className="rounded-xl border border-[#1A273A] bg-[#0A192B]/90 px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+        >
+          Görüşmeye Geldi ({selectedIds.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => void runAction('appointment_no_show', selectedIds)}
+          disabled={!canOperate || isActionRunning || selectedIds.length === 0}
+          className="rounded-xl border border-[#6F2824] bg-[#2B1214]/80 px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-[#FFB8B1] transition hover:border-[#8D3430] disabled:cursor-not-allowed disabled:opacity-55"
+        >
+          No-show İşaretle ({selectedIds.length})
         </button>
         <input
           value={operatorNoteDraft}
@@ -778,14 +1013,14 @@ export default function CandidateOperationsPanel({
 
       {!isLoading ? (
         <div className="mt-4 overflow-x-auto">
-          <table className="min-w-[1750px] text-left text-[12px] text-white/80">
+          <table className="min-w-[2500px] text-left text-[12px] text-white/80">
             <thead>
               <tr className="border-b border-white/12 text-white/56">
                 <th className="px-2 py-2">
                     <input
                       type="checkbox"
                       checked={allSelectedOnPage}
-                      disabled={!canOperate}
+                      disabled={!canSelectRows}
                       onChange={(event) => {
                       if (event.target.checked) {
                         setSelectedIds((prev) => Array.from(new Set([...prev, ...items.map((item) => item.candidate_id)])));
@@ -798,6 +1033,7 @@ export default function CandidateOperationsPanel({
                 </th>
                 <th className="px-2 py-2">Aday</th>
                 <th className="px-2 py-2">Okul / Sınıf</th>
+                <th className="px-2 py-2">Kanal Attribution</th>
                 <th className="px-2 py-2">Başvuru Alındı</th>
                 <th className="px-2 py-2">Credentials SMS Gönderildi</th>
                 <th className="px-2 py-2">SMS Teslim</th>
@@ -806,8 +1042,14 @@ export default function CandidateOperationsPanel({
                 <th className="px-2 py-2">Sınavı Tamamladı</th>
                 <th className="px-2 py-2">Sonuç Yayınlandı</th>
                 <th className="px-2 py-2">Sonuç Görüntülendi</th>
+                <th className="px-2 py-2">Randevu Alındı</th>
+                <th className="px-2 py-2">Randevu Durumu</th>
+                <th className="px-2 py-2">CRM Aktarıldı</th>
+                <th className="px-2 py-2">CRM Durum/Retry</th>
                 <th className="px-2 py-2">WA Sonucu Gönderildi</th>
                 <th className="px-2 py-2">WA Delivery/Read</th>
+                <th className="px-2 py-2">Bot Trigger/Mode</th>
+                <th className="px-2 py-2">Bot Durum/7g</th>
                 <th className="px-2 py-2">Son Hata Kodu</th>
                 <th className="px-2 py-2">Son İşlem Zamanı</th>
                 <th className="px-2 py-2">Operatör Notu</th>
@@ -817,20 +1059,21 @@ export default function CandidateOperationsPanel({
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={17} className="px-2 py-6 text-center text-white/55">
+                  <td colSpan={24} className="px-2 py-6 text-center text-white/55">
                     Filtreye uygun kayıt bulunamadı.
                   </td>
                 </tr>
               ) : null}
               {items.map((item) => {
                 const booleans = readBooleanStates(item);
+                const attribution = formatAttributionSummary(item);
                 return (
                   <tr key={item.candidate_id} className="border-b border-white/6 align-top">
                     <td className="px-2 py-2">
                       <input
                         type="checkbox"
                         checked={selectedIds.includes(item.candidate_id)}
-                        disabled={!canOperate}
+                        disabled={!canSelectRows}
                         onChange={(event) => {
                           if (event.target.checked) {
                             setSelectedIds((prev) => Array.from(new Set([...prev, item.candidate_id])));
@@ -846,7 +1089,21 @@ export default function CandidateOperationsPanel({
                     </td>
                     <td className="px-2 py-2">
                       <p>{item.school_name || '-'}</p>
-                      <p className="text-white/55">Sınıf: {item.grade ? String(item.grade) : '-'}</p>
+                      <p className="text-white/55">
+                        Sınıf: {item.grade ? String(item.grade) : '-'} • Şube: {item.section || '-'}
+                      </p>
+                      <p className="text-[11px] text-white/45">
+                        Oturum: {item.exam_slot_label || formatDate(item.exam_scheduled_at)}
+                      </p>
+                    </td>
+                    <td className="px-2 py-2">
+                      <p>{attribution.channel}</p>
+                      <p className="text-[11px] text-white/55">
+                        Kampanya: {attribution.campaign}
+                      </p>
+                      <p className="text-[11px] text-white/45">
+                        ClickId: {attribution.click} • {formatDate(item.attribution_captured_at)}
+                      </p>
                     </td>
                     <td className="px-2 py-2">{readActionBoolean(Boolean(item.application_status))}</td>
                     <td className="px-2 py-2">{readActionBoolean(booleans.credentialsSmsSent)}</td>
@@ -856,8 +1113,32 @@ export default function CandidateOperationsPanel({
                     <td className="px-2 py-2">{readActionBoolean(booleans.examCompleted)}</td>
                     <td className="px-2 py-2">{readActionBoolean(booleans.resultPublished)}</td>
                     <td className="px-2 py-2">{readActionBoolean(booleans.resultViewed)}</td>
+                    <td className="px-2 py-2">{readActionBoolean(booleans.appointmentBooked)}</td>
+                    <td className="px-2 py-2">
+                      <p>{formatAppointmentStatus(item.appointment_status)}</p>
+                      <p className="text-[11px] text-white/55">{formatDate(item.appointment_status_at || item.appointment_booked_at)}</p>
+                    </td>
+                    <td className="px-2 py-2">{readActionBoolean(booleans.crmPushed)}</td>
+                    <td className="px-2 py-2">
+                      <p>{item.crm_export_status || '-'}</p>
+                      <p className="text-[11px] text-white/55">
+                        Retry: {formatNumber(item.crm_retry_count ?? undefined)} • Err: {item.crm_error_code || '-'}
+                      </p>
+                    </td>
                     <td className="px-2 py-2">{readActionBoolean(booleans.waSent)}</td>
                     <td className="px-2 py-2">{item.wa_result_status || '-'}</td>
+                    <td className="px-2 py-2">
+                      <p>{formatBotTrigger(item.bot_last_trigger)}</p>
+                      <p className="text-[11px] text-white/55">
+                        {formatBotMode(item.bot_last_mode)} • {formatDate(item.bot_last_enqueued_at)}
+                      </p>
+                    </td>
+                    <td className="px-2 py-2">
+                      <p>{item.bot_last_status || '-'}</p>
+                      <p className="text-[11px] text-white/55">
+                        7g: {formatNumber(item.bot_followup_count_7d ?? undefined)} • {formatDate(item.bot_last_status_at)}
+                      </p>
+                    </td>
                     <td className="px-2 py-2">
                       {item.last_error_code ? (
                         <span
@@ -875,14 +1156,40 @@ export default function CandidateOperationsPanel({
                       <p className="line-clamp-2">{item.operator_note || '-'}</p>
                     </td>
                     <td className="px-2 py-2">
-                      <button
-                        type="button"
-                        onClick={() => void runAction('wa_send', [item.candidate_id])}
-                        disabled={!canOperate || isActionRunning}
-                        className="rounded-lg border border-[#1A273A] bg-[#0A192B]/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
-                      >
-                        Tekil WA
-                      </button>
+                      <div className="flex flex-col gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => void runAction('wa_send', [item.candidate_id])}
+                          disabled={!canOperate || isActionRunning}
+                          className="rounded-lg border border-[#1A273A] bg-[#0A192B]/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+                        >
+                          Tekil WA
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void runCrmEnqueue([item.candidate_id])}
+                          disabled={!canCrmPush || isActionRunning}
+                          className="rounded-lg border border-[#1A273A] bg-[#0A192B]/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+                        >
+                          Tekil CRM
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void runAction('appointment_attended', [item.candidate_id])}
+                          disabled={!canOperate || isActionRunning}
+                          className="rounded-lg border border-[#1A273A] bg-[#0A192B]/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+                        >
+                          Geldi
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void runAction('appointment_no_show', [item.candidate_id])}
+                          disabled={!canOperate || isActionRunning}
+                          className="rounded-lg border border-[#6F2824] bg-[#2B1214]/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#FFB8B1] transition hover:border-[#8D3430] disabled:cursor-not-allowed disabled:opacity-55"
+                        >
+                          No-show
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

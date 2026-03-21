@@ -1,5 +1,6 @@
 export interface BurslulukCandidateSession {
   applicationNo: string;
+  candidateCode?: string;
   attemptId: string;
   sessionToken: string;
   candidateId?: string;
@@ -11,12 +12,14 @@ export interface BurslulukCandidateSession {
   parentFullName: string;
   parentPhoneE164: string;
   schoolName: string;
+  section?: string;
   grade: number;
   ageRange: string;
   language: string;
   questionCount: number;
   campaignCode: string;
   examOpenAt: string;
+  examSlotLabel?: string;
   createdAt: string;
 }
 
@@ -53,7 +56,7 @@ function draftKey(attemptId: string) {
 export function normalizeGrade(raw: unknown) {
   const value = Number(raw);
   if (!Number.isFinite(value)) return 8;
-  return Math.max(2, Math.min(11, Math.trunc(value)));
+  return Math.max(1, Math.min(12, Math.trunc(value)));
 }
 
 export function deriveAgeRangeFromGrade(grade: number) {
@@ -90,6 +93,11 @@ export function readCandidateSession() {
       return null;
     }
     if (Date.now() - createdAtMs > MAX_SESSION_AGE_MS) {
+      removeStorage(SESSION_KEY);
+      return null;
+    }
+    const expiresAtMs = Number(new Date(parsed.expiresAt || ''));
+    if (Number.isFinite(expiresAtMs) && expiresAtMs <= Date.now()) {
       removeStorage(SESSION_KEY);
       return null;
     }

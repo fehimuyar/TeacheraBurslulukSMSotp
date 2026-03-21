@@ -1,7 +1,7 @@
 # Bursluluk Frontend-Backend Contract v1
 
-Updated: 2026-03-15
-Service: `exam-api`
+Updated: 2026-03-20
+Service: `exam-api`, `panel-api`
 
 ## 1) `GET /api/schools/search`
 Purpose: Konya okul arama/autocomplete
@@ -116,3 +116,70 @@ Errors
 - `401 missing_exam_session_token | invalid_exam_session_token | expired_exam_session_token`
 - `404 attempt_not_found`
 - `500 internal_error`
+
+## 4) `GET /api/panel/settings/release-gate`
+Purpose: kampanya aktivasyonundan önce SMS şifre akışı + panel write/update health kontrolünü göstermek
+
+Request
+```http
+GET /api/panel/settings/release-gate?campaign_code=2026_BURSLULUK
+Authorization: Bearer <panel_session_token>
+```
+
+Response `200`
+```json
+{
+  "campaign_code": "2026_BURSLULUK",
+  "release_gate": {
+    "passed": false,
+    "enabled": true,
+    "campaign_code": "2026_BURSLULUK",
+    "checked_at": "2026-03-20T20:15:00.000Z",
+    "failed_checks": ["sms_credentials_flow"],
+    "checks": [
+      {
+        "code": "sms_credentials_flow",
+        "passed": false,
+        "metrics": {
+          "total_jobs": 3,
+          "success_rate_pct": 66.67,
+          "failed_rate_pct": 33.33
+        },
+        "thresholds": {
+          "min_jobs": 5
+        },
+        "reasons": {
+          "has_sample": false
+        }
+      },
+      {
+        "code": "panel_write_update_flow",
+        "passed": true,
+        "metrics": {
+          "total_writes": 8,
+          "domain_count": 3
+        }
+      }
+    ]
+  }
+}
+```
+
+Errors
+- `401` (panel session/token geçersiz veya yok)
+- `403` (rol/permission yetersiz)
+- `500 internal_error`
+
+## 5) `PUT /api/panel/settings` (Release-Gate Aktivasyon Niyeti)
+Purpose: aktivasyon write'larında release-gate kontrolünün hangi key'lere bağlı olduğunu netleştirmek
+
+Canonical aktivasyon key'leri
+- `bursluluk.exam_force_open`
+- `bursluluk.exam_open_at`
+
+Davranış
+- Release-gate aktivasyon niyeti sadece yukarıdaki canonical key'lerden biri write edildiğinde hesaplanır.
+- Legacy gate key'ler (`exam.force_open`, `exam.open_at`, `bursluluk.campaign.exam_force_open`, `bursluluk.campaign.exam_open_at`) aktivasyon niyeti oluşturmaz.
+- `bursluluk.exam_open_at` geçersiz datetime ise `400 invalid_exam_open_at` döner.
+- Legacy gate key gönderilirse `400 legacy_gate_keys_not_supported` döner.
+- Aktivasyon niyeti oluşmuş ve release-gate check'leri başarısız ise `409 release_gate_blocked` döner.

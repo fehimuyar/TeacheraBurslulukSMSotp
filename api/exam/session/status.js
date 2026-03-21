@@ -2,10 +2,36 @@
 import { query } from '../../_lib/db.js';
 import { HttpError } from '../../_lib/errors.js';
 import { resolveExamGateStatus } from '../../_lib/examGate.js';
+import { resolveExamRuntimeWindow } from '../../_lib/examRuntime.js';
 import { enqueueExamOpenSmsIfNeeded } from '../../_lib/examOpenSms.js';
 import { handleRequest, methodGuard, ok, safeTrim } from '../../_lib/http.js';
 import { decryptPii } from '../../_lib/piiCrypto.js';
 import { requireExamSession } from '../../_lib/sessionAuth.js';
+
+function resolveCandidateGateStatus(gate, scheduledExamAtRaw) {
+  const scheduledAt = scheduledExamAtRaw instanceof Date
+    ? scheduledExamAtRaw.toISOString()
+    : safeTrim(scheduledExamAtRaw);
+  if (!scheduledAt) return gate;
+  const scheduledMs = Number(new Date(scheduledAt));
+  if (!Number.isFinite(scheduledMs)) return gate;
+
+  const serverNowMs = Number(new Date(gate?.server_time_utc || new Date().toISOString()));
+  const globalOpenAtMs = gate?.exam_open_at ? Number(new Date(gate.exam_open_at)) : NaN;
+  const effectiveOpenAtMs = Number.isFinite(globalOpenAtMs) ? Math.max(globalOpenAtMs, scheduledMs) : scheduledMs;
+  const candidateExamOpen = serverNowMs >= scheduledMs;
+  const examOpen = gate?.exam_force_open === true ? true : serverNowMs >= effectiveOpenAtMs;
+
+  return {
+    ...gate,
+    exam_open: examOpen,
+    exam_open_at: new Date(effectiveOpenAtMs).toISOString(),
+    remaining_seconds: examOpen ? 0 : Math.max(0, Math.ceil((effectiveOpenAtMs - serverNowMs) / 1000)),
+    candidate_exam_open: candidateExamOpen,
+    candidate_exam_open_at: new Date(scheduledMs).toISOString(),
+    candidate_remaining_seconds: candidateExamOpen ? 0 : Math.max(0, Math.ceil((scheduledMs - serverNowMs) / 1000)),
+  };
+}
 
 /**
  * Contract v1 request:
@@ -47,6 +73,9 @@ export default async function handler(req, res) {
         SELECT
           ea.id AS attempt_id,
           ea.status AS exam_status,
+          ea.started_at,
+          ea.scheduled_exam_at,
+          ea.exam_slot_label,
           ea.campaign_code,
           ea.candidate_id,
           a.application_no,
@@ -67,8 +96,32 @@ export default async function handler(req, res) {
     }
 
     const row = state.rows[0];
-    const gate = await resolveExamGateStatus(row.campaign_code);
+    const baseGate = await resolveExamGateStatus(row.campaign_code);
+    const gate = resolveCandidateGateStatus(baseGate, row.scheduled_exam_at);
+    const runtime = resolveExamRuntimeWindow(row.started_at);
     const parentPhoneE164 = await decryptPii(row.parent_phone_e164_enc, row.parent_phone_e164_legacy);
+
+    let examStatus = row.exam_status;
+    if (runtime.timed_out && ['STARTED', 'OPEN'].includes(examStatus)) {
+      const timeoutUpdate = await query(
+        `
+          UPDATE exam_attempts
+          SET
+            status = 'TIMEOUT',
+            submitted_at = COALESCE(submitted_at, NOW()),
+            completion_status = COALESCE(completion_status, 'time_limit_reached'),
+            duration_seconds = COALESCE(duration_seconds, $2),
+            updated_at = NOW()
+          WHERE id = $1
+            AND status IN ('STARTED', 'OPEN')
+          RETURNING status
+        `,
+        [attemptId, runtime.duration_seconds],
+      );
+      if (timeoutUpdate.rowCount > 0) {
+        examStatus = timeoutUpdate.rows[0].status;
+      }
+    }
 
     if (gate.exam_open) {
       try {
@@ -91,10 +144,14 @@ export default async function handler(req, res) {
         applicationNo: row.application_no,
         candidateId: row.candidate_id,
         campaignCode: row.campaign_code,
-        examStatus: row.exam_status,
+        examStatus,
+        startedAt: row.started_at || null,
+        scheduledExamAt: row.scheduled_exam_at || null,
+        examSlotLabel: row.exam_slot_label || null,
         expiresAt: session.expires_at,
       },
       gate,
+      runtime,
     });
   });
 }

@@ -26,13 +26,17 @@ function buildCampaignAndDateFilters(filters, params, columnPrefix = '') {
 export default async function handler(req, res) {
   await handleRequest(req, res, async () => {
     methodGuard(req, ['GET']);
-    const identity = await requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY]);
+    const identity = await requireRole(
+      req,
+      [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY],
+      ['PANEL_DASHBOARD_READ'],
+    );
 
     const filters = parseFiltersFromQuery(req.query?.filters);
     const params = [];
     const whereBase = buildWhereClause(buildCampaignAndDateFilters(filters, params));
 
-    const [kpiResult, trendResult, channelsResult, schoolDistributionResult, dlqResult, criticalErrorsResult] = await Promise.all([
+    const [kpiResult, trendResult, channelsResult, schoolDistributionResult, schoolPerformanceResult, dlqResult, criticalErrorsResult] = await Promise.all([
       query(
         `
           WITH base AS (
@@ -80,6 +84,30 @@ export default async function handler(req, res) {
             JOIN base b ON b.candidate_id = nj.candidate_id
             WHERE nj.channel = 'WHATSAPP'
             ORDER BY nj.candidate_id, nj.created_at DESC
+          ),
+          bot_followup_last_24h AS (
+            SELECT
+              COUNT(*)::int AS bot_followup_total_24h,
+              COUNT(*) FILTER (
+                WHERE COALESCE(nj.payload ->> 'trigger', '') = 'ops_unviewed_results_auto_whatsapp'
+              )::int AS bot_followup_unviewed_24h,
+              COUNT(*) FILTER (
+                WHERE COALESCE(nj.payload ->> 'trigger', '') = 'ops_viewed_no_appointment_auto_whatsapp'
+              )::int AS bot_followup_viewed_no_appointment_24h,
+              COUNT(*) FILTER (
+                WHERE COALESCE(nj.payload ->> 'trigger', '') = 'ops_appointment_no_show_auto_whatsapp'
+              )::int AS bot_followup_no_show_24h,
+              COUNT(*) FILTER (WHERE nj.status IN ('FAILED', 'DLQ'))::int AS bot_followup_problematic_24h
+            FROM notification_jobs nj
+            JOIN base b ON b.candidate_id = nj.candidate_id
+            WHERE nj.channel = 'WHATSAPP'
+              AND nj.template_code = 'WA_RESULT'
+              AND COALESCE(nj.payload ->> 'trigger', '') IN (
+                'ops_unviewed_results_auto_whatsapp',
+                'ops_viewed_no_appointment_auto_whatsapp',
+                'ops_appointment_no_show_auto_whatsapp'
+              )
+              AND nj.created_at >= NOW() - INTERVAL '24 hours'
           )
           SELECT
             (SELECT COUNT(*)::int FROM base) AS total_applications,
@@ -103,7 +131,12 @@ export default async function handler(req, res) {
               SELECT ROUND(100.0 * AVG(CASE WHEN lw.status IN ('DELIVERED', 'READ') THEN 1 ELSE 0 END), 2)
               FROM base b
               LEFT JOIN latest_wa lw ON lw.candidate_id = b.candidate_id
-            ) AS wa_delivery_rate
+            ) AS wa_delivery_rate,
+            (SELECT bot_followup_total_24h FROM bot_followup_last_24h) AS bot_followup_total_24h,
+            (SELECT bot_followup_unviewed_24h FROM bot_followup_last_24h) AS bot_followup_unviewed_24h,
+            (SELECT bot_followup_viewed_no_appointment_24h FROM bot_followup_last_24h) AS bot_followup_viewed_no_appointment_24h,
+            (SELECT bot_followup_no_show_24h FROM bot_followup_last_24h) AS bot_followup_no_show_24h,
+            (SELECT bot_followup_problematic_24h FROM bot_followup_last_24h) AS bot_followup_problematic_24h
         `,
         params,
       ),
@@ -150,6 +183,91 @@ export default async function handler(req, res) {
       ),
       query(
         `
+          WITH base AS (
+            SELECT
+              c.id AS candidate_id,
+              c.grade,
+              COALESCE(s.name, 'Belirtilmedi') AS school_name
+            FROM candidates c
+            LEFT JOIN schools s ON s.id = c.school_id
+            ${whereBase.replace(/created_at/g, 'c.created_at').replace(/campaign_code/g, 'c.campaign_code')}
+          ),
+          latest_result AS (
+            SELECT DISTINCT ON (r.candidate_id)
+              r.candidate_id,
+              r.status
+            FROM results r
+            JOIN base b ON b.candidate_id = r.candidate_id
+            ORDER BY r.candidate_id, r.created_at DESC
+          ),
+          latest_appointment AS (
+            SELECT DISTINCT ON (ev.candidate_id)
+              ev.candidate_id,
+              CASE ev.event_type
+                WHEN 'APPOINTMENT_BOOKED' THEN 'BOOKED'
+                WHEN 'APPOINTMENT_ATTENDED' THEN 'ATTENDED'
+                WHEN 'APPOINTMENT_NO_SHOW' THEN 'NO_SHOW'
+                ELSE NULL
+              END AS appointment_status
+            FROM activity_events ev
+            JOIN base b ON b.candidate_id = ev.candidate_id
+            WHERE ev.event_type IN ('APPOINTMENT_BOOKED', 'APPOINTMENT_ATTENDED', 'APPOINTMENT_NO_SHOW')
+            ORDER BY ev.candidate_id, ev.occurred_at DESC
+          ),
+          latest_crm AS (
+            SELECT DISTINCT ON (ce.candidate_id)
+              ce.candidate_id,
+              ce.status
+            FROM crm_export_jobs ce
+            JOIN base b ON b.candidate_id = ce.candidate_id
+            ORDER BY ce.candidate_id, ce.created_at DESC
+          ),
+          enriched AS (
+            SELECT
+              b.school_name,
+              b.candidate_id,
+              COALESCE(NULLIF(b.grade::text, ''), 'Bilinmiyor') AS grade_label,
+              COALESCE(lr.status, 'NOT_PUBLISHED') AS result_status,
+              COALESCE(la.appointment_status, 'NONE') AS appointment_status,
+              COALESCE(lc.status, 'NOT_QUEUED') AS crm_status
+            FROM base b
+            LEFT JOIN latest_result lr ON lr.candidate_id = b.candidate_id
+            LEFT JOIN latest_appointment la ON la.candidate_id = b.candidate_id
+            LEFT JOIN latest_crm lc ON lc.candidate_id = b.candidate_id
+          ),
+          school_grade_stats AS (
+            SELECT
+              school_name,
+              grade_label,
+              COUNT(*)::int AS grade_count
+            FROM enriched
+            GROUP BY school_name, grade_label
+          )
+          SELECT
+            e.school_name,
+            COUNT(*)::int AS total_applications,
+            (
+              SELECT jsonb_object_agg(sgs.grade_label, sgs.grade_count)
+              FROM school_grade_stats sgs
+              WHERE sgs.school_name = e.school_name
+            ) AS class_distribution,
+            COUNT(*) FILTER (WHERE e.result_status <> 'VIEWED')::int AS unviewed_results,
+            COUNT(*) FILTER (WHERE e.appointment_status = 'NO_SHOW')::int AS appointment_no_show,
+            COUNT(*) FILTER (WHERE e.crm_status IN ('FAILED', 'RETRYING', 'DLQ'))::int AS crm_problematic,
+            COUNT(*) FILTER (
+              WHERE e.result_status <> 'VIEWED'
+                OR e.appointment_status = 'NO_SHOW'
+                OR e.crm_status IN ('FAILED', 'RETRYING', 'DLQ')
+            )::int AS follow_up_needed
+          FROM enriched e
+          GROUP BY e.school_name
+          ORDER BY follow_up_needed DESC, total_applications DESC
+          LIMIT 25
+        `,
+        params,
+      ),
+      query(
+        `
           SELECT
             COUNT(*) FILTER (WHERE status = 'OPEN')::int AS open_dlq_jobs,
             COUNT(*) FILTER (WHERE status <> 'CLOSED')::int AS active_dlq_jobs,
@@ -185,6 +303,11 @@ export default async function handler(req, res) {
         exam_completion_rate: Number(kpi.exam_completion_rate || 0),
         result_view_rate: Number(kpi.result_view_rate || 0),
         wa_delivery_rate: Number(kpi.wa_delivery_rate || 0),
+        bot_followup_total_24h: Number(kpi.bot_followup_total_24h || 0),
+        bot_followup_unviewed_24h: Number(kpi.bot_followup_unviewed_24h || 0),
+        bot_followup_viewed_no_appointment_24h: Number(kpi.bot_followup_viewed_no_appointment_24h || 0),
+        bot_followup_no_show_24h: Number(kpi.bot_followup_no_show_24h || 0),
+        bot_followup_problematic_24h: Number(kpi.bot_followup_problematic_24h || 0),
       },
       operations: {
         open_dlq_jobs: Number(dlq.open_dlq_jobs || 0),
@@ -200,6 +323,7 @@ export default async function handler(req, res) {
         .reverse(),
       channel_status_distribution: channelsResult.rows,
       school_grade_distribution: schoolDistributionResult.rows,
+      school_performance: schoolPerformanceResult.rows,
     });
 
     const ctx = readRequestContext(req);

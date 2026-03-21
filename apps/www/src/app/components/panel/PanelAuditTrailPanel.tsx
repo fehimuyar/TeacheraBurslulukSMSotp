@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { panelFetch, resolvePanelEndpoint } from '../../api/panelApi';
+import { canExportAudit, canReadAudit } from './panelRoleAccess';
 
 type AuditItem = {
   id: string;
@@ -93,7 +94,15 @@ function buildPath(params: {
   return `/api/panel/audit?${query.toString()}`;
 }
 
-export default function PanelAuditTrailPanel({ active }: { active: boolean }) {
+export default function PanelAuditTrailPanel({
+  active,
+  role,
+  permissions,
+}: {
+  active: boolean;
+  role?: string;
+  permissions?: string[];
+}) {
   const [q, setQ] = useState('');
   const [appliedQ, setAppliedQ] = useState('');
   const [actorType, setActorType] = useState('');
@@ -114,11 +123,13 @@ export default function PanelAuditTrailPanel({ active }: { active: boolean }) {
   const [items, setItems] = useState<AuditItem[]>([]);
   const [total, setTotal] = useState(0);
   const [summary, setSummary] = useState<AuditPayload['summary']>({});
+  const canRead = canReadAudit(role, permissions);
+  const canExport = canExportAudit(role, permissions);
 
   const pageCount = useMemo(() => Math.max(1, Math.ceil(total / perPage)), [perPage, total]);
 
   useEffect(() => {
-    if (!active) return;
+    if (!active || !canRead) return;
     let cancelled = false;
 
     const load = async () => {
@@ -161,7 +172,7 @@ export default function PanelAuditTrailPanel({ active }: { active: boolean }) {
     return () => {
       cancelled = true;
     };
-  }, [active, page, perPage, appliedQ, appliedActorType, appliedAction, appliedTargetType, appliedFromDate, appliedToDate]);
+  }, [active, canRead, page, perPage, appliedQ, appliedActorType, appliedAction, appliedTargetType, appliedFromDate, appliedToDate]);
 
   const applyFilters = () => {
     setAppliedQ(q.trim());
@@ -190,6 +201,10 @@ export default function PanelAuditTrailPanel({ active }: { active: boolean }) {
   };
 
   const handleExport = async (format: 'csv' | 'xls') => {
+    if (!canExport) {
+      setErrorMessage('Bu rol icin audit export kapali (PANEL_AUDIT_EXPORT).');
+      return;
+    }
     if (isExporting) return;
     setIsExporting(true);
     setErrorMessage('');
@@ -247,6 +262,15 @@ export default function PanelAuditTrailPanel({ active }: { active: boolean }) {
       <p className="mt-2 text-[13px] leading-[1.7] text-white/64">
         Panel işlemlerinin actor-bound kayıtları hash-chain ile izlenir. Bu ekran operasyon ve uyum incelemesi için tek doğrulama yüzeyidir.
       </p>
+
+      {!canRead ? (
+        <p className="mt-3 rounded-lg border border-[#6F2824] bg-[#2B1214]/80 px-3 py-2 text-[12px] text-[#FFB8B1]">
+          Bu bolumu goruntulemek icin PANEL_AUDIT_READ izni gerekir.
+        </p>
+      ) : null}
+
+      {!canRead ? null : (
+        <>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
@@ -331,7 +355,7 @@ export default function PanelAuditTrailPanel({ active }: { active: boolean }) {
         <button
           type="button"
           onClick={() => void handleExport('csv')}
-          disabled={isExporting}
+          disabled={isExporting || !canExport}
           className="rounded-lg border border-[#1A273A] bg-[#0A192B]/90 px-3 py-2 font-semibold uppercase tracking-[0.11em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isExporting ? 'Export...' : 'CSV Export'}
@@ -339,7 +363,7 @@ export default function PanelAuditTrailPanel({ active }: { active: boolean }) {
         <button
           type="button"
           onClick={() => void handleExport('xls')}
-          disabled={isExporting}
+          disabled={isExporting || !canExport}
           className="rounded-lg border border-[#1A273A] bg-[#0A192B]/90 px-3 py-2 font-semibold uppercase tracking-[0.11em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isExporting ? 'Export...' : 'XLS Export'}
@@ -428,6 +452,8 @@ export default function PanelAuditTrailPanel({ active }: { active: boolean }) {
           </button>
         </div>
       </div>
+        </>
+      )}
     </section>
   );
 }

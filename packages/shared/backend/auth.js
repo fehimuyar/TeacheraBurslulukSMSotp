@@ -1,5 +1,5 @@
 import { query } from './db.js';
-import { ROLES } from './constants.js';
+import { PANEL_PERMISSIONS, ROLES } from './constants.js';
 import { HttpError } from './errors.js';
 import { safeTrim } from './http.js';
 import {
@@ -9,10 +9,62 @@ import {
   verifyPanelSessionToken,
 } from './panelSession.js';
 
+const ROLE_PERMISSION_DEFAULTS = {
+  [ROLES.SUPER_ADMIN]: PANEL_PERMISSIONS,
+  [ROLES.OPERATIONS]: [
+    'PANEL_DASHBOARD_READ',
+    'PANEL_CANDIDATES_READ',
+    'PANEL_CANDIDATES_EXPORT',
+    'PANEL_CANDIDATES_ACTION',
+    'PANEL_NOTIFICATIONS_READ',
+    'PANEL_NOTIFICATIONS_ACTION',
+    'PANEL_UNVIEWED_READ',
+    'PANEL_UNVIEWED_ACTION',
+    'PANEL_DLQ_READ',
+    'PANEL_DLQ_ACTION',
+    'PANEL_SETTINGS_READ',
+    'PANEL_AUDIT_READ',
+    'PANEL_AUDIT_EXPORT',
+    'PANEL_RESULTS_REVIEW',
+    'PANEL_CRM_PUSH',
+    'PANEL_IP_POLICY_READ',
+  ],
+  [ROLES.READ_ONLY]: [
+    'PANEL_DASHBOARD_READ',
+    'PANEL_CANDIDATES_READ',
+    'PANEL_CANDIDATES_EXPORT',
+    'PANEL_NOTIFICATIONS_READ',
+    'PANEL_UNVIEWED_READ',
+    'PANEL_DLQ_READ',
+    'PANEL_SETTINGS_READ',
+    'PANEL_AUDIT_READ',
+    'PANEL_AUDIT_EXPORT',
+    'PANEL_RESULTS_REVIEW',
+    'PANEL_IP_POLICY_READ',
+  ],
+};
+
 function hasAllowedRole(role, allowed) {
   if (!role) return false;
   const normalizedRole = normalizeRoleCode(role);
   return allowed.map((item) => normalizeRoleCode(item)).includes(normalizedRole);
+}
+
+function normalizePermissionCode(permission) {
+  return safeTrim(permission).toUpperCase();
+}
+
+function normalizePermissionCodes(permissions) {
+  if (!Array.isArray(permissions)) return [];
+  const seen = new Set();
+  const normalized = [];
+  for (const permission of permissions) {
+    const code = normalizePermissionCode(permission);
+    if (!code || seen.has(code)) continue;
+    seen.add(code);
+    normalized.push(code);
+  }
+  return normalized;
 }
 
 function isKnownRole(role) {
@@ -27,11 +79,144 @@ function normalizeRoleCode(role) {
   return normalized;
 }
 
+function defaultPermissionsForRole(role) {
+  const normalizedRole = normalizeRoleCode(role);
+  return normalizePermissionCodes(ROLE_PERMISSION_DEFAULTS[normalizedRole] || []);
+}
+
+function isMissingRelationError(error) {
+  const code = safeTrim(error?.code);
+  return code === '42P01' || code === '42703';
+}
+
+async function readRolePermissions(role) {
+  const normalizedRole = normalizeRoleCode(role);
+  if (!normalizedRole) return [];
+
+  try {
+    const result = await query(
+      `
+        SELECT p.code
+        FROM role_permissions rp
+        JOIN roles r ON r.id = rp.role_id
+        JOIN permissions p ON p.id = rp.permission_id
+        WHERE r.code = $1
+        ORDER BY p.code ASC
+      `,
+      [normalizedRole],
+    );
+
+    if (!Array.isArray(result.rows) || result.rows.length === 0) {
+      return defaultPermissionsForRole(normalizedRole);
+    }
+
+    return normalizePermissionCodes(result.rows.map((row) => row.code));
+  } catch (error) {
+    if (isMissingRelationError(error)) {
+      return defaultPermissionsForRole(normalizedRole);
+    }
+    throw error;
+  }
+}
+
+function normalizeIpLiteral(ip) {
+  const raw = safeTrim(ip).toLowerCase();
+  if (!raw) return '';
+
+  if (raw.startsWith('::ffff:')) {
+    return raw.slice(7);
+  }
+
+  if (raw.startsWith('[') && raw.includes(']')) {
+    return raw.slice(1, raw.indexOf(']'));
+  }
+
+  const ipv4WithPort = raw.match(/^(\d+\.\d+\.\d+\.\d+):(\d+)$/);
+  if (ipv4WithPort) {
+    return ipv4WithPort[1];
+  }
+
+  return raw;
+}
+
+function extractRequestIp(req) {
+  const forwarded = safeTrim(req?.headers?.['x-forwarded-for']);
+  if (forwarded) {
+    return normalizeIpLiteral(forwarded.split(',')[0]);
+  }
+  return normalizeIpLiteral(req?.socket?.remoteAddress || '');
+}
+
+function normalizeIpAllowlist(allowedIps) {
+  if (!Array.isArray(allowedIps)) return [];
+  const seen = new Set();
+  const values = [];
+  for (const entry of allowedIps) {
+    const normalized = normalizeIpLiteral(entry);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    values.push(normalized);
+  }
+  return values;
+}
+
+async function readRoleIpPolicy(role) {
+  const normalizedRole = normalizeRoleCode(role);
+  if (!normalizedRole) return null;
+
+  try {
+    const result = await query(
+      `
+        SELECT
+          role_code,
+          is_enabled,
+          allowed_ips
+        FROM admin_ip_policies
+        WHERE role_code = $1
+        LIMIT 1
+      `,
+      [normalizedRole],
+    );
+    return result.rows[0] || null;
+  } catch (error) {
+    if (isMissingRelationError(error)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+async function enforceRoleIpPolicy(req, role) {
+  const policy = await readRoleIpPolicy(role);
+  if (!policy || !policy.is_enabled) {
+    return;
+  }
+
+  const requestIp = extractRequestIp(req);
+  const allowedIps = normalizeIpAllowlist(policy.allowed_ips);
+  if (!requestIp || allowedIps.length === 0) {
+    throw new HttpError(403, 'This role requires an allowed IP address.', 'panel_ip_restricted');
+  }
+
+  if (!allowedIps.includes(requestIp)) {
+    throw new HttpError(403, 'Your IP is not allowed for this role.', 'panel_ip_restricted');
+  }
+}
+
+function hasRequiredPermissions(identityPermissions, requiredPermissions) {
+  const normalizedRequired = normalizePermissionCodes(requiredPermissions);
+  if (normalizedRequired.length === 0) return true;
+
+  const permissionSet = new Set(normalizePermissionCodes(identityPermissions));
+  return normalizedRequired.every((permission) => permissionSet.has(permission));
+}
+
 function unauthenticatedIdentity() {
   return {
     authenticated: false,
     role: null,
     roles: [],
+    permissions: [],
     keyId: null,
     userId: null,
     email: null,
@@ -147,10 +332,19 @@ export async function getPanelIdentity(req) {
 
   await touchSession(claims.sessionId);
 
+  const normalizedRole = normalizeRoleCode(claims.role);
+  let permissions;
+  try {
+    permissions = await readRolePermissions(normalizedRole);
+  } catch {
+    permissions = defaultPermissionsForRole(normalizedRole);
+  }
+
   return {
     authenticated: true,
-    role: normalizeRoleCode(claims.role),
-    roles: [normalizeRoleCode(claims.role)],
+    role: normalizedRole,
+    roles: [normalizedRole],
+    permissions,
     keyId: `usr_${claims.userId.slice(0, 8)}`,
     userId: claims.userId,
     email: safeTrim(row.email).toLowerCase(),
@@ -161,7 +355,11 @@ export async function getPanelIdentity(req) {
   };
 }
 
-export async function requireRole(req, allowedRoles) {
+export function identityHasPermissions(identity, requiredPermissions) {
+  return hasRequiredPermissions(identity?.permissions || [], requiredPermissions);
+}
+
+export async function requireRole(req, allowedRoles, requiredPermissions = []) {
   const identity = await getPanelIdentity(req);
   if (!identity.authenticated) {
     throw new HttpError(401, 'Panel authentication is required.', 'panel_unauthorized');
@@ -175,5 +373,16 @@ export async function requireRole(req, allowedRoles) {
   if (!hasAllowedRole(identity.role, allowedRoles)) {
     throw new HttpError(403, 'You are not authorized for this action.', 'forbidden');
   }
+
+  await enforceRoleIpPolicy(req, identity.role);
+
+  if (!hasRequiredPermissions(identity.permissions, requiredPermissions)) {
+    throw new HttpError(403, 'You do not have the required permission for this action.', 'forbidden_permission');
+  }
+
   return identity;
+}
+
+export async function requirePermission(req, allowedRoles, requiredPermissions) {
+  return requireRole(req, allowedRoles, requiredPermissions);
 }

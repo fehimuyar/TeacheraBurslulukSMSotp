@@ -6,7 +6,7 @@ import {
 import { query } from '../../_lib/db.js';
 import { readDefaultCampaignCode } from '../../_lib/env.js';
 import { HttpError } from '../../_lib/errors.js';
-import { hashSessionToken } from '../../_lib/exam.js';
+import { buildSessionExpiry, createSessionToken, hashSessionToken } from '../../_lib/exam.js';
 import { resolveExamGateStatus } from '../../_lib/examGate.js';
 import { enqueueExamOpenSmsIfNeeded } from '../../_lib/examOpenSms.js';
 import { handleRequest, methodGuard, ok, parseBody, safeTrim } from '../../_lib/http.js';
@@ -25,6 +25,31 @@ function readBoundedIntEnv(name, fallback, min, max) {
   const parsed = Number.parseInt(safeTrim(process.env[name] || ''), 10);
   if (!Number.isFinite(parsed)) return fallback;
   return Math.max(min, Math.min(max, parsed));
+}
+
+function resolveCandidateGateStatus(gate, scheduledExamAtRaw) {
+  const scheduledAt = scheduledExamAtRaw instanceof Date
+    ? scheduledExamAtRaw.toISOString()
+    : safeTrim(scheduledExamAtRaw);
+  if (!scheduledAt) return gate;
+  const scheduledMs = Number(new Date(scheduledAt));
+  if (!Number.isFinite(scheduledMs)) return gate;
+
+  const serverNowMs = Number(new Date(gate?.server_time_utc || new Date().toISOString()));
+  const globalOpenAtMs = gate?.exam_open_at ? Number(new Date(gate.exam_open_at)) : NaN;
+  const effectiveOpenAtMs = Number.isFinite(globalOpenAtMs) ? Math.max(globalOpenAtMs, scheduledMs) : scheduledMs;
+  const candidateExamOpen = serverNowMs >= scheduledMs;
+  const examOpen = gate?.exam_force_open === true ? true : serverNowMs >= effectiveOpenAtMs;
+
+  return {
+    ...gate,
+    exam_open: examOpen,
+    exam_open_at: new Date(effectiveOpenAtMs).toISOString(),
+    remaining_seconds: examOpen ? 0 : Math.max(0, Math.ceil((effectiveOpenAtMs - serverNowMs) / 1000)),
+    candidate_exam_open: candidateExamOpen,
+    candidate_exam_open_at: new Date(scheduledMs).toISOString(),
+    candidate_remaining_seconds: candidateExamOpen ? 0 : Math.max(0, Math.ceil((scheduledMs - serverNowMs) / 1000)),
+  };
 }
 
 async function assertLoginNotLocked(ipAddress, username) {
@@ -70,6 +95,31 @@ async function clearFailureState(ipAddress, username) {
     scope: 'candidate_login_username',
     identity: username,
   });
+}
+
+async function verifyCredentialPassword(password, passwordHash) {
+  if (!passwordHash) return false;
+  const result = await query('SELECT crypt($1, $2) = $2 AS ok', [password, passwordHash]);
+  return Boolean(result.rows[0]?.ok);
+}
+
+async function issueExamSessionToken(attemptId) {
+  const sessionToken = createSessionToken();
+  const tokenHash = hashSessionToken(sessionToken);
+  const expiresAt = buildSessionExpiry();
+
+  await query(
+    `
+      INSERT INTO exam_session_tokens (attempt_id, token_hash, expires_at)
+      VALUES ($1, $2, $3::timestamptz)
+    `,
+    [attemptId, tokenHash, expiresAt],
+  );
+
+  return {
+    sessionToken,
+    expiresAt,
+  };
 }
 
 /**
@@ -155,8 +205,11 @@ export default async function handler(req, res) {
         SELECT
           a.id AS application_id,
           a.application_no,
+          a.candidate_code,
           a.campaign_code,
+          a.credential_password_hash,
           c.id AS candidate_id,
+          c.section,
           c.full_name AS student_full_name_legacy,
           c.full_name_enc AS student_full_name_enc,
           c.grade,
@@ -169,6 +222,8 @@ export default async function handler(req, res) {
           ea.exam_language,
           ea.exam_age_range,
           ea.question_count,
+          ea.scheduled_exam_at,
+          ea.exam_slot_label,
           st.token_hash,
           st.expires_at,
           st.revoked_at
@@ -176,7 +231,7 @@ export default async function handler(req, res) {
         JOIN candidates c ON c.id = a.candidate_id
         LEFT JOIN guardians g ON g.id = c.guardian_id
         LEFT JOIN LATERAL (
-          SELECT id, status, exam_language, exam_age_range, question_count, created_at
+          SELECT id, status, exam_language, exam_age_range, question_count, scheduled_exam_at, exam_slot_label, created_at
           FROM exam_attempts
           WHERE application_id = a.id
           ORDER BY created_at DESC
@@ -189,7 +244,7 @@ export default async function handler(req, res) {
           ORDER BY created_at DESC
           LIMIT 1
         ) st ON TRUE
-        WHERE a.application_no = $1
+        WHERE (a.candidate_code = $1 OR a.application_no = $1)
           AND ($2::text = '' OR a.campaign_code = $2)
         LIMIT 1
       `,
@@ -197,21 +252,35 @@ export default async function handler(req, res) {
     );
 
     const row = state.rows[0];
-    const failed = !row
-      || !row.attempt_id
-      || !row.expires_at
-      || row.revoked_at
-      || tokenHash !== row.token_hash
-      || Number(new Date(row.expires_at)) < Date.now();
+    const credentialLoginOk = row
+      && row.attempt_id
+      && await verifyCredentialPassword(password, row.credential_password_hash);
+    const legacyLoginOk = Boolean(
+      row
+      && row.attempt_id
+      && row.expires_at
+      && !row.revoked_at
+      && row.application_no === username
+      && tokenHash === row.token_hash
+      && Number(new Date(row.expires_at)) >= Date.now(),
+    );
 
-    if (failed) {
+    if (!credentialLoginOk && !legacyLoginOk) {
       await registerLoginFailure(requestIp, username);
       throw new HttpError(401, 'Invalid candidate credentials.', 'invalid_candidate_credentials');
     }
 
     await clearFailureState(requestIp, username);
 
-    const gate = await resolveExamGateStatus(row.campaign_code);
+    const activeSession = credentialLoginOk
+      ? await issueExamSessionToken(row.attempt_id)
+      : {
+          sessionToken: password,
+          expiresAt: row.expires_at,
+        };
+
+    const baseGate = await resolveExamGateStatus(row.campaign_code);
+    const gate = resolveCandidateGateStatus(baseGate, row.scheduled_exam_at);
     const parentPhoneE164 = await decryptPii(row.parent_phone_e164_enc, row.parent_phone_e164_legacy);
 
     if (gate.exam_open) {
@@ -232,19 +301,24 @@ export default async function handler(req, res) {
     ok(res, {
       session: {
         applicationNo: row.application_no,
+        candidateCode: row.candidate_code || null,
         attemptId: row.attempt_id,
         candidateId: row.candidate_id,
-        sessionToken: password,
-        expiresAt: row.expires_at,
+        sessionToken: activeSession.sessionToken,
+        expiresAt: activeSession.expiresAt,
         examStatus: row.exam_status,
         examLanguage: row.exam_language,
         examAgeRange: row.exam_age_range,
         questionCount: Number(row.question_count || 0),
+        scheduledExamAt: row.scheduled_exam_at || null,
+        examSlotLabel: row.exam_slot_label || null,
+        section: row.section || null,
       },
       candidate: {
         studentFullName: safeTrim(row.student_full_name_legacy) || null,
         parentFullName: safeTrim(row.parent_full_name_legacy) || null,
         grade: row.grade,
+        section: row.section || null,
       },
       gate,
     });

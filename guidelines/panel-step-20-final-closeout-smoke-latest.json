@@ -1,11 +1,11 @@
 {
-  "timestamp": "2026-03-17T21:26:02.289Z",
+  "timestamp": "2026-03-21T14:02:21.902Z",
   "mode": {
     "http": true,
     "artifact": true
   },
   "totals": {
-    "pass": 14,
+    "pass": 25,
     "fail": 0,
     "warn": 0,
     "skip": 0
@@ -17,7 +17,7 @@
       "status": "PASS",
       "detail": "Artifact exists and JSON parsed.",
       "evidence": {
-        "path": "/Users/aliye/Downloads/Teachera Website Bursluluk/guidelines/panel-step-14-closeout-smoke-latest.json"
+        "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/panel-step-14-closeout-smoke-latest.json"
       }
     },
     {
@@ -25,8 +25,19 @@
       "status": "PASS",
       "detail": "overall_ready_for_step_14=true",
       "evidence": {
-        "path": "/Users/aliye/Downloads/Teachera Website Bursluluk/guidelines/panel-step-14-closeout-smoke-latest.json",
+        "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/panel-step-14-closeout-smoke-latest.json",
         "overall_ready_for_step_14": true
+      }
+    },
+    {
+      "id": "artifact_step14_freshness",
+      "status": "PASS",
+      "detail": "artifact fresh (412 min <= 10080 min).",
+      "evidence": {
+        "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/panel-step-14-closeout-smoke-latest.json",
+        "timestamp": "2026-03-21T07:09:59.596Z",
+        "age_minutes": 412,
+        "max_age_hours": 168
       }
     },
     {
@@ -34,7 +45,7 @@
       "status": "PASS",
       "detail": "Artifact exists and JSON parsed.",
       "evidence": {
-        "path": "/Users/aliye/Downloads/Teachera Website Bursluluk/guidelines/panel-step-16-ops-grid-smoke-latest.json"
+        "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/panel-step-16-ops-grid-smoke-latest.json"
       }
     },
     {
@@ -42,8 +53,19 @@
       "status": "PASS",
       "detail": "overall_ready_for_step_16=true",
       "evidence": {
-        "path": "/Users/aliye/Downloads/Teachera Website Bursluluk/guidelines/panel-step-16-ops-grid-smoke-latest.json",
+        "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/panel-step-16-ops-grid-smoke-latest.json",
         "overall_ready_for_step_16": true
+      }
+    },
+    {
+      "id": "artifact_step16_freshness",
+      "status": "PASS",
+      "detail": "artifact fresh (412 min <= 10080 min).",
+      "evidence": {
+        "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/panel-step-16-ops-grid-smoke-latest.json",
+        "timestamp": "2026-03-21T07:10:02.813Z",
+        "age_minutes": 412,
+        "max_age_hours": 168
       }
     },
     {
@@ -51,7 +73,7 @@
       "status": "PASS",
       "detail": "Artifact exists and JSON parsed.",
       "evidence": {
-        "path": "/Users/aliye/Downloads/Teachera Website Bursluluk/guidelines/panel-step-17-rbac-session-smoke-latest.json"
+        "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/panel-step-17-rbac-session-smoke-latest.json"
       }
     },
     {
@@ -59,8 +81,19 @@
       "status": "PASS",
       "detail": "overall_ready_for_step_17=true",
       "evidence": {
-        "path": "/Users/aliye/Downloads/Teachera Website Bursluluk/guidelines/panel-step-17-rbac-session-smoke-latest.json",
+        "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/panel-step-17-rbac-session-smoke-latest.json",
         "overall_ready_for_step_17": true
+      }
+    },
+    {
+      "id": "artifact_step17_freshness",
+      "status": "PASS",
+      "detail": "artifact fresh (412 min <= 10080 min).",
+      "evidence": {
+        "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/panel-step-17-rbac-session-smoke-latest.json",
+        "timestamp": "2026-03-21T07:10:03.704Z",
+        "age_minutes": 412,
+        "max_age_hours": 168
       }
     },
     {
@@ -68,7 +101,7 @@
       "status": "PASS",
       "detail": "Artifact exists and JSON parsed.",
       "evidence": {
-        "path": "/Users/aliye/Downloads/Teachera Website Bursluluk/guidelines/panel-step-18-rbac-policy-smoke-latest.json"
+        "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/panel-step-18-rbac-policy-smoke-latest.json"
       }
     },
     {
@@ -76,8 +109,19 @@
       "status": "PASS",
       "detail": "overall_ready_for_step_18=true",
       "evidence": {
-        "path": "/Users/aliye/Downloads/Teachera Website Bursluluk/guidelines/panel-step-18-rbac-policy-smoke-latest.json",
+        "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/panel-step-18-rbac-policy-smoke-latest.json",
         "overall_ready_for_step_18": true
+      }
+    },
+    {
+      "id": "artifact_step18_freshness",
+      "status": "PASS",
+      "detail": "artifact fresh (412 min <= 10080 min).",
+      "evidence": {
+        "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/panel-step-18-rbac-policy-smoke-latest.json",
+        "timestamp": "2026-03-21T07:10:06.308Z",
+        "age_minutes": 412,
+        "max_age_hours": 168
       }
     },
     {
@@ -85,7 +129,7 @@
       "status": "PASS",
       "detail": "Artifact exists and JSON parsed.",
       "evidence": {
-        "path": "/Users/aliye/Downloads/Teachera Website Bursluluk/guidelines/panel-step-19-data-contract-smoke-latest.json"
+        "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/panel-step-19-data-contract-smoke-latest.json"
       }
     },
     {
@@ -93,8 +137,75 @@
       "status": "PASS",
       "detail": "overall_ready_for_step_19=true",
       "evidence": {
-        "path": "/Users/aliye/Downloads/Teachera Website Bursluluk/guidelines/panel-step-19-data-contract-smoke-latest.json",
+        "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/panel-step-19-data-contract-smoke-latest.json",
         "overall_ready_for_step_19": true
+      }
+    },
+    {
+      "id": "artifact_step19_freshness",
+      "status": "PASS",
+      "detail": "artifact fresh (412 min <= 10080 min).",
+      "evidence": {
+        "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/panel-step-19-data-contract-smoke-latest.json",
+        "timestamp": "2026-03-21T07:10:07.498Z",
+        "age_minutes": 412,
+        "max_age_hours": 168
+      }
+    },
+    {
+      "id": "artifact_step21_exists",
+      "status": "PASS",
+      "detail": "Artifact exists and JSON parsed.",
+      "evidence": {
+        "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/panel-step-21-settings-release-gate-smoke-latest.json"
+      }
+    },
+    {
+      "id": "artifact_step21_ready",
+      "status": "PASS",
+      "detail": "overall_ready_for_step_21=true",
+      "evidence": {
+        "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/panel-step-21-settings-release-gate-smoke-latest.json",
+        "overall_ready_for_step_21": true
+      }
+    },
+    {
+      "id": "artifact_step21_freshness",
+      "status": "PASS",
+      "detail": "artifact fresh (1024 min <= 1440 min).",
+      "evidence": {
+        "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/panel-step-21-settings-release-gate-smoke-latest.json",
+        "timestamp": "2026-03-20T20:58:13.036Z",
+        "age_minutes": 1024,
+        "max_age_hours": 24
+      }
+    },
+    {
+      "id": "artifact_slot_visibility_exists",
+      "status": "PASS",
+      "detail": "Artifact exists and JSON parsed.",
+      "evidence": {
+        "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-panel-prod-slot-visibility-smoke-latest.json"
+      }
+    },
+    {
+      "id": "artifact_slot_visibility_ready",
+      "status": "PASS",
+      "detail": "overall_pass=true",
+      "evidence": {
+        "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-panel-prod-slot-visibility-smoke-latest.json",
+        "overall_pass": true
+      }
+    },
+    {
+      "id": "artifact_slot_visibility_freshness",
+      "status": "PASS",
+      "detail": "artifact fresh (872 min <= 1440 min).",
+      "evidence": {
+        "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-panel-prod-slot-visibility-smoke-latest.json",
+        "timestamp": "2026-03-20T23:30:39.432Z",
+        "age_minutes": 872,
+        "max_age_hours": 24
       }
     },
     {

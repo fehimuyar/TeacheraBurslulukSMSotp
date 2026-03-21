@@ -2,6 +2,7 @@
 import { withTransaction } from '../../_lib/db.js';
 import { HttpError } from '../../_lib/errors.js';
 import { normalizeSubmissionStatus, optionalString } from '../../_lib/exam.js';
+import { resolveExamRuntimeWindow } from '../../_lib/examRuntime.js';
 import { handleRequest, methodGuard, ok, parseBody, safeTrim } from '../../_lib/http.js';
 import { isAuthorizedLoadTestMode } from '../../_lib/loadTestMode.js';
 import { enqueueNotification } from '../../_lib/notifications.js';
@@ -265,7 +266,12 @@ export default async function handler(req, res) {
       const completionStatus = normalizeSubmissionStatus(body.completionStatus || body.status || 'completed');
       const placementLabel = optionalString(body.placementLabel || body.metrics?.placementLabel, 180);
       const cefrBand = optionalString(body.cefrBand || body.metrics?.cefrBand, 40);
-      const durationSeconds = clampMetricInt(body.durationSeconds || body.metrics?.durationSeconds, 0, 60 * 60 * 8, 0);
+      const requestedDurationSeconds = clampMetricInt(
+        body.durationSeconds || body.metrics?.durationSeconds,
+        0,
+        60 * 60 * 8,
+        0,
+      );
       const submittedAnswers = normalizeSubmittedAnswers(body.answers);
 
       const result = await withTransaction(async (client) => {
@@ -278,7 +284,8 @@ export default async function handler(req, res) {
                   question_count,
                   candidate_id,
                   campaign_code,
-                  application_id
+                  application_id,
+                  started_at
                 FROM exam_attempts
                 WHERE id = $1
                 LIMIT 1
@@ -291,6 +298,7 @@ export default async function handler(req, res) {
                   ea.candidate_id,
                   ea.campaign_code,
                   ea.application_id,
+                  ea.started_at,
                   g.phone_e164 AS parent_phone_e164_legacy,
                   g.phone_e164_enc AS parent_phone_e164_enc
                 FROM exam_attempts ea
@@ -313,6 +321,14 @@ export default async function handler(req, res) {
               attempt.parent_phone_e164_enc,
               attempt.parent_phone_e164_legacy,
             );
+        const runtime = resolveExamRuntimeWindow(attempt.started_at);
+        const effectiveCompletionStatus = runtime.timed_out ? 'TIMEOUT' : completionStatus;
+        const effectiveCompletionStatusRaw = runtime.timed_out
+          ? 'time_limit_reached'
+          : (safeTrim(body.completionStatus || body.status) || null);
+        const effectiveDurationSeconds = runtime.started_at
+          ? Math.max(0, Math.min(runtime.elapsed_seconds, 60 * 60 * 8))
+          : (requestedDurationSeconds || null);
 
         await upsertAnswersBatch(client, attemptId, submittedAnswers);
 
@@ -330,7 +346,7 @@ export default async function handler(req, res) {
                 updated_at = NOW()
               WHERE id = $1
             `,
-            [attemptId, completionStatus, durationSeconds || null, body.completionStatus || null],
+            [attemptId, effectiveCompletionStatus, effectiveDurationSeconds, effectiveCompletionStatusRaw],
           );
 
           const resultUpsert = await client.query(
@@ -421,7 +437,7 @@ export default async function handler(req, res) {
                 updated_at = NOW()
               WHERE id = $1
             `,
-            [attemptId, completionStatus, durationSeconds || null],
+            [attemptId, effectiveCompletionStatus, effectiveDurationSeconds],
           );
 
           return {
@@ -454,7 +470,7 @@ export default async function handler(req, res) {
             updated_at = NOW()
           WHERE id = $1
         `,
-        [attemptId, completionStatus, durationSeconds || null, body.completionStatus || null],
+        [attemptId, effectiveCompletionStatus, effectiveDurationSeconds, effectiveCompletionStatusRaw],
       );
 
       const resultUpsert = await client.query(
@@ -513,7 +529,8 @@ export default async function handler(req, res) {
             attempt.candidate_id,
             attemptId,
             JSON.stringify({
-              completionStatus,
+              completionStatus: effectiveCompletionStatus,
+              runtime_timed_out: runtime.timed_out === true,
               score: metrics.score,
               percentage: metrics.percentage,
             }),

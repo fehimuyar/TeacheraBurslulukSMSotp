@@ -88,7 +88,11 @@ function buildFilters(listQuery) {
 export default async function handler(req, res) {
   await handleRequest(req, res, async () => {
     methodGuard(req, ['GET']);
-    const identity = await requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY]);
+    const identity = await requireRole(
+      req,
+      [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY],
+      ['PANEL_DLQ_READ'],
+    );
 
     const listQuery = parseListQuery(req, SORTABLE_COLUMNS, 'created_at', 'desc');
     const { whereClause, params } = buildFilters(listQuery);

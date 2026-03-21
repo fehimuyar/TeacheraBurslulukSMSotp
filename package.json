@@ -78,7 +78,20 @@
     "panel:step17:rbac-session": "node scripts/panel-step-17-rbac-session-smoke.mjs",
     "panel:step18:rbac-policy": "node scripts/panel-step-18-rbac-policy-smoke.mjs",
     "panel:step19:data-contract": "node scripts/panel-step-19-data-contract-smoke.mjs",
-    "panel:step20:final-closeout": "node scripts/panel-step-20-final-closeout-smoke.mjs"
+    "panel:step20:final-closeout": "node scripts/panel-step-20-final-closeout-smoke.mjs",
+    "panel:step21:settings-release-gate": "node scripts/panel-step-21-settings-release-gate-smoke.mjs",
+    "p0:panel:slot-visibility:smoke": "node scripts/p0-panel-prod-slot-visibility-smoke.mjs",
+    "p0:pii:crypto:preflight": "node scripts/p0-pii-crypto-preflight.mjs",
+    "p0:candidate:credentials:smoke": "node scripts/p0-candidate-credentials-smoke.mjs",
+    "p0:appointment:schedule:smoke": "node scripts/p0-appointment-schedule-capacity-smoke.mjs",
+    "p0:attribution:smoke": "node scripts/p0-attribution-remarketing-smoke.mjs",
+    "p0:school-coverage:smoke": "node scripts/p0-school-coverage-smoke.mjs",
+    "p0:exam-runtime:smoke": "node scripts/p0-exam-runtime-integrity-smoke.mjs",
+    "p0:exam-reminder:smoke": "node scripts/p0-exam-reminder-smoke.mjs",
+    "p1:landing-flow:smoke": "node scripts/p1-landing-apply-confirm-login-smoke.mjs",
+    "p2:campaign-season:smoke": "node scripts/p2-campaign-season-automation-smoke.mjs",
+    "p2:hybrid-result:smoke": "node scripts/p2-hybrid-result-screen-smoke.mjs",
+    "p2:menu-footer:smoke": "node scripts/p2-menu-footer-polish-smoke.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-cloudwatch": "^3.1007.0",

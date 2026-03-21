@@ -30,8 +30,8 @@ export function normalizeGrade(raw) {
   if (!Number.isFinite(grade)) {
     throw new HttpError(400, 'Grade must be numeric.', 'invalid_grade');
   }
-  if (grade < 2 || grade > 11) {
-    throw new HttpError(400, 'Grade must be between 2 and 11.', 'grade_out_of_range');
+  if (grade < 1 || grade > 12) {
+    throw new HttpError(400, 'Grade must be between 1 and 12.', 'grade_out_of_range');
   }
   return grade;
 }

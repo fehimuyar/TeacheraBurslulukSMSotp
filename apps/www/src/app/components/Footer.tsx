@@ -135,6 +135,8 @@ export default function Footer() {
                 </h4>
                 <ul className="flex flex-col gap-2.5 text-[13px] font-['Neutraface_2_Text:Book',sans-serif]">
                    <li><a href="/#home" className="text-white/75 hover:text-white transition-colors">Ana Sayfa</a></li>
+                   <li><a href="/bursluluk-2026" className="text-white/75 hover:text-white transition-colors">Bursluluk Sınavı Başvuru</a></li>
+                   <li><a href="/bursluluk/giris" className="text-white/75 hover:text-white transition-colors">Bursluluk Giriş</a></li>
                    <li><a href="/metodoloji" className="text-white/75 hover:text-white transition-colors">Metodoloji</a></li>
                    <li><a href="/#delivery-options" className="text-white/75 hover:text-white transition-colors">Eğitim Formatları</a></li>
                    <li><a href="/egitimlerimiz" className="text-white/75 hover:text-white transition-colors">Eğitim Programları</a></li>

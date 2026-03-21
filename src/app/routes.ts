@@ -58,7 +58,9 @@ export const router = createBrowserRouter([
       { path: 'panel/operations', loader: () => redirect('/panel/dashboard?view=operations') },
       { path: 'panel/tasks', loader: () => redirect('/panel/dashboard?view=tasks') },
       { path: 'panel/settings', loader: () => redirect('/panel/dashboard?view=settings') },
+      { path: 'panel/security', loader: () => redirect('/panel/dashboard?view=settings') },
       { path: 'panel/audit', loader: () => redirect('/panel/dashboard?view=audit') },
+      { path: 'panel/consultant', loader: () => redirect('/panel/dashboard?view=operations&focus=consultant') },
       { path: 'panel/candidates', loader: () => redirect('/panel/dashboard?view=operations&focus=candidates') },
       {
         path: 'panel/notifications',
@@ -69,6 +71,8 @@ export const router = createBrowserRouter([
         path: 'panel/unviewed-results',
         loader: () => redirect('/panel/dashboard?view=operations&focus=unviewed'),
       },
+      { path: 'panel/results', loader: () => redirect('/panel/dashboard?view=operations&focus=results') },
+      { path: 'panel/crm', loader: () => redirect('/panel/dashboard?view=operations&focus=crm') },
       { path: 'panel/password-reset', lazy: lazyComponent(() => import('./components/panel/PanelPasswordResetPage')) },
       { path: 'speakup', lazy: lazyComponent(() => import('./components/SpeakUpPage')) },
       { path: 'konya-ingilizce-kursu', loader: () => redirect(REDIRECT_ROUTE_MAP['konya-ingilizce-kursu']) },

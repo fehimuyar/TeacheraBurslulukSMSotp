@@ -20,6 +20,8 @@ This sign-off covers end-to-end admin panel readiness across frontend, backend/A
 | G8 | Frontend-backend panel data contract integrity | PASS | `/Users/aliye/Downloads/Teachera Website Bursluluk/guidelines/panel-step-19-data-contract-smoke-latest.json` |
 | G9 | Final closeout (aggregated panel readiness) | PASS | `/Users/aliye/Downloads/Teachera Website Bursluluk/guidelines/panel-step-20-final-closeout-smoke-latest.json` |
 | G10 | CI mandatory gate green for this release line | PASS | GitHub Actions `CI/CD #14` (success) |
+| G11 | `panel:step20:final-closeout` freshness-enforced release gate is mandatory (step21 freshness included) | PASS | `/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/panel-step-20-final-closeout-smoke-latest.json` |
+| G12 | Şube/slot görünürlüğü prod smoke (`section`, `exam_scheduled_at`, `exam_slot_label`) strict PII mode ile doğrulandı | PASS | `/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-panel-prod-slot-visibility-smoke-latest.json` |
 
 ## 3) UX Completion Items (Panel)
 | Item | Status | Evidence |
@@ -46,4 +48,3 @@ This sign-off covers end-to-end admin panel readiness across frontend, backend/A
 | Tech Lead |  | GO / NO-GO |  |
 | QA Lead |  | GO / NO-GO |  |
 | Ops Lead |  | GO / NO-GO |  |
-

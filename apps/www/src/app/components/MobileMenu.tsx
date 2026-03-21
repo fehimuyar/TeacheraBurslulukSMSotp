@@ -42,6 +42,8 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   { id: 'home', label: 'Ana Sayfa', href: '/', isRoute: true },
+  { id: 'bursluluk-apply', label: 'Bursluluk Başvuru', href: '/bursluluk-2026', isRoute: true },
+  { id: 'bursluluk-login', label: 'Bursluluk Giriş', href: '/bursluluk/giris', isRoute: true },
   { id: 'about', label: 'Biz Kimiz?', href: '/biz-kimiz', isRoute: true },
   { id: 'methodology', label: 'Metodoloji', href: '/metodoloji', isRoute: true },
   { id: 'prices', label: 'Fiyatlar', href: '/fiyatlar', isRoute: true },

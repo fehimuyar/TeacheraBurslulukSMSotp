@@ -1,0 +1,70 @@
+{
+  "timestamp": "2026-03-20T23:30:39.432Z",
+  "panel_api_base": "https://panel-api.teachera.com.tr",
+  "www_base": "https://teachera.com.tr",
+  "totals": {
+    "pass": 6,
+    "fail": 0,
+    "warn": 0,
+    "skip": 0
+  },
+  "overall_pass": true,
+  "checks": [
+    {
+      "id": "auth_login",
+      "status": "PASS",
+      "detail": "HTTP 200",
+      "evidence": {
+        "status": 200,
+        "has_token": true,
+        "error": null
+      }
+    },
+    {
+      "id": "api_candidates_200",
+      "status": "PASS",
+      "detail": "HTTP 200",
+      "evidence": {
+        "status": 200,
+        "error": null
+      }
+    },
+    {
+      "id": "api_fields_section_slot",
+      "status": "PASS",
+      "detail": "sample_count=5",
+      "evidence": {
+        "sample_count": 5,
+        "has_section": true,
+        "has_exam_scheduled_at": true,
+        "has_exam_slot_label": true
+      }
+    },
+    {
+      "id": "api_export_200",
+      "status": "PASS",
+      "detail": "HTTP 200",
+      "evidence": {
+        "status": 200
+      }
+    },
+    {
+      "id": "api_export_headers_section_slot",
+      "status": "PASS",
+      "detail": "CSV header check",
+      "evidence": {
+        "has_section": true,
+        "has_exam_scheduled_at": true,
+        "has_exam_slot_label": true
+      }
+    },
+    {
+      "id": "www_candidates_200",
+      "status": "PASS",
+      "detail": "HTTP 200",
+      "evidence": {
+        "status": 200
+      }
+    }
+  ]
+}

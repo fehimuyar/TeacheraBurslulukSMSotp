@@ -8,6 +8,15 @@ import { decryptPii, isPrivilegedPiiRole, maskPiiName, maskPiiPhone } from '../.
 import { enforceRateLimit, getRequestIp } from '../../_lib/redisRateLimit.js';
 import { requireExamSession } from '../../_lib/sessionAuth.js';
 
+const DEFAULT_DISCOUNT_BRACKETS = [
+  { min: 95, rate: 100 },
+  { min: 90, rate: 75 },
+  { min: 80, rate: 50 },
+  { min: 70, rate: 35 },
+  { min: 60, rate: 20 },
+  { min: 0, rate: 10 },
+];
+
 function shouldIncludePii(req) {
   const queryValue = Array.isArray(req.query?.include_pii) ? req.query.include_pii[0] : req.query?.include_pii;
   const headerValue = req.headers?.['x-include-pii'];
@@ -15,6 +24,67 @@ function shouldIncludePii(req) {
   if (!raw) return true;
   const normalized = raw.toLowerCase();
   return !['0', 'false', 'no', 'off'].includes(normalized);
+}
+
+function normalizeDiscountBrackets(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item) => ({
+      min: Number(item?.min),
+      rate: Number(item?.rate),
+    }))
+    .filter((item) => Number.isFinite(item.min) && Number.isFinite(item.rate))
+    .sort((a, b) => b.min - a.min);
+}
+
+function readDiscountBracketsFromEnv() {
+  const raw = safeTrim(process.env.BURSLULUK_DISCOUNT_BRACKETS);
+  if (!raw) return DEFAULT_DISCOUNT_BRACKETS;
+  try {
+    const parsed = JSON.parse(raw);
+    const normalized = normalizeDiscountBrackets(parsed);
+    if (normalized.length === 0) return DEFAULT_DISCOUNT_BRACKETS;
+    return normalized;
+  } catch {
+    return DEFAULT_DISCOUNT_BRACKETS;
+  }
+}
+
+function resolveDiscountRate(percentage) {
+  const numeric = Number(percentage);
+  if (!Number.isFinite(numeric)) return null;
+  const brackets = readDiscountBracketsFromEnv();
+  const matched = brackets.find((item) => numeric >= item.min);
+  return matched ? matched.rate : null;
+}
+
+async function readClassRank(client, campaignCode, grade, attemptId) {
+  if (!campaignCode || !Number.isFinite(Number(grade)) || !attemptId) return null;
+
+  const { rows } = await client.query(
+    `
+      WITH ranked AS (
+        SELECT
+          r.attempt_id,
+          RANK() OVER (
+            PARTITION BY c.grade
+            ORDER BY COALESCE(r.score, 0) DESC, COALESCE(r.percentage, 0) DESC, r.created_at ASC
+          )::int AS class_rank
+        FROM results r
+        JOIN candidates c ON c.id = r.candidate_id
+        WHERE r.campaign_code = $1
+          AND c.grade = $2
+          AND r.status IN ('PUBLISHED', 'VIEWED')
+      )
+      SELECT class_rank
+      FROM ranked
+      WHERE attempt_id = $3
+      LIMIT 1
+    `,
+    [campaignCode, Number(grade), attemptId],
+  );
+
+  return rows[0]?.class_rank ?? null;
 }
 
 export default async function handler(req, res) {
@@ -84,6 +154,7 @@ export default async function handler(req, res) {
                 r.status,
                 r.score,
                 r.percentage,
+                r.campaign_code,
                 r.correct_count,
                 r.wrong_count,
                 r.unanswered_count,
@@ -119,6 +190,7 @@ export default async function handler(req, res) {
                 r.status,
                 r.score,
                 r.percentage,
+                r.campaign_code,
                 r.correct_count,
                 r.wrong_count,
                 r.unanswered_count,
@@ -186,6 +258,9 @@ export default async function handler(req, res) {
         row.viewed_at = new Date().toISOString();
       }
 
+      row.class_rank = await readClassRank(client, row.campaign_code, row.grade, row.attempt_id);
+      row.discount_rate = resolveDiscountRate(row.percentage);
+
       return row;
     });
 
@@ -240,6 +315,8 @@ export default async function handler(req, res) {
         question_count: payload.question_count,
         score: Number(payload.score ?? 0),
         percentage: Number(payload.percentage ?? 0),
+        discount_rate: payload.discount_rate,
+        class_rank: payload.class_rank,
         correct_count: payload.correct_count,
         wrong_count: payload.wrong_count,
         unanswered_count: payload.unanswered_count,

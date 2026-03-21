@@ -1,0 +1,107 @@
+{
+  "timestamp": "2026-03-21T07:10:51.020Z",
+  "exam_api_base": "https://exam-api.teachera.com.tr",
+  "expect_consultant_schedule": true,
+  "totals": {
+    "pass": 10,
+    "fail": 0,
+    "warn": 0,
+    "skip": 0
+  },
+  "overall_pass": true,
+  "checks": [
+    {
+      "id": "start_session",
+      "status": "PASS",
+      "detail": "HTTP 200",
+      "evidence": {
+        "status": 200,
+        "attempt_id": "f98fcb47-36b6-4cc9-b087-873b4d0169f6",
+        "has_session_token": true,
+        "error": null,
+        "message": null
+      }
+    },
+    {
+      "id": "candidate_login",
+      "status": "PASS",
+      "detail": "HTTP 200",
+      "evidence": {
+        "status": 200
+      }
+    },
+    {
+      "id": "answer_autosave",
+      "status": "PASS",
+      "detail": "HTTP 200",
+      "evidence": {
+        "status": 200
+      }
+    },
+    {
+      "id": "submit_exam",
+      "status": "PASS",
+      "detail": "HTTP 200",
+      "evidence": {
+        "status": 200
+      }
+    },
+    {
+      "id": "slots_fetch",
+      "status": "PASS",
+      "detail": "HTTP 200",
+      "evidence": {
+        "status": 200,
+        "slot_count": 12,
+        "slot_capacity_source": "consultant_schedule"
+      }
+    },
+    {
+      "id": "slots_capacity_source_valid",
+      "status": "PASS",
+      "detail": "source=consultant_schedule",
+      "evidence": {
+        "slot_capacity_source": "consultant_schedule"
+      }
+    },
+    {
+      "id": "slots_expect_consultant_schedule",
+      "status": "PASS",
+      "detail": "expected=consultant_schedule actual=consultant_schedule",
+      "evidence": {
+        "expect_consultant_schedule": true,
+        "slot_capacity_source": "consultant_schedule",
+        "schedule_active_consultants": 3,
+        "schedule_active_availability_rules": 18
+      }
+    },
+    {
+      "id": "book_slot",
+      "status": "PASS",
+      "detail": "HTTP 200",
+      "evidence": {
+        "status": 200,
+        "appointment_at": "2026-03-21T09:00:00.000Z",
+        "consultant_count": 3,
+        "consultant_capacity_source": "consultant_schedule"
+      }
+    },
+    {
+      "id": "book_capacity_source_valid",
+      "status": "PASS",
+      "detail": "source=consultant_schedule",
+      "evidence": {
+        "consultant_capacity_source": "consultant_schedule"
+      }
+    },
+    {
+      "id": "book_expect_consultant_schedule",
+      "status": "PASS",
+      "detail": "expected=consultant_schedule actual=consultant_schedule",
+      "evidence": {
+        "expect_consultant_schedule": true,
+        "consultant_capacity_source": "consultant_schedule"
+      }
+    }
+  ]
+}

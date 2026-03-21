@@ -76,67 +76,77 @@ async function run() {
     {
       id: 'rbac_dashboard_read',
       file: 'apps/panel-api/api/panel/dashboard.js',
-      marker: 'requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY])',
+      marker: "['PANEL_DASHBOARD_READ']",
     },
     {
       id: 'rbac_candidates_read',
       file: 'apps/panel-api/api/panel/candidates/index.js',
-      marker: 'requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY])',
+      marker: "['PANEL_CANDIDATES_READ']",
     },
     {
       id: 'rbac_candidates_export_read',
       file: 'apps/panel-api/api/panel/candidates/export.js',
-      marker: 'requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY])',
+      marker: "['PANEL_CANDIDATES_EXPORT']",
     },
     {
       id: 'rbac_notifications_read',
       file: 'apps/panel-api/api/panel/notifications/index.js',
-      marker: 'requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY])',
+      marker: "['PANEL_NOTIFICATIONS_READ']",
     },
     {
       id: 'rbac_dlq_read',
       file: 'apps/panel-api/api/panel/dlq/index.js',
-      marker: 'requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY])',
+      marker: "['PANEL_DLQ_READ']",
     },
     {
       id: 'rbac_unviewed_read',
       file: 'apps/panel-api/api/panel/unviewed-results/index.js',
-      marker: 'requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY])',
+      marker: "['PANEL_UNVIEWED_READ']",
     },
     {
       id: 'rbac_audit_read',
       file: 'apps/panel-api/api/panel/audit/index.js',
-      marker: 'requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY])',
+      marker: "['PANEL_AUDIT_READ']",
     },
     {
       id: 'rbac_audit_export_read',
       file: 'apps/panel-api/api/panel/audit/export.js',
-      marker: 'requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS, ROLES.READ_ONLY])',
+      marker: "['PANEL_AUDIT_EXPORT']",
     },
     {
       id: 'rbac_candidates_actions_write',
       file: 'apps/panel-api/api/panel/candidates/actions.js',
-      marker: 'requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS])',
+      marker: "['PANEL_CANDIDATES_ACTION']",
     },
     {
       id: 'rbac_notifications_actions_write',
       file: 'apps/panel-api/api/panel/notifications/actions.js',
-      marker: 'requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS])',
+      marker: "['PANEL_NOTIFICATIONS_ACTION']",
     },
     {
       id: 'rbac_dlq_actions_write',
       file: 'apps/panel-api/api/panel/dlq/actions.js',
-      marker: 'requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS])',
+      marker: "['PANEL_DLQ_ACTION']",
     },
     {
       id: 'rbac_unviewed_actions_write',
       file: 'apps/panel-api/api/panel/unviewed-results/actions.js',
-      marker: 'requireRole(req, [ROLES.SUPER_ADMIN, ROLES.OPERATIONS])',
+      marker: "['PANEL_UNVIEWED_ACTION']",
     },
     {
       id: 'rbac_settings_write_super_admin',
       file: 'apps/panel-api/api/panel/settings/index.js',
-      marker: 'requireRole(req, [ROLES.SUPER_ADMIN])',
+      marker: "['PANEL_SETTINGS_WRITE']",
+    },
+    {
+      id: 'rbac_ip_policy_read',
+      file: 'apps/panel-api/api/panel/security/ip-policy.js',
+      marker: "['PANEL_IP_POLICY_READ']",
+    },
+    {
+      id: 'rbac_ip_policy_write',
+      file: 'apps/panel-api/api/panel/security/ip-policy.js',
+      marker: "['PANEL_IP_POLICY_WRITE']",
     },
   ];
 
@@ -154,11 +164,44 @@ async function run() {
     );
   }
 
+  const contractChecks = [
+    {
+      id: 'contract_unviewed_followup_result_unseen_mode',
+      file: 'apps/panel-api/api/panel/unviewed-results/actions.js',
+      marker: 'all/result_unseen/viewed_no_appointment/appointment_no_show',
+    },
+    {
+      id: 'contract_unviewed_followup_result_unseen_trigger',
+      file: 'apps/panel-api/api/panel/unviewed-results/actions.js',
+      marker: 'ops_unviewed_results_auto_whatsapp',
+    },
+    {
+      id: 'contract_unviewed_followup_result_unseen_delay',
+      file: 'apps/panel-api/api/panel/unviewed-results/actions.js',
+      marker: 'FOLLOWUP_RESULT_UNSEEN_DELAY_MINUTES',
+    },
+  ];
+
+  for (const contract of contractChecks) {
+    const filePath = path.join(rootDir, contract.file);
+    const source = await fs.readFile(filePath, 'utf8');
+    const ok = source.includes(contract.marker);
+    checks.push(
+      makeCheck(
+        contract.id,
+        ok ? 'PASS' : 'FAIL',
+        ok ? 'Contract marker found.' : 'Contract marker missing.',
+        { file: contract.file, marker: contract.marker },
+      ),
+    );
+  }
+
   const unauthChecks = [
     ['GET', '/api/panel/candidates'],
     ['GET', '/api/panel/notifications'],
     ['GET', '/api/panel/dlq'],
     ['GET', '/api/panel/unviewed-results'],
+    ['GET', '/api/panel/security/ip-policy'],
     ['POST', '/api/panel/candidates/actions'],
     ['POST', '/api/panel/notifications/actions'],
     ['POST', '/api/panel/dlq/actions'],

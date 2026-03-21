@@ -1,0 +1,117 @@
+{
+  "timestamp": "2026-03-21T07:10:41.090Z",
+  "exam_api_base": "https://exam-api.teachera.com.tr",
+  "campaign_code": "2026_BURSLULUK",
+  "config": {
+    "timeout_wait_max_seconds": 15,
+    "timeout_status_retry_seconds": 30,
+    "timeout_status_retry_interval_ms": 3000,
+    "require_timeout_block": true,
+    "allow_db_timeout_mutation": true,
+    "has_database_url": true,
+    "has_load_test_bypass_key": true
+  },
+  "attempt_id": "cc0b189f-69ec-43d5-8a85-7bac3ad9dd22",
+  "totals": {
+    "pass": 8,
+    "fail": 0,
+    "warn": 0,
+    "skip": 0
+  },
+  "overall_pass": true,
+  "checks": [
+    {
+      "id": "start_session",
+      "status": "PASS",
+      "detail": "HTTP 200",
+      "evidence": {
+        "status": 200,
+        "attempt_id": "cc0b189f-69ec-43d5-8a85-7bac3ad9dd22",
+        "has_session_token": true,
+        "error": null,
+        "message": null
+      }
+    },
+    {
+      "id": "status_runtime_fetch",
+      "status": "PASS",
+      "detail": "HTTP 200",
+      "evidence": {
+        "status": 200
+      }
+    },
+    {
+      "id": "status_runtime_contract",
+      "status": "PASS",
+      "detail": "duration=2400 remaining=2398",
+      "evidence": {
+        "runtime": {
+          "duration_seconds": 2400,
+          "started_at": "2026-03-21T07:10:33.793Z",
+          "deadline_at": "2026-03-21T07:50:33.793Z",
+          "server_time_utc": "2026-03-21T07:10:36.133Z",
+          "elapsed_seconds": 2,
+          "remaining_seconds": 2398,
+          "timed_out": false,
+          "source": "started_at_plus_duration"
+        }
+      }
+    },
+    {
+      "id": "events_ingest",
+      "status": "PASS",
+      "detail": "HTTP 200",
+      "evidence": {
+        "status": 200,
+        "expected_event_type": "WINDOW_BLUR",
+        "actual_event_type": "WINDOW_BLUR",
+        "event_id": "52791f6a-08a7-4480-8181-3c0f600c4714"
+      }
+    },
+    {
+      "id": "prepare_timeout_via_db",
+      "status": "PASS",
+      "detail": "db_timeout_forced",
+      "evidence": {
+        "has_database_url": true,
+        "applied": true,
+        "shift_seconds": 2580
+      }
+    },
+    {
+      "id": "status_runtime_after_prepare",
+      "status": "PASS",
+      "detail": "HTTP 200",
+      "evidence": {
+        "status": 200
+      }
+    },
+    {
+      "id": "status_runtime_timed_out",
+      "status": "PASS",
+      "detail": "runtime.timed_out=true",
+      "evidence": {
+        "timed_out": true,
+        "timeout_preparation": {
+          "method": "db_mutation",
+          "detail": "db_timeout_forced",
+          "applied": true,
+          "reason": "db_timeout_forced",
+          "shift_seconds": 2580
+        },
+        "timeout_status_retry_attempts": 0,
+        "remaining_seconds": 0
+      }
+    },
+    {
+      "id": "timeout_answer_block",
+      "status": "PASS",
+      "detail": "HTTP 409 error=attempt_time_limit_reached",
+      "evidence": {
+        "status": 409,
+        "error": "attempt_time_limit_reached",
+        "message": "Exam time limit has been reached."
+      }
+    }
+  ]
+}

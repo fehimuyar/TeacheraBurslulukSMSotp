@@ -62,6 +62,35 @@
       ]
     },
     {
+      "id": "panel_step20_final_closeout_freshness_gate",
+      "status": "DONE",
+      "evidence": [
+        "guidelines/panel-step-20-final-closeout-smoke-latest.json",
+        "guidelines/panel-step-21-settings-release-gate-smoke-latest.json",
+        "guidelines/p0-panel-prod-slot-visibility-smoke-latest.json",
+        "guidelines/exam-backend-ops.md"
+      ]
+    },
+    {
+      "id": "panel_slot_visibility_smoke_gate",
+      "status": "DONE",
+      "evidence": [
+        "guidelines/p0-panel-prod-slot-visibility-smoke-latest.json",
+        "guidelines/p0-panel-prod-slot-visibility-smoke-latest.md",
+        "scripts/p0-panel-prod-slot-visibility-smoke.mjs"
+      ]
+    },
+    {
+      "id": "appointment_schedule_capacity_smoke_gate",
+      "status": "DONE",
+      "evidence": [
+        "guidelines/p0-appointment-schedule-capacity-smoke-latest.json",
+        "guidelines/p0-appointment-schedule-capacity-smoke-latest.md",
+        "scripts/p0-appointment-schedule-capacity-smoke.mjs",
+        "db/migrations/20260321_0019_consultant_schedule_capacity.sql"
+      ]
+    },
+    {
       "id": "final_approval_signed",
       "status": "DONE",
       "evidence": [

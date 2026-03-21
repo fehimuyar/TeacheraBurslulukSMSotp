@@ -36,6 +36,7 @@ export default async function handler(req, res) {
         email: identity.email,
         full_name: identity.fullName,
         role: identity.role,
+        permissions: identity.permissions || [],
         mfa_verified: identity.mfaVerified,
         session_id: identity.sessionId,
         password_reset_required: Boolean(identity.passwordResetRequired),

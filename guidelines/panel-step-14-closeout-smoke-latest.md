@@ -1,6 +1,6 @@
 # Panel Step-14 Closeout Smoke
 
-- Timestamp: 2026-03-17T20:18:40.516Z
+- Timestamp: 2026-03-21T07:09:59.596Z
 - overall_ready_for_step_14: **true**
 - pass: 21, fail: 0, warn: 0, skip: 0
 
@@ -20,8 +20,8 @@
 | unauth_/api/panel/settings | PASS | HTTP 401 |
 | unauth_/api/panel/audit | PASS | HTTP 401 |
 | unauth_/api/panel/audit/export?format=csv | PASS | HTTP 401 |
-| bundle_index_path | PASS | Found /assets/index-DCW-KWgh.js |
-| bundle_dashboard_chunk | PASS | Found assets/PanelDashboardPage-DVfUl_fC.js |
+| bundle_index_path | PASS | Found /assets/index-DZuxQwIn.js |
+| bundle_dashboard_chunk | PASS | Found assets/PanelDashboardPage-BnJr58Vh.js |
 | marker_audit_view | PASS | Marker found: Audit & Uyum |
 | marker_audit_route | PASS | Marker found: /panel/audit |
 | marker_audit_api | PASS | Marker found: /api/panel/audit |

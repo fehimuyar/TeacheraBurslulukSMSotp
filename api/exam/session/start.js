@@ -1,4 +1,5 @@
 // AUTO-GENERATED FROM apps/*/api (legacy root runtime mirror). DO NOT EDIT DIRECTLY.
+import { randomInt } from 'node:crypto';
 import { query, withTransaction } from '../../_lib/db.js';
 import { readDefaultCampaignCode } from '../../_lib/env.js';
 import { HttpError } from '../../_lib/errors.js';
@@ -26,6 +27,30 @@ const cachedSchoolIds = new Map();
 const DEFAULT_KVKK_CONSENT_VERSION = optionalString(process.env.KVKK_CONSENT_VERSION, 120) || 'KVKK_v1_2026-03-13';
 const DEFAULT_KVKK_LEGAL_TEXT_VERSION = optionalString(process.env.KVKK_LEGAL_TEXT_VERSION, 120) || DEFAULT_KVKK_CONSENT_VERSION;
 const DEFAULT_EXAM_LOGIN_URL = 'https://teachera.com.tr/bursluluk/giris';
+const CREDENTIAL_PASSWORD_CHARSET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const EXAM_SLOT_CATALOG = [
+  {
+    key: '2026-03-28T07:00:00.000Z',
+    day: '2026-03-28',
+    label: '28 Mart 2026 10:00-11:00',
+    gradeMin: 1,
+    gradeMax: 4,
+  },
+  {
+    key: '2026-03-28T10:00:00.000Z',
+    day: '2026-03-28',
+    label: '28 Mart 2026 13:00-14:00',
+    gradeMin: 5,
+    gradeMax: 8,
+  },
+  {
+    key: '2026-03-29T10:00:00.000Z',
+    day: '2026-03-29',
+    label: '29 Mart 2026 13:00-14:00',
+    gradeMin: 9,
+    gradeMax: 12,
+  },
+];
 
 function buildRedactedPhoneToken(phoneHash) {
   return `pii:${String(phoneHash || '').slice(0, 28)}`;
@@ -49,6 +74,190 @@ function parseBoolean(value, fallback = null) {
     if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
   }
   return fallback;
+}
+
+const ATTRIBUTION_KEYS = [
+  'utm_source',
+  'utm_medium',
+  'utm_campaign',
+  'utm_term',
+  'utm_content',
+  'gclid',
+  'fbclid',
+  'msclkid',
+  'first_touch_utm_source',
+  'first_touch_utm_medium',
+  'first_touch_utm_campaign',
+  'last_touch_utm_source',
+  'last_touch_utm_medium',
+  'last_touch_utm_campaign',
+  'first_touch_captured_at',
+  'last_touch_captured_at',
+  'landing_path',
+  'landing_url',
+  'referrer',
+];
+
+function normalizeAttributionValue(value, maxLength = 500) {
+  if (typeof value === 'string') {
+    return value.trim().slice(0, maxLength);
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value).trim().slice(0, maxLength);
+  }
+  return '';
+}
+
+function resolveAttributionPayload(body) {
+  const nested = body?.attribution && typeof body.attribution === 'object' && !Array.isArray(body.attribution)
+    ? body.attribution
+    : {};
+  const payload = {};
+
+  for (const key of ATTRIBUTION_KEYS) {
+    const raw = Object.prototype.hasOwnProperty.call(nested, key) ? nested[key] : body?.[key];
+    const value = normalizeAttributionValue(raw, key === 'landing_url' || key === 'referrer' ? 500 : 240);
+    if (value) payload[key] = value;
+  }
+
+  return Object.keys(payload).length > 0 ? payload : null;
+}
+
+function normalizeIdentityNo(value) {
+  const digits = String(value ?? '').replace(/\D+/g, '');
+  if (!digits) {
+    throw new HttpError(400, 'identityNo is required.', 'missing_identity_no');
+  }
+  if (!/^\d{11}$/.test(digits)) {
+    throw new HttpError(400, 'identityNo must be 11 digits.', 'invalid_identity_no');
+  }
+  return digits;
+}
+
+function normalizeBirthYear(value) {
+  const parsed = Number.parseInt(String(value ?? ''), 10);
+  const currentYear = new Date().getUTCFullYear();
+  if (!Number.isFinite(parsed)) {
+    throw new HttpError(400, 'birthYear is required.', 'missing_birth_year');
+  }
+  if (parsed < 1900 || parsed > currentYear) {
+    throw new HttpError(400, 'birthYear is out of range.', 'invalid_birth_year');
+  }
+  return parsed;
+}
+
+function normalizeSection(value) {
+  const normalized = optionalString(value, 60);
+  if (!normalized) {
+    throw new HttpError(400, 'section is required.', 'missing_section');
+  }
+  return normalized;
+}
+
+function readExamSlotsByGrade(grade) {
+  return EXAM_SLOT_CATALOG.filter((slot) => grade >= slot.gradeMin && grade <= slot.gradeMax);
+}
+
+function resolveDefaultExamSlot(grade) {
+  const slots = readExamSlotsByGrade(grade);
+  return slots[0] || null;
+}
+
+function normalizeSelectedExamSlot(value, grade) {
+  const raw = optionalString(value, 120);
+  if (!raw) {
+    throw new HttpError(400, 'selectedExamAt is required.', 'missing_selected_exam_at');
+  }
+  const selectedMs = Number(new Date(raw));
+  if (!Number.isFinite(selectedMs)) {
+    throw new HttpError(400, 'selectedExamAt must be a valid datetime.', 'invalid_selected_exam_at');
+  }
+  const normalizedIso = new Date(selectedMs).toISOString();
+  const slots = readExamSlotsByGrade(grade);
+  if (slots.length === 0) {
+    throw new HttpError(400, 'No exam slots are configured for this grade.', 'missing_grade_exam_slot');
+  }
+  const matched = slots.find((slot) => slot.key === normalizedIso);
+  if (!matched) {
+    throw new HttpError(
+      400,
+      'Selected exam slot does not match the selected grade schedule.',
+      'grade_exam_slot_mismatch',
+      {
+        grade,
+        selected_exam_at: normalizedIso,
+      },
+    );
+  }
+  return {
+    scheduledExamAt: matched.key,
+    examSlotLabel: matched.label,
+  };
+}
+
+function createCandidatePassword(length = 8) {
+  let value = '';
+  for (let i = 0; i < length; i += 1) {
+    value += CREDENTIAL_PASSWORD_CHARSET[randomInt(0, CREDENTIAL_PASSWORD_CHARSET.length)];
+  }
+  return value;
+}
+
+async function hashCredentialPassword(client, plainPassword) {
+  const hashed = await client.query(
+    `
+      SELECT crypt($1, gen_salt('bf', 8)) AS password_hash
+    `,
+    [plainPassword],
+  );
+  return hashed.rows[0]?.password_hash || null;
+}
+
+async function ensureApplicationCredential(
+  client,
+  {
+    applicationId,
+    credentialsSmsStatus,
+    currentPasswordHash,
+  },
+) {
+  const smsStatus = String(credentialsSmsStatus || 'NOT_QUEUED').toUpperCase();
+  const shouldRotatePassword = !currentPasswordHash || smsStatus === 'NOT_QUEUED';
+  if (!shouldRotatePassword) {
+    const state = await client.query(
+      `
+        SELECT candidate_code
+        FROM applications
+        WHERE id = $1
+        LIMIT 1
+      `,
+      [applicationId],
+    );
+    return {
+      candidateCode: state.rows[0]?.candidate_code || null,
+      credentialPasswordForSms: null,
+    };
+  }
+
+  const credentialPasswordForSms = createCandidatePassword(8);
+  const passwordHash = await hashCredentialPassword(client, credentialPasswordForSms);
+  const updated = await client.query(
+    `
+      UPDATE applications
+      SET
+        credential_password_hash = $2,
+        credential_password_updated_at = NOW(),
+        updated_at = NOW()
+      WHERE id = $1
+      RETURNING candidate_code
+    `,
+    [applicationId, passwordHash],
+  );
+
+  return {
+    candidateCode: updated.rows[0]?.candidate_code || null,
+    credentialPasswordForSms,
+  };
 }
 
 function resolveVersionedKvkkConsent(body, loadTestMode) {
@@ -289,9 +498,12 @@ async function resolveCandidate(client, payload) {
     campaignCode,
     studentFullNameHash,
     studentFullNameEnc,
+    identityNoHash,
+    birthYear,
     grade,
     schoolId,
     guardianId,
+    section,
     ageRange,
     language,
     source,
@@ -324,10 +536,25 @@ async function resolveCandidate(client, payload) {
           full_name = $6,
           full_name_enc = COALESCE($7, full_name_enc),
           full_name_hash = COALESCE($8, full_name_hash),
+          identity_no_hash = COALESCE($9, identity_no_hash),
+          birth_year = COALESCE($10, birth_year),
+          section = COALESCE($11, section),
           updated_at = NOW()
         WHERE id = $1
       `,
-      [candidateId, schoolId, ageRange, language, source, REDACTED_NAME, studentFullNameEnc, studentFullNameHash],
+      [
+        candidateId,
+        schoolId,
+        ageRange,
+        language,
+        source,
+        REDACTED_NAME,
+        studentFullNameEnc,
+        studentFullNameHash,
+        identityNoHash,
+        birthYear,
+        section,
+      ],
     );
     return { candidateId, isDuplicate: true };
   }
@@ -339,14 +566,17 @@ async function resolveCandidate(client, payload) {
         full_name,
         full_name_enc,
         full_name_hash,
+        identity_no_hash,
+        birth_year,
         grade,
+        section,
         school_id,
         guardian_id,
         age_range,
         preferred_language,
         source
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING id
     `,
     [
@@ -354,7 +584,10 @@ async function resolveCandidate(client, payload) {
       REDACTED_NAME,
       studentFullNameEnc,
       studentFullNameHash,
+      identityNoHash,
+      birthYear,
       grade,
+      section,
       schoolId,
       guardianId,
       ageRange,
@@ -369,7 +602,13 @@ async function resolveCandidate(client, payload) {
 async function resolveApplication(client, candidateId, campaignCode, isDuplicate) {
   const existing = await client.query(
     `
-      SELECT id, application_no, status, credentials_sms_status
+      SELECT
+        id,
+        application_no,
+        candidate_code,
+        status,
+        credentials_sms_status,
+        credential_password_hash
       FROM applications
       WHERE candidate_id = $1
       ORDER BY created_at ASC
@@ -398,7 +637,7 @@ async function resolveApplication(client, candidateId, campaignCode, isDuplicate
     `
       INSERT INTO applications (candidate_id, campaign_code, status)
       VALUES ($1, $2, $3::application_status)
-      RETURNING id, application_no, status, credentials_sms_status
+      RETURNING id, application_no, candidate_code, status, credentials_sms_status, credential_password_hash
     `,
     [candidateId, campaignCode, isDuplicate ? 'DUPLICATE_REVIEW' : 'APPLIED'],
   );
@@ -469,10 +708,14 @@ async function startLoadTestSession(client, payload) {
     source,
     bankKey,
     questionCount,
+    section,
+    scheduledExamAt,
+    examSlotLabel,
     parentPhoneE164,
     requestIp,
     userAgent,
     consent,
+    attribution,
   } = payload;
   const schoolId = await resolveSchoolId(client, schoolName);
   const guardianPhone = buildLoadTestGuardianPhoneToken(parentPhoneE164);
@@ -503,16 +746,17 @@ async function startLoadTestSession(client, payload) {
         full_name_enc,
         full_name_hash,
         grade,
+        section,
         school_id,
         guardian_id,
         age_range,
         preferred_language,
         source
       )
-      VALUES ($1, $2, NULL, NULL, $3, $4, $5, $6, $7, $8)
+      VALUES ($1, $2, NULL, NULL, $3, $4, $5, $6, $7, $8, $9)
       RETURNING id
     `,
-    [campaignCode, REDACTED_NAME, grade, schoolId, guardianId, ageRange, language, source],
+    [campaignCode, REDACTED_NAME, grade, section, schoolId, guardianId, ageRange, language, source],
   );
   const candidateId = candidateInserted.rows[0]?.id;
 
@@ -520,7 +764,7 @@ async function startLoadTestSession(client, payload) {
     `
       INSERT INTO applications (candidate_id, campaign_code, status)
       VALUES ($1, $2, 'APPLIED'::application_status)
-      RETURNING id, application_no, status, credentials_sms_status
+      RETURNING id, application_no, candidate_code, status, credentials_sms_status, credential_password_hash
     `,
     [candidateId, campaignCode],
   );
@@ -536,17 +780,24 @@ async function startLoadTestSession(client, payload) {
         exam_age_range,
         bank_key,
         question_count,
+        scheduled_exam_at,
+        exam_slot_label,
         status,
         started_at,
         source
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, 'STARTED', NOW(), $8)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz, $9, 'STARTED', NOW(), $10)
       RETURNING id, started_at
     `,
-    [candidateId, application.id, campaignCode, language, ageRange, bankKey, questionCount, source],
+    [candidateId, application.id, campaignCode, language, ageRange, bankKey, questionCount, scheduledExamAt, examSlotLabel, source],
   );
   const attempt = attemptInserted.rows[0];
   const session = await createSession(client, attempt.id);
+  const credentials = await ensureApplicationCredential(client, {
+    applicationId: application.id,
+    credentialsSmsStatus: application.credentials_sms_status,
+    currentPasswordHash: application.credential_password_hash,
+  });
   await writeVersionedKvkkConsent(client, {
     campaignCode,
     candidateId,
@@ -557,19 +808,41 @@ async function startLoadTestSession(client, payload) {
     consent,
   });
 
+  if (attribution) {
+    await client.query(
+      `
+        INSERT INTO activity_events (candidate_id, attempt_id, event_type, event_payload)
+        VALUES ($1, $2, 'ATTRIBUTION_CAPTURED', $3::jsonb)
+      `,
+      [
+        candidateId,
+        attempt.id,
+        JSON.stringify({
+          ...attribution,
+          capture_source: 'exam_session_start_load_test',
+        }),
+      ],
+    );
+  }
+
   return {
     candidateId,
     applicationId: application.id,
     applicationNo: application.application_no,
+    candidateCode: credentials.candidateCode || application.candidate_code || null,
     applicationStatus: application.status,
     attemptId: attempt.id,
     sessionToken: session.sessionToken,
     expiresAt: session.expiresAt,
     startedAt: attempt.started_at,
     credentialsSmsStatus: application.credentials_sms_status || 'NOT_QUEUED',
+    credentialPasswordForSms: credentials.credentialPasswordForSms,
     hasCredentialsSmsJob: false,
     parentPhoneE164,
     consentVersion: consent.consentVersion,
+    section,
+    scheduledExamAt,
+    examSlotLabel,
   };
 }
 
@@ -582,19 +855,41 @@ export default async function handler(req, res) {
     }
 
     const campaignCode = optionalString(body.campaignCode, 120) || readDefaultCampaignCode();
+    const loadTestMode = isAuthorizedLoadTestMode(req);
     const studentFullName = requireString(body.studentFullName || body.fullName, 'studentFullName', 200);
     const parentFullName = requireString(body.parentFullName || body.fullName, 'parentFullName', 200);
+    const identityNo = loadTestMode
+      ? '00000000000'
+      : normalizeIdentityNo(body.identityNo ?? body.tcKimlikNo ?? body.tcIdentityNo);
+    const birthYear = loadTestMode
+      ? 2000
+      : normalizeBirthYear(body.birthYear ?? body.dogumYili ?? body.birth_year);
     const parentPhoneE164 = normalizePhoneE164(requireString(body.parentPhoneE164 || body.phone, 'parentPhoneE164', 30));
     const parentEmail = normalizeEmail(optionalString(body.parentEmail || body.email, 250));
     const schoolName = optionalString(body.schoolName, 200) || 'Belirtilmedi';
     const grade = normalizeGrade(body.grade ?? 8);
+    const section = loadTestMode
+      ? 'LOADTEST'
+      : normalizeSection(body.section ?? body.sube ?? body.sectionName);
+    const selectedExamSlot = loadTestMode
+      ? resolveDefaultExamSlot(grade)
+      : normalizeSelectedExamSlot(
+          body.selectedExamAt
+            ?? body.scheduledExamAt
+            ?? body.examDateTime
+            ?? body.examOpenAt
+            ?? body.examSlot,
+          grade,
+        );
+    const scheduledExamAt = selectedExamSlot?.scheduledExamAt || new Date().toISOString();
+    const examSlotLabel = selectedExamSlot?.examSlotLabel || 'Exam Slot';
     const ageRange = requireString(body.ageRange || body.age, 'ageRange', 30);
     const language = requireString(body.language, 'language', 80);
     const source = optionalString(body.source || body.formSource || 'placement_exam', 160);
+    const attribution = resolveAttributionPayload(body);
     const bankKey = optionalString(body.bankKey, 120);
     const questionCountRaw = Number.parseInt(String(body.questionCount ?? 0), 10);
     const questionCount = Number.isFinite(questionCountRaw) ? Math.max(0, Math.min(questionCountRaw, 500)) : 0;
-    const loadTestMode = isAuthorizedLoadTestMode(req);
     const consent = resolveVersionedKvkkConsent(body, loadTestMode);
     const requestIp = getRequestIp(req);
     const userAgent = resolveUserAgent(req);
@@ -604,6 +899,10 @@ export default async function handler(req, res) {
     }
     const parentPhoneHash = loadTestMode ? null : computePiiLookupHash(parentPhoneE164);
     if (!loadTestMode && !parentPhoneHash) {
+      throw new HttpError(503, 'PII hashing is not configured.', 'pii_hash_not_configured');
+    }
+    const identityNoHash = loadTestMode ? null : computePiiLookupHash(identityNo);
+    if (!loadTestMode && !identityNoHash) {
       throw new HttpError(503, 'PII hashing is not configured.', 'pii_hash_not_configured');
     }
 
@@ -650,6 +949,9 @@ export default async function handler(req, res) {
           campaignCode,
           grade,
           schoolName,
+          section,
+          scheduledExamAt,
+          examSlotLabel,
           ageRange,
           language,
           source,
@@ -659,6 +961,7 @@ export default async function handler(req, res) {
           requestIp,
           userAgent,
           consent,
+          attribution,
         });
       }
 
@@ -674,14 +977,22 @@ export default async function handler(req, res) {
         campaignCode,
         studentFullNameHash,
         studentFullNameEnc,
+        identityNoHash,
+        birthYear,
         grade,
         schoolId,
         guardianId,
+        section,
         ageRange,
         language,
         source,
       });
       const application = await resolveApplication(client, candidateId, campaignCode, isDuplicate);
+      const credentials = await ensureApplicationCredential(client, {
+        applicationId: application.id,
+        credentialsSmsStatus: application.credentials_sms_status,
+        currentPasswordHash: application.credential_password_hash,
+      });
 
       const attemptInserted = await client.query(
         `
@@ -693,14 +1004,16 @@ export default async function handler(req, res) {
             exam_age_range,
             bank_key,
             question_count,
+            scheduled_exam_at,
+            exam_slot_label,
             status,
             started_at,
             source
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, 'STARTED', NOW(), $8)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz, $9, 'STARTED', NOW(), $10)
           RETURNING id, started_at
         `,
-        [candidateId, application.id, campaignCode, language, ageRange, bankKey, questionCount, source],
+        [candidateId, application.id, campaignCode, language, ageRange, bankKey, questionCount, scheduledExamAt, examSlotLabel, source],
       );
 
       const attempt = attemptInserted.rows[0];
@@ -730,6 +1043,23 @@ export default async function handler(req, res) {
         );
       }
 
+      if (attribution) {
+        await client.query(
+          `
+            INSERT INTO activity_events (candidate_id, attempt_id, event_type, event_payload)
+            VALUES ($1, $2, 'ATTRIBUTION_CAPTURED', $3::jsonb)
+          `,
+          [
+            candidateId,
+            attempt.id,
+            JSON.stringify({
+              ...attribution,
+              capture_source: 'exam_session_start',
+            }),
+          ],
+        );
+      }
+
       await writeVersionedKvkkConsent(client, {
         campaignCode,
         candidateId,
@@ -744,21 +1074,28 @@ export default async function handler(req, res) {
         candidateId,
         applicationId: application.id,
         applicationNo: application.application_no,
+        candidateCode: credentials.candidateCode || application.candidate_code || null,
         applicationStatus: application.status,
         attemptId: attempt.id,
         sessionToken: session.sessionToken,
         expiresAt: session.expiresAt,
         startedAt: attempt.started_at,
         credentialsSmsStatus: application.credentials_sms_status || 'NOT_QUEUED',
+        credentialPasswordForSms: credentials.credentialPasswordForSms,
         hasCredentialsSmsJob: String(application.credentials_sms_status || 'NOT_QUEUED').toUpperCase() !== 'NOT_QUEUED',
         parentPhoneE164,
         consentVersion: consent.consentVersion,
+        section,
+        scheduledExamAt,
+        examSlotLabel,
       };
     });
 
     if (!loadTestMode && !started.hasCredentialsSmsJob && started.parentPhoneE164) {
       try {
         const loginUrl = optionalString(process.env.EXAM_LOGIN_URL, 500) || DEFAULT_EXAM_LOGIN_URL;
+        const credentialUsername = started.candidateCode || started.applicationNo;
+        const credentialPassword = started.credentialPasswordForSms || started.sessionToken;
         const enqueued = await enqueueNotification({
           campaignCode,
           candidateId: started.candidateId,
@@ -768,11 +1105,17 @@ export default async function handler(req, res) {
           recipient: started.parentPhoneE164,
           payload: {
             applicationNo: started.applicationNo,
+            candidateCode: started.candidateCode || null,
             loginUrl,
             credential: {
-              username: started.applicationNo,
-              password: started.sessionToken,
+              username: credentialUsername,
+              candidateCode: started.candidateCode || null,
+              password: credentialPassword,
               expiresAt: started.expiresAt,
+            },
+            exam_schedule: {
+              scheduled_exam_at: started.scheduledExamAt || null,
+              exam_slot_label: started.examSlotLabel || null,
             },
             trigger: 'session_start_auto_credentials',
           },
@@ -786,6 +1129,7 @@ export default async function handler(req, res) {
 
     const {
       parentPhoneE164: _parentPhoneE164,
+      credentialPasswordForSms: _credentialPasswordForSms,
       hasCredentialsSmsJob: _hasCredentialsSmsJob,
       applicationId: _applicationId,
       ...sessionPayload

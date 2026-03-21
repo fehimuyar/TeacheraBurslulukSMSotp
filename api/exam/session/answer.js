@@ -1,6 +1,7 @@
 // AUTO-GENERATED FROM apps/*/api (legacy root runtime mirror). DO NOT EDIT DIRECTLY.
 import { query, withTransaction } from '../../_lib/db.js';
 import { HttpError } from '../../_lib/errors.js';
+import { resolveExamRuntimeWindow } from '../../_lib/examRuntime.js';
 import { handleRequest, methodGuard, ok, parseBody, safeTrim } from '../../_lib/http.js';
 import { isAuthorizedLoadTestMode } from '../../_lib/loadTestMode.js';
 import { enforceCounterThreshold } from '../../_lib/redisEphemeral.js';
@@ -171,7 +172,7 @@ export default async function handler(req, res) {
     if (!loadTestMode) {
       const attemptState = await query(
         `
-          SELECT status
+          SELECT status, started_at
           FROM exam_attempts
           WHERE id = $1
           LIMIT 1
@@ -184,6 +185,28 @@ export default async function handler(req, res) {
       }
 
       const status = attemptState.rows[0].status;
+      const runtime = resolveExamRuntimeWindow(attemptState.rows[0].started_at);
+      if (runtime.timed_out) {
+        if (['STARTED', 'OPEN'].includes(status)) {
+          await query(
+            `
+              UPDATE exam_attempts
+              SET
+                status = 'TIMEOUT',
+                submitted_at = COALESCE(submitted_at, NOW()),
+                completion_status = COALESCE(completion_status, 'time_limit_reached'),
+                duration_seconds = COALESCE(duration_seconds, $2),
+                updated_at = NOW()
+              WHERE id = $1
+                AND status IN ('STARTED', 'OPEN')
+            `,
+            [attemptId, runtime.duration_seconds],
+          );
+        }
+        throw new HttpError(409, 'Exam time limit has been reached.', 'attempt_time_limit_reached', {
+          runtime,
+        });
+      }
       if (!['STARTED', 'OPEN'].includes(status)) {
         throw new HttpError(409, 'Attempt no longer accepts answers.', 'attempt_not_open', { status });
       }

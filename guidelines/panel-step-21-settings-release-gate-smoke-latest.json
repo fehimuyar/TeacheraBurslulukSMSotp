@@ -1,0 +1,153 @@
+{
+  "timestamp": "2026-03-20T20:58:13.036Z",
+  "mode": {
+    "http": true,
+    "static": true,
+    "auth": true
+  },
+  "config": {
+    "panel_api_base": "https://panel-api.teachera.com.tr",
+    "campaign_code": "2026_BURSLULUK",
+    "require_auth": true,
+    "auth_inputs_present": {
+      "panel_email": true,
+      "panel_password": true,
+      "panel_mfa_code": true
+    }
+  },
+  "totals": {
+    "pass": 11,
+    "fail": 0,
+    "warn": 0,
+    "skip": 0
+  },
+  "overall_ready_for_step_21": true,
+  "checks": [
+    {
+      "id": "static_settings_legacy_key_rejection_marker",
+      "status": "PASS",
+      "detail": "Marker found.",
+      "evidence": {
+        "file": "apps/panel-api/api/panel/settings/index.js",
+        "marker": "legacy_gate_keys_not_supported"
+      }
+    },
+    {
+      "id": "static_settings_canonical_key_marker",
+      "status": "PASS",
+      "detail": "Canonical gate markers found.",
+      "evidence": {
+        "file": "apps/panel-api/api/panel/settings/index.js",
+        "markers": [
+          "bursluluk.exam_force_open",
+          "bursluluk.exam_open_at"
+        ]
+      }
+    },
+    {
+      "id": "static_release_gate_endpoint_marker",
+      "status": "PASS",
+      "detail": "Release-gate endpoint markers found.",
+      "evidence": {
+        "file": "apps/panel-api/api/panel/settings/release-gate.js",
+        "markers": [
+          "methodGuard(req, ['GET'])",
+          "evaluateCampaignReleaseGate"
+        ]
+      }
+    },
+    {
+      "id": "unauth_release_gate_read",
+      "status": "PASS",
+      "detail": "HTTP 401",
+      "evidence": {
+        "status": 401,
+        "expected": [
+          401
+        ]
+      }
+    },
+    {
+      "id": "unauth_settings_write",
+      "status": "PASS",
+      "detail": "HTTP 401",
+      "evidence": {
+        "status": 401,
+        "expected": [
+          401
+        ]
+      }
+    },
+    {
+      "id": "auth_login",
+      "status": "PASS",
+      "detail": "HTTP 200",
+      "evidence": {
+        "status": 200,
+        "has_token": true,
+        "error": null
+      }
+    },
+    {
+      "id": "auth_me",
+      "status": "PASS",
+      "detail": "HTTP 200",
+      "evidence": {
+        "status": 200,
+        "role": "SUPER_ADMIN"
+      }
+    },
+    {
+      "id": "release_gate_read_authenticated",
+      "status": "PASS",
+      "detail": "HTTP 200",
+      "evidence": {
+        "status": 200,
+        "campaign_code": "2026_BURSLULUK",
+        "release_gate_keys": [
+          "passed",
+          "enabled",
+          "campaign_code",
+          "checked_at",
+          "checks",
+          "failed_checks",
+          "config"
+        ]
+      }
+    },
+    {
+      "id": "settings_baseline_open_at",
+      "status": "PASS",
+      "detail": "No baseline found; generated probe exam_open_at because release-gate is currently BLOCKED.",
+      "evidence": {
+        "status": 200,
+        "baseline_open_at": null,
+        "candidate_open_at": "2026-03-20T21:13:10.167Z",
+        "probe_generated": true,
+        "release_gate_passed": false,
+        "keys_seen": []
+      }
+    },
+    {
+      "id": "canonical_activation_attempt",
+      "status": "PASS",
+      "detail": "HTTP 409",
+      "evidence": {
+        "status": 409,
+        "error": "release_gate_blocked",
+        "updated_keys": [],
+        "used_probe_open_at": true
+      }
+    },
+    {
+      "id": "legacy_key_rejection_authenticated",
+      "status": "PASS",
+      "detail": "HTTP 400",
+      "evidence": {
+        "status": 400,
+        "error": "legacy_gate_keys_not_supported",
+        "expected_error": "legacy_gate_keys_not_supported"
+      }
+    }
+  ]
+}

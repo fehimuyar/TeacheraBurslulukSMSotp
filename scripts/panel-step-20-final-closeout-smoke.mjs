@@ -20,6 +20,74 @@ function makeCheck(id, status, detail, evidence = {}) {
   return { id, status, detail, evidence };
 }
 
+function readBoundedIntEnv(name, fallback, min, max) {
+  const parsed = Number.parseInt(safeTrim(process.env[name] || ''), 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(max, parsed));
+}
+
+function computeArtifactFreshness(payload, maxAgeHours) {
+  const timestamp = safeTrim(payload?.timestamp);
+  if (!timestamp) {
+    return {
+      ok: false,
+      detail: 'artifact timestamp missing.',
+      evidence: {
+        timestamp: null,
+        max_age_hours: maxAgeHours,
+      },
+    };
+  }
+
+  const parsedMs = Number(new Date(timestamp));
+  if (!Number.isFinite(parsedMs)) {
+    return {
+      ok: false,
+      detail: 'artifact timestamp invalid.',
+      evidence: {
+        timestamp,
+        max_age_hours: maxAgeHours,
+      },
+    };
+  }
+
+  const ageMinutes = Math.round((Date.now() - parsedMs) / 60000);
+  if (ageMinutes < 0) {
+    return {
+      ok: false,
+      detail: `artifact timestamp is in the future (${ageMinutes} min).`,
+      evidence: {
+        timestamp,
+        age_minutes: ageMinutes,
+        max_age_hours: maxAgeHours,
+      },
+    };
+  }
+
+  const maxAgeMinutes = maxAgeHours * 60;
+  if (ageMinutes > maxAgeMinutes) {
+    return {
+      ok: false,
+      detail: `artifact stale (${ageMinutes} min > ${maxAgeMinutes} min).`,
+      evidence: {
+        timestamp,
+        age_minutes: ageMinutes,
+        max_age_hours: maxAgeHours,
+      },
+    };
+  }
+
+  return {
+    ok: true,
+    detail: `artifact fresh (${ageMinutes} min <= ${maxAgeMinutes} min).`,
+    evidence: {
+      timestamp,
+      age_minutes: ageMinutes,
+      max_age_hours: maxAgeHours,
+    },
+  };
+}
+
 async function httpRequest({ method = 'GET', url, headers = {}, timeoutMs = 20000 }) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -76,6 +144,8 @@ async function run() {
   const cfg = {
     wwwBase: normalizeBase(process.env.WWW_BASE_URL, 'https://teachera.com.tr'),
     panelApiBase: normalizeBase(process.env.PANEL_API_BASE_URL, 'https://panel-api.teachera.com.tr'),
+    artifactMaxAgeHours: readBoundedIntEnv('PANEL_STEP20_ARTIFACT_MAX_AGE_HOURS', 168, 1, 24 * 30),
+    step21ArtifactMaxAgeHours: readBoundedIntEnv('PANEL_STEP20_STEP21_MAX_AGE_HOURS', 24, 1, 24 * 30),
   };
 
   const checks = [];
@@ -86,6 +156,8 @@ async function run() {
     ['step17', 'panel-step-17-rbac-session-smoke-latest.json', 'overall_ready_for_step_17'],
     ['step18', 'panel-step-18-rbac-policy-smoke-latest.json', 'overall_ready_for_step_18'],
     ['step19', 'panel-step-19-data-contract-smoke-latest.json', 'overall_ready_for_step_19'],
+    ['step21', 'panel-step-21-settings-release-gate-smoke-latest.json', 'overall_ready_for_step_21'],
+    ['slot_visibility', 'p0-panel-prod-slot-visibility-smoke-latest.json', 'overall_pass'],
   ];
 
   for (const [id, fileName, readyKey] of artifactChecks) {
@@ -112,6 +184,22 @@ async function run() {
         ready ? 'PASS' : 'FAIL',
         ready ? `${readyKey}=true` : `${readyKey}=false`,
         { path: fullPath, [readyKey]: payload?.[readyKey] },
+      ),
+    );
+
+    const maxAgeHours = (id === 'step21' || id === 'slot_visibility')
+      ? cfg.step21ArtifactMaxAgeHours
+      : cfg.artifactMaxAgeHours;
+    const freshness = computeArtifactFreshness(payload, maxAgeHours);
+    checks.push(
+      makeCheck(
+        `artifact_${id}_freshness`,
+        freshness.ok ? 'PASS' : 'FAIL',
+        freshness.detail,
+        {
+          path: fullPath,
+          ...freshness.evidence,
+        },
       ),
     );
   }

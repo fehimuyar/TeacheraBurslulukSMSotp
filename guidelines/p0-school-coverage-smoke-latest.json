@@ -1,0 +1,194 @@
+{
+  "timestamp": "2026-03-21T13:03:49.485Z",
+  "config": {
+    "csv_path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-school-target-130.csv",
+    "expected_school_count": 130,
+    "campaign_code": "2026_BURSLULUK",
+    "date_tr": "2026-03-21",
+    "require_db": true,
+    "strict_traffic": false,
+    "upsert_mode": false,
+    "has_db_url": true
+  },
+  "totals": {
+    "pass": 11,
+    "fail": 0,
+    "warn": 3,
+    "skip": 1
+  },
+  "overall_pass": true,
+  "checks": [
+    {
+      "id": "csv_path_not_placeholder",
+      "status": "PASS",
+      "detail": "CSV path looks valid.",
+      "evidence": {
+        "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-school-target-130.csv"
+      }
+    },
+    {
+      "id": "csv_file_exists",
+      "status": "PASS",
+      "detail": "CSV file found.",
+      "evidence": {
+        "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-school-target-130.csv"
+      }
+    },
+    {
+      "id": "csv_headers_required",
+      "status": "PASS",
+      "detail": "All required headers present (8).",
+      "evidence": {
+        "required_headers": [
+          "school_name",
+          "district",
+          "city",
+          "channel_group",
+          "utm_source",
+          "utm_medium",
+          "utm_campaign",
+          "utm_content"
+        ],
+        "actual_headers": [
+          "school_name",
+          "district",
+          "city",
+          "channel_group",
+          "utm_source",
+          "utm_medium",
+          "utm_campaign",
+          "utm_content"
+        ]
+      }
+    },
+    {
+      "id": "csv_parse_valid_lines",
+      "status": "PASS",
+      "detail": "All lines parsed.",
+      "evidence": {
+        "row_count": 130,
+        "invalid_line_count": 0
+      }
+    },
+    {
+      "id": "csv_school_count_expected",
+      "status": "PASS",
+      "detail": "unique schools=130, expected>=130",
+      "evidence": {
+        "csv_row_count": 130,
+        "unique_school_count": 130,
+        "expected_school_count": 130
+      }
+    },
+    {
+      "id": "csv_no_duplicate_school_names",
+      "status": "PASS",
+      "detail": "No duplicate school names.",
+      "evidence": {
+        "duplicate_count": 0
+      }
+    },
+    {
+      "id": "csv_channel_fields_complete",
+      "status": "PASS",
+      "detail": "All rows have school/channel/source/medium fields.",
+      "evidence": {
+        "missing_rows_preview": []
+      }
+    },
+    {
+      "id": "csv_channel_mix_present",
+      "status": "PASS",
+      "detail": "CSV channel sources: facebook, instagram, konya_avm, konya_outdoor, youtube",
+      "evidence": {
+        "expected_channels": [
+          "facebook",
+          "instagram",
+          "konya_avm",
+          "konya_outdoor",
+          "youtube"
+        ]
+      }
+    },
+    {
+      "id": "db_connection",
+      "status": "PASS",
+      "detail": "Connected to database.",
+      "evidence": {}
+    },
+    {
+      "id": "db_upsert_school_master",
+      "status": "SKIP",
+      "detail": "Upsert skipped (set SCHOOL_COVERAGE_UPSERT=true to enable).",
+      "evidence": {}
+    },
+    {
+      "id": "db_total_schools_expected",
+      "status": "PASS",
+      "detail": "db schools=555, expected>=130",
+      "evidence": {
+        "db_total_schools": 555,
+        "expected_school_count": 130
+      }
+    },
+    {
+      "id": "db_school_master_matches_csv",
+      "status": "PASS",
+      "detail": "matched schools=130, expected>=130",
+      "evidence": {
+        "matched_schools": 130,
+        "expected_school_count": 130
+      }
+    },
+    {
+      "id": "db_campaign_school_coverage",
+      "status": "WARN",
+      "detail": "campaign schools=18, expected>=130",
+      "evidence": {
+        "campaign_code": "2026_BURSLULUK",
+        "campaign_school_count": 18,
+        "expected_school_count": 130,
+        "strict_traffic": false
+      }
+    },
+    {
+      "id": "db_same_day_attr_school_coverage",
+      "status": "WARN",
+      "detail": "same-day attribution schools=1, expected>=130",
+      "evidence": {
+        "campaign_code": "2026_BURSLULUK",
+        "date_tr": "2026-03-21",
+        "school_count": 1,
+        "expected_school_count": 130,
+        "strict_traffic": false
+      }
+    },
+    {
+      "id": "db_same_day_channel_coverage",
+      "status": "WARN",
+      "detail": "Missing channels: facebook, instagram, konya_avm, konya_outdoor, youtube",
+      "evidence": {
+        "campaign_code": "2026_BURSLULUK",
+        "date_tr": "2026-03-21",
+        "expected_channels": [
+          "facebook",
+          "instagram",
+          "konya_avm",
+          "konya_outdoor",
+          "youtube"
+        ],
+        "observed_channels": [
+          "google"
+        ],
+        "missing_channels": [
+          "facebook",
+          "instagram",
+          "konya_avm",
+          "konya_outdoor",
+          "youtube"
+        ],
+        "strict_traffic": false
+      }
+    }
+  ]
+}

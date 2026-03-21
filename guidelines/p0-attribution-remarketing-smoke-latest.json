@@ -1,0 +1,76 @@
+{
+  "timestamp": "2026-03-21T10:55:53.887Z",
+  "exam_api_base": "https://exam-api.teachera.com.tr",
+  "campaign_code": "2026_BURSLULUK",
+  "totals": {
+    "pass": 5,
+    "fail": 0,
+    "warn": 0,
+    "skip": 0
+  },
+  "overall_pass": true,
+  "checks": [
+    {
+      "id": "start_session",
+      "status": "PASS",
+      "detail": "HTTP 200",
+      "evidence": {
+        "status": 200,
+        "candidate_id": "3e3b1e5c-bc97-45b3-b516-d9156b7b5deb",
+        "attempt_id": "9b22e26a-b5c0-417e-a7f5-2158278bb058",
+        "error": null
+      }
+    },
+    {
+      "id": "db_attribution_event_payload",
+      "status": "PASS",
+      "detail": "utm_source=google utm_medium=cpc utm_campaign=p0_attr_1774090548197",
+      "evidence": {
+        "occurred_at": "2026-03-21T10:55:50.841Z",
+        "expected": {
+          "utm_source": "google",
+          "utm_medium": "cpc",
+          "utm_campaign": "p0_attr_1774090548197"
+        },
+        "actual": {
+          "utm_source": "google",
+          "utm_medium": "cpc",
+          "utm_campaign": "p0_attr_1774090548197"
+        }
+      }
+    },
+    {
+      "id": "db_attribution_click_ids",
+      "status": "PASS",
+      "detail": "gclid/fbclid/msclkid persisted.",
+      "evidence": {
+        "expected": {
+          "gclid": "gclid_761264",
+          "fbclid": "fbclid_494117",
+          "msclkid": "msclkid_160995"
+        },
+        "actual": {
+          "gclid": "gclid_761264",
+          "fbclid": "fbclid_494117",
+          "msclkid": "msclkid_160995"
+        }
+      }
+    },
+    {
+      "id": "frontend_default_consent_optout",
+      "status": "PASS",
+      "detail": "Tag manager default consent denies ad/analytics storage.",
+      "evidence": {
+        "missing_markers": []
+      }
+    },
+    {
+      "id": "frontend_tracking_respects_consent",
+      "status": "PASS",
+      "detail": "Tracking defaults to opt-out and checks consent before event emit.",
+      "evidence": {
+        "missing_markers": []
+      }
+    }
+  ]
+}

@@ -17,6 +17,24 @@ function normalizePiiString(value, maxLength = 300) {
   return trimmed.slice(0, maxLength);
 }
 
+function normalizeEnvToken(value) {
+  const raw = safeTrim(value);
+  if (!raw) return '';
+  let normalized = raw
+    .replace(/\\r/g, '')
+    .replace(/\\n/g, '')
+    .replace(/\r/g, '')
+    .replace(/\n/g, '')
+    .trim();
+  if (
+    (normalized.startsWith('"') && normalized.endsWith('"'))
+    || (normalized.startsWith("'") && normalized.endsWith("'"))
+  ) {
+    normalized = normalized.slice(1, -1).trim();
+  }
+  return normalized;
+}
+
 function normalizeLookupSource(value) {
   return safeTrim(value)
     .toLowerCase()
@@ -26,26 +44,26 @@ function normalizeLookupSource(value) {
 
 function readAwsRegion() {
   return (
-    safeTrim(process.env.PII_KMS_REGION) ||
-    safeTrim(process.env.AWS_REGION) ||
-    safeTrim(process.env.AWS_DEFAULT_REGION)
+    normalizeEnvToken(process.env.PII_KMS_REGION) ||
+    normalizeEnvToken(process.env.AWS_REGION) ||
+    normalizeEnvToken(process.env.AWS_DEFAULT_REGION)
   );
 }
 
 function readEncryptedDataKeyB64() {
-  return safeTrim(process.env.PII_KMS_ENCRYPTED_DATA_KEY_B64);
+  return normalizeEnvToken(process.env.PII_KMS_ENCRYPTED_DATA_KEY_B64);
 }
 
 function readKmsKeyId() {
-  return safeTrim(process.env.PII_KMS_KEY_ID);
+  return normalizeEnvToken(process.env.PII_KMS_KEY_ID);
 }
 
 function readLookupHmacKey() {
-  return safeTrim(process.env.PII_LOOKUP_HMAC_KEY);
+  return normalizeEnvToken(process.env.PII_LOOKUP_HMAC_KEY);
 }
 
 function readEnvContextValue() {
-  return safeTrim(process.env.VERCEL_ENV || process.env.NODE_ENV || 'unknown');
+  return normalizeEnvToken(process.env.VERCEL_ENV || process.env.NODE_ENV || 'unknown');
 }
 
 function buildDecryptContexts() {
