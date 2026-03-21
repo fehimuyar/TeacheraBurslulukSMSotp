@@ -1,6 +1,4 @@
 import { Link } from 'react-router';
-import homeHeroVideo from '../../assets/video/home-hero.mp4';
-import homeHeroVideoWebm from '../../assets/video/home-hero.webm';
 
 const trustBadges = ['ÜCRETSİZ', 'MEB ONAYLI', 'ONLINE'] as const;
 
@@ -63,10 +61,8 @@ export default function Bursluluk2026Page() {
                 loop
                 playsInline
                 preload="metadata"
-              >
-                <source src={homeHeroVideoWebm} type="video/webm" />
-                <source src={homeHeroVideo} type="video/mp4" />
-              </video>
+                src="/media/bursluluk-2026-hero.mp4"
+              />
 
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/18" />
 
