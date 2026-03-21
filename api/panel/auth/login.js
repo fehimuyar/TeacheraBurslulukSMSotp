@@ -12,7 +12,6 @@ import { normalizePhoneE164 } from '../../_lib/exam.js';
 import { HttpError } from '../../_lib/errors.js';
 import { handleRequest, methodGuard, ok, parseBody, safeTrim } from '../../_lib/http.js';
 import { enqueueNotification } from '../../_lib/notifications.js';
-import { verifyTotpCode } from '../../_lib/panelMfa.js';
 import {
   buildPanelSessionCookie,
   createPanelSessionToken,
@@ -45,14 +44,6 @@ function readBoundedIntEnv(name, fallback, min, max) {
   return Math.max(min, Math.min(max, parsed));
 }
 
-function readBooleanEnv(name, fallback) {
-  const raw = safeTrim(process.env[name] || '').toLowerCase();
-  if (!raw) return fallback;
-  if (['1', 'true', 'yes', 'on'].includes(raw)) return true;
-  if (['0', 'false', 'no', 'off'].includes(raw)) return false;
-  return fallback;
-}
-
 function readOtpTtlSeconds() {
   return readBoundedIntEnv('PANEL_LOGIN_OTP_TTL_SECONDS', 5 * 60, 60, 20 * 60);
 }
@@ -67,10 +58,6 @@ function readPanelOtpCampaignCode() {
     || safeTrim(process.env.BURSLULUK_CAMPAIGN_CODE)
     || '2026_BURSLULUK'
   ).slice(0, 120);
-}
-
-function isLegacyTotpAllowed() {
-  return readBooleanEnv('PANEL_LOGIN_ALLOW_TOTP', true);
 }
 
 function hashOpaqueToken(token) {
@@ -164,8 +151,6 @@ async function readPanelUserByEmail(client, email) {
         u.password_hash,
         COALESCE((to_jsonb(u)->>'password_reset_required')::boolean, FALSE) AS password_reset_required,
         u.status,
-        u.mfa_enabled,
-        u.mfa_totp_secret,
         to_jsonb(u)->>'phone_e164' AS phone_e164,
         COALESCE(
           array_agg(r.code) FILTER (WHERE r.code IS NOT NULL),
@@ -511,10 +496,12 @@ export default async function handler(req, res) {
     const challengeId = safeTrim(body.challengeId || body.challenge_id);
     const challengeToken = safeTrim(body.challengeToken || body.challenge_token);
     const usingOtpVerifyFlow = Boolean(otpCode && challengeId && challengeToken);
-    const usingLegacyTotpFlow = Boolean(mfaCode && !usingOtpVerifyFlow);
 
     if (!email || !password) {
       throw new HttpError(400, 'email and password are required.', 'missing_login_fields');
+    }
+    if (mfaCode && !otpCode) {
+      throw new HttpError(400, 'TOTP is removed. Please login with SMS OTP.', 'panel_totp_removed');
     }
     if (otpCode && (!challengeId || !challengeToken)) {
       throw new HttpError(400, 'challengeId and challengeToken are required for otpCode verification.', 'missing_otp_challenge_fields');
@@ -585,34 +572,6 @@ export default async function handler(req, res) {
         const role = pickPrimaryRole(roleCodes);
         if (!role) {
           throw new HttpError(403, 'Panel user does not have an assigned role.', 'panel_role_missing');
-        }
-
-        if (usingLegacyTotpFlow) {
-          if (!isLegacyTotpAllowed()) {
-            throw new HttpError(403, 'TOTP login is disabled for panel.', 'panel_totp_disabled');
-          }
-          if (!user.mfa_enabled) {
-            throw new HttpError(403, 'MFA must be enabled for panel users.', 'panel_mfa_not_enabled');
-          }
-          const mfaSecret = safeTrim(user.mfa_totp_secret);
-          if (!mfaSecret || !verifyTotpCode(mfaSecret, mfaCode)) {
-            throw new HttpError(401, 'Invalid MFA code.', 'invalid_mfa_code');
-          }
-
-          const session = await createSessionForUser(client, {
-            user,
-            role,
-            ipAddress,
-            userAgent,
-            ttlMinutes,
-            maxActiveSessions,
-          });
-
-          return {
-            kind: 'session',
-            authMethod: 'TOTP',
-            session,
-          };
         }
 
         if (usingOtpVerifyFlow) {
@@ -784,7 +743,6 @@ export default async function handler(req, res) {
       if (error instanceof HttpError) {
         const isBruteForceCandidate = [
           'invalid_credentials',
-          'invalid_mfa_code',
           'invalid_otp_code',
           'invalid_otp_challenge',
           'otp_challenge_expired',
@@ -792,7 +750,7 @@ export default async function handler(req, res) {
           'otp_challenge_locked',
           'panel_user_disabled',
           'panel_role_missing',
-          'panel_mfa_not_enabled',
+          'panel_totp_removed',
         ].includes(error.code);
         if (isBruteForceCandidate) {
           await registerLoginFailure(ipAddress, email);

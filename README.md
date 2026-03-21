@@ -156,8 +156,6 @@ npm run db:migrate
 Panel admin bootstrap:
 ```bash
 npm run panel:create-admin -- --email admin@teachera.com --name "Panel Admin" --password "StrongPassword!" --role SUPER_ADMIN --phone "+9053XXXXXXXX"
-# opsiyonel legacy TOTP:
-# npm run panel:create-admin -- --email admin@teachera.com --name "Panel Admin" --password "StrongPassword!" --role SUPER_ADMIN --totp-secret "<BASE32_SECRET>"
 ```
 
 ### API Uçları
@@ -272,7 +270,6 @@ Campaign season automation settings (`app_settings`):
 - Varsayılan login akışı SMS OTP'dir:
   - adım-1: email+şifre ile OTP challenge üretilir ve SMS kuyruğuna yazılır
   - adım-2: OTP code + challenge ile oturum açılır
-- Legacy TOTP fallback (`PANEL_LOGIN_ALLOW_TOTP=true`) opsiyoneldir.
 - Session politikası (app-level):
   - HttpOnly + Secure + SameSite + Priority cookie bayrakları zorunlu
   - idle timeout (`PANEL_SESSION_IDLE_TIMEOUT_MINUTES`) ve absolute expiry (`PANEL_SESSION_TTL_MINUTES`) birlikte uygulanır

@@ -48,8 +48,6 @@
     "p0:load-resilience:all": "npm run p0:load-resilience:certify && npm run p0:load-resilience:verify-signature",
     "panel:create-admin": "node scripts/panel-create-admin.mjs",
     "panel:set-admin-phone": "node scripts/panel-set-admin-phone.mjs",
-    "panel:generate-totp-secret": "node scripts/panel-generate-totp-secret.mjs",
-    "panel:generate-totp-code": "node scripts/panel-generate-totp-code.mjs",
     "panel:smoke:rotate": "node scripts/panel-smoke-account-rotate.mjs",
     "panel:smoke:rotate:weekly": "node scripts/panel-smoke-account-rotate.mjs --email ops-smoke-panel@teachera.com.tr --name \"Ops Smoke Panel\" --out-file /tmp/panel-smoke-account-secrets-latest.json",
     "p0:go-live:package:audit": "node scripts/p0-12-go-live-package-audit.mjs",

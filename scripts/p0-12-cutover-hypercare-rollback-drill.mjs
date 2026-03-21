@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { createHmac, randomBytes } from 'node:crypto';
+import { createHmac } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,7 +15,6 @@ const STATUS = {
   SKIP: 'SKIP',
 };
 
-const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 const NON_STRICT_SSL_MODES = new Set(['prefer', 'require', 'verify-ca']);
 
 function trim(value) {
@@ -196,58 +195,39 @@ function resolveDbSslForScript() {
   throw new Error('Invalid PG_SSL_MODE. Allowed values: strict, relaxed, disable.');
 }
 
-function encodeBase32(buffer) {
-  let bits = '';
-  for (const byte of buffer) {
-    bits += byte.toString(2).padStart(8, '0');
-  }
-
-  let output = '';
-  for (let i = 0; i < bits.length; i += 5) {
-    const chunk = bits.slice(i, i + 5).padEnd(5, '0');
-    output += BASE32_ALPHABET[Number.parseInt(chunk, 2)];
-  }
-  return output;
+async function readLatestPanelOtpCode(client, { recipient, maxAgeSeconds = 300 }) {
+  const result = await client.query(
+    `
+      SELECT payload
+      FROM notification_jobs
+      WHERE template_code = 'PANEL_LOGIN_SMS_OTP'
+        AND channel = 'SMS'
+        AND recipient = $1
+        AND created_at >= NOW() - make_interval(secs => $2::int)
+      ORDER BY created_at DESC
+      LIMIT 1
+    `,
+    [recipient, maxAgeSeconds],
+  );
+  const payload = result.rows[0]?.payload;
+  const code = trim(payload?.otp_code || payload?.otpCode);
+  return /^\d{6}$/.test(code) ? code : '';
 }
 
-function decodeBase32(rawSecret) {
-  const normalized = trim(rawSecret).replace(/[\s-]/g, '').toUpperCase();
-  if (!normalized) throw new Error('Missing TOTP secret.');
-
-  let bits = '';
-  for (const ch of normalized) {
-    const index = BASE32_ALPHABET.indexOf(ch);
-    if (index < 0) throw new Error(`Invalid Base32 char: ${ch}`);
-    bits += index.toString(2).padStart(5, '0');
+async function waitForPanelOtpCode(pool, { recipient, maxAttempts = 8, delayMs = 900, maxAgeSeconds = 300 }) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const client = await pool.connect();
+    try {
+      const code = await readLatestPanelOtpCode(client, { recipient, maxAgeSeconds });
+      if (code) return code;
+    } finally {
+      client.release();
+    }
+    if (attempt < maxAttempts) {
+      await sleep(delayMs);
+    }
   }
-
-  const bytes = [];
-  for (let i = 0; i + 8 <= bits.length; i += 8) {
-    bytes.push(Number.parseInt(bits.slice(i, i + 8), 2));
-  }
-  return Buffer.from(bytes);
-}
-
-function hotp(secretBuffer, counter, digits = 6) {
-  const counterBuffer = Buffer.alloc(8);
-  counterBuffer.writeBigUInt64BE(BigInt(counter));
-  const digest = createHmac('sha1', secretBuffer).update(counterBuffer).digest();
-  const offset = digest[digest.length - 1] & 0x0f;
-  const code =
-    ((digest[offset] & 0x7f) << 24)
-    | ((digest[offset + 1] & 0xff) << 16)
-    | ((digest[offset + 2] & 0xff) << 8)
-    | (digest[offset + 3] & 0xff);
-  return String(code % (10 ** digits)).padStart(digits, '0');
-}
-
-function generateTotpSecret() {
-  return encodeBase32(randomBytes(20));
-}
-
-function generateTotpCode(secret) {
-  const step = Math.floor(Date.now() / 1000 / 30);
-  return hotp(decodeBase32(secret), step, 6);
+  return '';
 }
 
 async function readAdminUserColumnAvailability(client) {
@@ -287,7 +267,7 @@ async function createTempPanelUser({ connectionString, runId }) {
   const password = `CutoverSm0ke!${Math.floor(Math.random() * 100000)}`;
   const fullName = `Cutover Smoke ${runId}`;
   const role = 'SUPER_ADMIN';
-  const totpSecret = generateTotpSecret();
+  const phoneE164 = `+90540${String(Date.now()).slice(-7)}`;
 
   const client = await pool.connect();
   let userId;
@@ -314,6 +294,7 @@ async function createTempPanelUser({ connectionString, runId }) {
           password_hash,
           ${availability.hasPasswordResetRequired ? 'password_reset_required,' : ''}
           ${availability.hasPasswordUpdatedAt ? 'password_updated_at,' : ''}
+          phone_e164,
           status,
           mfa_enabled,
           mfa_totp_secret,
@@ -325,9 +306,10 @@ async function createTempPanelUser({ connectionString, runId }) {
           crypt($3, gen_salt('bf', 12)),
           ${availability.hasPasswordResetRequired ? '$4,' : ''}
           ${availability.hasPasswordUpdatedAt ? 'NOW(),' : ''}
-          'ACTIVE',
-          TRUE,
           $5,
+          'ACTIVE',
+          FALSE,
+          NULL,
           NOW()
         )
         ON CONFLICT (email)
@@ -336,13 +318,14 @@ async function createTempPanelUser({ connectionString, runId }) {
           password_hash = EXCLUDED.password_hash,
           ${availability.hasPasswordResetRequired ? 'password_reset_required = EXCLUDED.password_reset_required,' : ''}
           ${availability.hasPasswordUpdatedAt ? 'password_updated_at = EXCLUDED.password_updated_at,' : ''}
+          phone_e164 = EXCLUDED.phone_e164,
           status = 'ACTIVE',
-          mfa_enabled = TRUE,
-          mfa_totp_secret = EXCLUDED.mfa_totp_secret,
+          mfa_enabled = FALSE,
+          mfa_totp_secret = NULL,
           updated_at = NOW()
-        RETURNING id, email
+        RETURNING id, email, phone_e164
       `,
-      [email, fullName, password, false, totpSecret],
+      [email, fullName, password, false, phoneE164],
     );
 
     userId = userResult.rows[0]?.id || '';
@@ -371,7 +354,7 @@ async function createTempPanelUser({ connectionString, runId }) {
     return {
       email,
       password,
-      totpSecret,
+      phoneE164: trim(userResult.rows[0]?.phone_e164) || phoneE164,
       userId,
       role,
       pool,
@@ -396,6 +379,7 @@ async function disableTempPanelUser({ pool, userId }) {
         SET status = 'DISABLED',
             mfa_enabled = FALSE,
             mfa_totp_secret = NULL,
+            phone_e164 = NULL,
             updated_at = NOW()
         WHERE id = $1::uuid
       `,
@@ -630,21 +614,43 @@ async function runCutoverChecks({ config, runId, checks, evidence }) {
   } else {
     try {
       tempUser = await createTempPanelUser({ connectionString: dbConnection, runId });
-      const mfaCode = generateTotpCode(tempUser.totpSecret);
-
-      const loginResp = await httpJson(`${config.panelBase}/api/panel/auth/login`, {
+      const loginStartResp = await httpJson(`${config.panelBase}/api/panel/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({
           email: tempUser.email,
           password: tempUser.password,
-          mfaCode,
         }),
         timeoutMs: config.timeoutMs,
       });
 
-      const panelToken = trim(loginResp.json?.session?.token);
-      const loginOk = loginResp.ok && Boolean(panelToken);
+      const challengeId = trim(loginStartResp.json?.otp?.challenge_id || loginStartResp.json?.otp?.challengeId);
+      const challengeToken = trim(loginStartResp.json?.otp?.challenge_token || loginStartResp.json?.otp?.challengeToken);
+      const loginStartOk = loginStartResp.ok
+        && loginStartResp.json?.otp_required === true
+        && Boolean(challengeId)
+        && Boolean(challengeToken);
+      const otpCode = loginStartOk
+        ? await waitForPanelOtpCode(tempUser.pool, { recipient: tempUser.phoneE164 })
+        : '';
+
+      const loginVerifyResp = loginStartOk && otpCode
+        ? await httpJson(`${config.panelBase}/api/panel/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({
+              email: tempUser.email,
+              password: tempUser.password,
+              otpCode,
+              challengeId,
+              challengeToken,
+            }),
+            timeoutMs: config.timeoutMs,
+          })
+        : null;
+
+      const panelToken = trim(loginVerifyResp?.json?.session?.token);
+      const loginOk = loginStartOk && Boolean(otpCode) && Boolean(loginVerifyResp?.ok) && Boolean(panelToken);
 
       const meResp = loginOk
         ? await httpJson(`${config.panelBase}/api/panel/auth/me`, {
@@ -684,7 +690,9 @@ async function runCutoverChecks({ config, runId, checks, evidence }) {
           ? 'Panel login -> auth/me -> dashboard -> logout flow succeeded.'
           : 'Panel login/dashboard flow failed.',
         {
-          login_status: loginResp.status,
+          login_start_status: loginStartResp.status,
+          login_verify_status: loginVerifyResp?.status ?? null,
+          otp_code_found: Boolean(otpCode),
           me_status: meResp?.status ?? null,
           dashboard_status: dashboardResp?.status ?? null,
           logout_status: logoutResp?.status ?? null,
@@ -693,7 +701,10 @@ async function runCutoverChecks({ config, runId, checks, evidence }) {
 
       evidence.panel_smoke = {
         temp_user_email: tempUser.email,
-        login_status: loginResp.status,
+        temp_user_phone: tempUser.phoneE164,
+        login_start_status: loginStartResp.status,
+        login_verify_status: loginVerifyResp?.status ?? null,
+        otp_code_found: Boolean(otpCode),
         me_status: meResp?.status ?? null,
         dashboard_status: dashboardResp?.status ?? null,
         logout_status: logoutResp?.status ?? null,

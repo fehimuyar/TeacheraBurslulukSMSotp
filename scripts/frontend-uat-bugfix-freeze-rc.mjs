@@ -1,9 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createHmac } from 'node:crypto';
-
-const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
 function safeTrim(value) {
   return String(value ?? '').trim();
@@ -35,91 +32,19 @@ function toJson(text) {
   }
 }
 
-function decodeBase32(rawSecret) {
-  const normalized = safeTrim(rawSecret).replace(/[\s-]/g, '').toUpperCase();
-  if (!normalized) return Buffer.alloc(0);
-  let bits = '';
-  for (const char of normalized) {
-    const index = BASE32_ALPHABET.indexOf(char);
-    if (index < 0) throw new Error(`invalid_base32_char:${char}`);
-    bits += index.toString(2).padStart(5, '0');
-  }
-  const bytes = [];
-  for (let i = 0; i + 8 <= bits.length; i += 8) {
-    bytes.push(Number.parseInt(bits.slice(i, i + 8), 2));
-  }
-  return Buffer.from(bytes);
-}
-
-function normalizeTotpSecret(rawSecret) {
-  let secret = safeTrim(rawSecret);
-  if (!secret) return '';
-
-  if (
-    (secret.startsWith('"') && secret.endsWith('"'))
-    || (secret.startsWith("'") && secret.endsWith("'"))
-  ) {
-    secret = safeTrim(secret.slice(1, -1));
-  }
-
-  if (secret.toLowerCase().startsWith('otpauth://')) {
-    try {
-      const url = new URL(secret);
-      const fromQuery = safeTrim(url.searchParams.get('secret'));
-      if (fromQuery) secret = fromQuery;
-    } catch {
-      // keep raw secret if URL parsing fails
-    }
-  }
-
-  return secret;
-}
-
-function hotp(secretBuffer, counter, digits = 6) {
-  const counterBuffer = Buffer.alloc(8);
-  counterBuffer.writeBigUInt64BE(BigInt(counter));
-  const digest = createHmac('sha1', secretBuffer).update(counterBuffer).digest();
-  const offset = digest[digest.length - 1] & 0x0f;
-  const code =
-    ((digest[offset] & 0x7f) << 24)
-    | ((digest[offset + 1] & 0xff) << 16)
-    | ((digest[offset + 2] & 0xff) << 8)
-    | (digest[offset + 3] & 0xff);
-  return String(code % (10 ** digits)).padStart(digits, '0');
-}
-
-function maybeResolvePanelMfaCode({ panelMfaCode, panelTotpSecret }) {
-  if (safeTrim(panelMfaCode)) {
+function maybeResolvePanelOtpCode({ panelOtpCode }) {
+  if (safeTrim(panelOtpCode)) {
     return {
-      code: safeTrim(panelMfaCode),
-      source: 'PANEL_MFA_CODE',
+      code: safeTrim(panelOtpCode),
+      source: 'PANEL_OTP_CODE',
       error: '',
     };
   }
-
-  const secret = normalizeTotpSecret(panelTotpSecret);
-  if (!secret) {
-    return {
-      code: '',
-      source: 'none',
-      error: '',
-    };
-  }
-
-  try {
-    const step = Math.floor(Date.now() / 1000 / 30);
-    return {
-      code: hotp(decodeBase32(secret), step, 6),
-      source: 'PANEL_SMOKE_TOTP_SECRET',
-      error: '',
-    };
-  } catch (error) {
-    return {
-      code: '',
-      source: 'PANEL_SMOKE_TOTP_SECRET',
-      error: safeTrim(error?.message || error) || 'totp_generation_failed',
-    };
-  }
+  return {
+    code: '',
+    source: 'none',
+    error: '',
+  };
 }
 
 async function readEnvFileMap(filepath) {
@@ -184,8 +109,10 @@ function redactSensitive(value) {
     'sessionToken',
     'session_token',
     'password',
-    'mfaCode',
-    'mfa_code',
+    'otpCode',
+    'otp_code',
+    'challengeToken',
+    'challenge_token',
     'x-load-test-key',
     'load_test_bypass_key',
   ]);
@@ -257,16 +184,15 @@ async function run() {
     kvkkConsentVersion: safeTrim(process.env.KVKK_CONSENT_VERSION || envFileMap.KVKK_CONSENT_VERSION || 'KVKK_v1_2026-03-13'),
     panelEmail: safeTrim(process.env.PANEL_EMAIL),
     panelPassword: safeTrim(process.env.PANEL_PASSWORD),
-    panelTotpSecret: safeTrim(process.env.PANEL_SMOKE_TOTP_SECRET || process.env.PANEL_TOTP_SECRET),
-    panelMfaCode: safeTrim(process.env.PANEL_MFA_CODE),
+    panelOtpCode: safeTrim(process.env.PANEL_OTP_CODE),
     requirePanelFullAuth: parseBool(process.env.REQUIRE_PANEL_FULL_AUTH, false),
     loadTestBypassKey: resolveLoadTestKey(envFileMap),
   };
 
-  const panelMfa = maybeResolvePanelMfaCode(cfg);
-  cfg.panelMfaCode = panelMfa.code;
-  cfg.panelMfaSource = panelMfa.source;
-  cfg.panelMfaResolutionError = panelMfa.error;
+  const panelOtp = maybeResolvePanelOtpCode(cfg);
+  cfg.panelOtpCode = panelOtp.code;
+  cfg.panelOtpSource = panelOtp.source;
+  cfg.panelOtpResolutionError = panelOtp.error;
 
   const checks = [];
   const startedAt = nowIso();
@@ -325,15 +251,15 @@ async function run() {
     ),
   );
 
-  if (cfg.panelMfaResolutionError) {
+  if (cfg.panelOtpResolutionError) {
     checks.push(
       makeCheck(
-        'panel_mfa_resolution',
+        'panel_otp_resolution',
         cfg.requirePanelFullAuth ? 'FAIL' : 'WARN',
-        `panel_mfa_code_generation_failed: ${cfg.panelMfaResolutionError}`,
+        `panel_otp_code_missing_or_invalid: ${cfg.panelOtpResolutionError}`,
         {
-          source: cfg.panelMfaSource,
-          error: cfg.panelMfaResolutionError,
+          source: cfg.panelOtpSource,
+          error: cfg.panelOtpResolutionError,
         },
         { check_group: 'optional-admin-check', required: cfg.requirePanelFullAuth },
       ),
@@ -643,33 +569,58 @@ async function run() {
     ),
   );
 
-  if (cfg.panelEmail && cfg.panelPassword && cfg.panelMfaCode) {
-    const panelLoginResp = await httpRequest({
+  if (cfg.panelEmail && cfg.panelPassword && cfg.panelOtpCode) {
+    const panelLoginStartResp = await httpRequest({
       url: `${cfg.panelApiBase}/api/panel/auth/login`,
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: {
         email: cfg.panelEmail,
         password: cfg.panelPassword,
-        mfaCode: cfg.panelMfaCode,
       },
     });
 
-    const panelToken = safeTrim(panelLoginResp.json?.session?.token);
+    const challengeId = safeTrim(panelLoginStartResp.json?.otp?.challenge_id || panelLoginStartResp.json?.otp?.challengeId);
+    const challengeToken = safeTrim(panelLoginStartResp.json?.otp?.challenge_token || panelLoginStartResp.json?.otp?.challengeToken);
+    const hasChallenge = panelLoginStartResp.status === 200
+      && panelLoginStartResp.json?.otp_required === true
+      && challengeId
+      && challengeToken;
+
+    let panelLoginVerifyResp = { status: 0, json: null, text: '' };
+    if (hasChallenge) {
+      panelLoginVerifyResp = await httpRequest({
+        url: `${cfg.panelApiBase}/api/panel/auth/login`,
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: {
+          email: cfg.panelEmail,
+          password: cfg.panelPassword,
+          otpCode: cfg.panelOtpCode,
+          challengeId,
+          challengeToken,
+        },
+      });
+    }
+
+    const panelToken = safeTrim(panelLoginVerifyResp.json?.session?.token);
     checks.push(
       makeCheck(
         'panel_login',
-        panelLoginResp.status === 200 && panelToken ? 'PASS' : 'FAIL',
-        `HTTP ${panelLoginResp.status}`,
+        hasChallenge && panelLoginVerifyResp.status === 200 && panelToken ? 'PASS' : 'FAIL',
+        `start:${panelLoginStartResp.status} verify:${panelLoginVerifyResp.status || 'NA'}`,
         {
-          status: panelLoginResp.status,
-        nextStep: panelLoginResp.json?.next_step || null,
-        hasToken: Boolean(panelToken),
-        body: redactSensitive(panelLoginResp.json || panelLoginResp.text),
-      },
-      { check_group: 'optional-admin-check' },
-    ),
-  );
+          startStatus: panelLoginStartResp.status,
+          verifyStatus: panelLoginVerifyResp.status || null,
+          startNextStep: panelLoginStartResp.json?.next_step || null,
+          otpRequired: panelLoginStartResp.json?.otp_required === true,
+          hasToken: Boolean(panelToken),
+          startBody: redactSensitive(panelLoginStartResp.json || panelLoginStartResp.text),
+          verifyBody: redactSensitive(panelLoginVerifyResp.json || panelLoginVerifyResp.text),
+        },
+        { check_group: 'optional-admin-check' },
+      ),
+    );
 
     if (panelToken) {
       const panelMeResp = await httpRequest({
@@ -732,7 +683,7 @@ async function run() {
     const missing = [];
     if (!cfg.panelEmail) missing.push('PANEL_EMAIL');
     if (!cfg.panelPassword) missing.push('PANEL_PASSWORD');
-    if (!cfg.panelMfaCode) missing.push('PANEL_MFA_CODE|PANEL_SMOKE_TOTP_SECRET');
+    if (!cfg.panelOtpCode) missing.push('PANEL_OTP_CODE');
 
     if (cfg.requirePanelFullAuth) {
       checks.push(makeCheck(
@@ -760,7 +711,7 @@ async function run() {
       checks.push(makeCheck(
         'panel_login',
         'PASS',
-        'optional-admin-check: skipped full panel auth smoke (set PANEL_EMAIL/PANEL_PASSWORD/PANEL_MFA_CODE).',
+        'optional-admin-check: skipped full panel auth smoke (set PANEL_EMAIL/PANEL_PASSWORD/PANEL_OTP_CODE).',
         { skipped: true },
         { check_group: 'optional-admin-check' },
       ));
@@ -800,10 +751,10 @@ async function run() {
     started_at: startedAt,
     mode: {
       http: true,
-      panel_full_auth: Boolean(cfg.panelEmail && cfg.panelPassword && cfg.panelMfaCode),
+      panel_full_auth: Boolean(cfg.panelEmail && cfg.panelPassword && cfg.panelOtpCode),
       require_panel_full_auth: cfg.requirePanelFullAuth,
-      panel_mfa_source: cfg.panelMfaSource || 'none',
-      panel_mfa_resolution_error: cfg.panelMfaResolutionError || null,
+      panel_otp_source: cfg.panelOtpSource || 'none',
+      panel_otp_resolution_error: cfg.panelOtpResolutionError || null,
       load_test_bypass_key_available: Boolean(cfg.loadTestBypassKey),
     },
     totals,

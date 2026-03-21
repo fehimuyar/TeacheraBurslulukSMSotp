@@ -1,9 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { createHmac } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-
-const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
 function safeTrim(value) {
   return String(value ?? '').trim();
@@ -31,44 +28,12 @@ function makeCheck(id, status, detail, evidence = {}) {
   return { id, status, detail, evidence };
 }
 
-function decodeBase32(rawSecret) {
-  const normalized = safeTrim(rawSecret)
-    .replace(/[\s-]/g, '')
-    .toUpperCase();
-  if (!normalized) return Buffer.alloc(0);
-
-  let bits = '';
-  for (const char of normalized) {
-    const index = BASE32_ALPHABET.indexOf(char);
-    if (index < 0) return Buffer.alloc(0);
-    bits += index.toString(2).padStart(5, '0');
-  }
-
-  const bytes = [];
-  for (let i = 0; i + 8 <= bits.length; i += 8) {
-    bytes.push(Number.parseInt(bits.slice(i, i + 8), 2));
-  }
-  return Buffer.from(bytes);
-}
-
-function hotp(secretBuffer, counter, digits = 6) {
-  const counterBuffer = Buffer.alloc(8);
-  counterBuffer.writeBigUInt64BE(BigInt(counter));
-  const digest = createHmac('sha1', secretBuffer).update(counterBuffer).digest();
-  const offset = digest[digest.length - 1] & 0x0f;
-  const code =
-    ((digest[offset] & 0x7f) << 24)
-    | ((digest[offset + 1] & 0xff) << 16)
-    | ((digest[offset + 2] & 0xff) << 8)
-    | (digest[offset + 3] & 0xff);
-  return String(code % (10 ** digits)).padStart(digits, '0');
-}
-
-function generateTotpCode(secret) {
-  const secretBuffer = decodeBase32(secret);
-  if (!secretBuffer.length) return '';
-  const step = Math.floor(Date.now() / 1000 / 30);
-  return hotp(secretBuffer, step, 6);
+function readOtpChallenge(payload) {
+  const otp = payload && typeof payload === 'object' ? payload.otp : null;
+  return {
+    challengeId: safeTrim(otp?.challenge_id || otp?.challengeId),
+    challengeToken: safeTrim(otp?.challenge_token || otp?.challengeToken),
+  };
 }
 
 async function httpRequest({ method = 'GET', url, headers = {}, body, timeoutMs = 20000 }) {
@@ -124,16 +89,14 @@ async function run() {
     wwwBase: normalizeBase(process.env.WWW_BASE_URL, 'https://teachera.com.tr'),
     panelEmail: safeTrim(process.env.PANEL_EMAIL),
     panelPassword: safeTrim(process.env.PANEL_PASSWORD),
-    panelMfaCode: safeTrim(process.env.PANEL_MFA_CODE),
-    panelTotpSecret: safeTrim(process.env.PANEL_SMOKE_TOTP_SECRET || process.env.PANEL_TOTP_SECRET),
+    panelOtpCode: safeTrim(process.env.PANEL_OTP_CODE),
   };
   const checks = [];
 
-  const mfaCode = cfg.panelMfaCode || generateTotpCode(cfg.panelTotpSecret);
   const missingAuth = [];
   if (!cfg.panelEmail) missingAuth.push('PANEL_EMAIL');
   if (!cfg.panelPassword) missingAuth.push('PANEL_PASSWORD');
-  if (!mfaCode) missingAuth.push('PANEL_MFA_CODE|PANEL_SMOKE_TOTP_SECRET');
+  if (!cfg.panelOtpCode) missingAuth.push('PANEL_OTP_CODE');
 
   let panelToken = '';
 
@@ -154,19 +117,42 @@ async function run() {
       body: {
         email: cfg.panelEmail,
         password: cfg.panelPassword,
-        mfaCode,
       },
     });
-    panelToken = safeTrim(loginResp.json?.session?.token);
+    const challenge = readOtpChallenge(loginResp.json);
+    const hasChallenge = loginResp.status === 200
+      && loginResp.json?.otp_required === true
+      && challenge.challengeId
+      && challenge.challengeToken;
+
+    let verifyResp = { status: 0, json: null };
+    if (hasChallenge) {
+      verifyResp = await httpRequest({
+        method: 'POST',
+        url: `${cfg.panelApiBase}/api/panel/auth/login`,
+        headers: { 'content-type': 'application/json' },
+        body: {
+          email: cfg.panelEmail,
+          password: cfg.panelPassword,
+          otpCode: cfg.panelOtpCode,
+          challengeId: challenge.challengeId,
+          challengeToken: challenge.challengeToken,
+        },
+      });
+    }
+    panelToken = safeTrim(verifyResp.json?.session?.token);
     checks.push(
       makeCheck(
         'auth_login',
-        loginResp.status === 200 && panelToken ? 'PASS' : 'FAIL',
-        `HTTP ${loginResp.status}`,
+        hasChallenge && verifyResp.status === 200 && panelToken ? 'PASS' : 'FAIL',
+        `start:${loginResp.status} verify:${verifyResp.status || 'NA'}`,
         {
-          status: loginResp.status,
+          start_status: loginResp.status,
+          verify_status: verifyResp.status || null,
+          otp_required: loginResp.json?.otp_required === true,
           has_token: Boolean(panelToken),
-          error: loginResp.json?.error || null,
+          start_error: loginResp.json?.error || null,
+          verify_error: verifyResp.json?.error || null,
         },
       ),
     );

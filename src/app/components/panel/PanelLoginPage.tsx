@@ -6,6 +6,13 @@ type ApiResponse = {
   error?: string;
   message?: string;
   next_step?: string;
+  otp_required?: boolean;
+  otp?: {
+    challenge_id?: string;
+    challenge_token?: string;
+    expires_in_seconds?: number;
+    masked_phone?: string;
+  };
   identity?: {
     role?: string;
     password_reset_required?: boolean;
@@ -70,12 +77,21 @@ const inputClassName =
 export default function PanelLoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpChallengeId, setOtpChallengeId] = useState('');
+  const [otpChallengeToken, setOtpChallengeToken] = useState('');
+  const [otpMaskedPhone, setOtpMaskedPhone] = useState('');
   const [isSessionCheckLoading, setIsSessionCheckLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  const canSubmit = email.trim() && password && !isSubmitting && !isSessionCheckLoading;
+  const isOtpStep = Boolean(otpChallengeId && otpChallengeToken);
+  const canSubmit = email.trim()
+    && password
+    && (!isOtpStep || otpCode.length === 6)
+    && !isSubmitting
+    && !isSessionCheckLoading;
 
   useEffect(() => {
     let cancelled = false;
@@ -123,6 +139,65 @@ export default function PanelLoginPage() {
     };
   }, []);
 
+  const requestOtpChallenge = async () => {
+    const challengeResponse = await panelFetch('/api/panel/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        email: email.trim(),
+        password,
+      }),
+    });
+
+    const challengePayload = await readJsonSafe(challengeResponse);
+    if (!challengeResponse.ok || challengePayload?.ok === false) {
+      setErrorMessage(normalizeMessage(challengePayload, 'SMS doğrulama kodu gönderilemedi.'));
+      return false;
+    }
+
+    const challengeId = String(challengePayload?.otp?.challenge_id || '').trim();
+    const challengeToken = String(challengePayload?.otp?.challenge_token || '').trim();
+    const maskedPhone = String(challengePayload?.otp?.masked_phone || '').trim();
+
+    if (!challengePayload?.otp_required || !challengeId || !challengeToken) {
+      setErrorMessage('SMS doğrulama akışı başlatılamadı. Lütfen tekrar deneyin.');
+      return false;
+    }
+
+    setOtpChallengeId(challengeId);
+    setOtpChallengeToken(challengeToken);
+    setOtpMaskedPhone(maskedPhone);
+    setOtpCode('');
+    setSuccessMessage(
+      maskedPhone
+        ? `SMS doğrulama kodu ${maskedPhone} numarasına gönderildi.`
+        : 'SMS doğrulama kodu gönderildi.',
+    );
+    return true;
+  };
+
+  const handleResendCode = async () => {
+    if (isSubmitting) return;
+    if (!email.trim() || !password) {
+      setErrorMessage('Kodu tekrar göndermek için e-posta ve şifre alanlarını doldurun.');
+      return;
+    }
+
+    setErrorMessage('');
+    setSuccessMessage('');
+    setIsSubmitting(true);
+    try {
+      await requestOtpChallenge();
+    } catch {
+      setErrorMessage('SMS doğrulama kodu tekrar gönderilemedi.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canSubmit) return;
@@ -130,16 +205,14 @@ export default function PanelLoginPage() {
     setErrorMessage('');
     setSuccessMessage('');
 
-    const promptValue = window.prompt('MFA kodu (6 hane)');
-    const mfaCode = (promptValue || '').replace(/\D+/g, '').slice(0, 6);
-    if (mfaCode.length !== 6) {
-      setErrorMessage('Giriş için geçerli bir MFA kodu gereklidir.');
-      return;
-    }
-
     setIsSubmitting(true);
 
     try {
+      if (!isOtpStep) {
+        await requestOtpChallenge();
+        return;
+      }
+
       const loginResponse = await panelFetch('/api/panel/auth/login', {
         method: 'POST',
         headers: {
@@ -149,7 +222,9 @@ export default function PanelLoginPage() {
         body: JSON.stringify({
           email: email.trim(),
           password,
-          mfaCode,
+          otpCode,
+          challengeId: otpChallengeId,
+          challengeToken: otpChallengeToken,
         }),
       });
 
@@ -157,6 +232,24 @@ export default function PanelLoginPage() {
       if (!loginResponse.ok || loginPayload?.ok === false) {
         setErrorMessage(normalizeMessage(loginPayload, 'Panel girişi başarısız.'));
         return;
+      }
+
+      if (loginPayload?.otp_required) {
+        const challengeId = String(loginPayload?.otp?.challenge_id || '').trim();
+        const challengeToken = String(loginPayload?.otp?.challenge_token || '').trim();
+        const maskedPhone = String(loginPayload?.otp?.masked_phone || '').trim();
+        if (challengeId && challengeToken) {
+          setOtpChallengeId(challengeId);
+          setOtpChallengeToken(challengeToken);
+          setOtpMaskedPhone(maskedPhone);
+          setOtpCode('');
+          setSuccessMessage(
+            maskedPhone
+              ? `Yeni SMS doğrulama kodu ${maskedPhone} numarasına gönderildi.`
+              : 'Yeni SMS doğrulama kodu gönderildi.',
+          );
+          return;
+        }
       }
 
       const requiresPasswordReset = readRequiresPasswordReset(loginPayload);
@@ -245,13 +338,46 @@ export default function PanelLoginPage() {
               />
             </label>
 
+            {isOtpStep ? (
+              <label className="block">
+                <span className="mb-2 block text-[13px] font-semibold uppercase tracking-[0.2em] text-white/48">SMS OTP (6 hane)</span>
+                <input
+                  autoComplete="one-time-code"
+                  className={inputClassName}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="\d{6}"
+                  value={otpCode}
+                  onChange={(event) => setOtpCode(event.target.value.replace(/\D+/g, '').slice(0, 6))}
+                  placeholder="123456"
+                  required
+                />
+                {otpMaskedPhone ? (
+                  <span className="mt-2 block text-[12px] text-white/45">Kod gönderilen telefon: {otpMaskedPhone}</span>
+                ) : null}
+              </label>
+            ) : null}
+
             <button
               className="mt-2 h-[58px] w-full rounded-2xl bg-[#CA3C35] px-4 text-[13px] font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-[#b4332d] disabled:cursor-not-allowed disabled:opacity-70"
               type="submit"
               disabled={!canSubmit}
             >
-              {isSubmitting ? 'GİRİŞ YAPILIYOR' : 'GİRİŞ YAP'}
+              {isSubmitting ? (isOtpStep ? 'KOD DOĞRULANIYOR' : 'KOD GÖNDERİLİYOR') : (isOtpStep ? 'KODU DOĞRULA' : 'SMS KODU GÖNDER')}
             </button>
+
+            {isOtpStep ? (
+              <button
+                className="h-[52px] w-full rounded-2xl border border-[#2D4363] px-4 text-[12px] font-semibold uppercase tracking-[0.18em] text-white/80 transition hover:border-[#3B5A84] hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+                type="button"
+                onClick={() => {
+                  void handleResendCode();
+                }}
+                disabled={isSubmitting}
+              >
+                KODU TEKRAR GÖNDER
+              </button>
+            ) : null}
           </form>
 
           {errorMessage ? (

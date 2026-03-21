@@ -109,12 +109,14 @@ async function main() {
   const role = parseRole(requireArg('role'));
   const rawTotpSecret = readArg('totp-secret');
   const rawPhone = readArg('phone');
-  const totpSecret = rawTotpSecret ? rawTotpSecret.replace(/[\s-]/g, '').toUpperCase() : '';
   const phoneE164 = rawPhone ? normalizePhoneE164(rawPhone) : '';
-  if (!totpSecret && !phoneE164) {
-    throw new Error('Either --phone (SMS OTP) or --totp-secret must be provided.');
+  if (rawTotpSecret) {
+    throw new Error('TOTP is removed. Use SMS OTP with --phone.');
   }
-  const mfaEnabled = Boolean(totpSecret);
+  if (!phoneE164) {
+    throw new Error('--phone is required for SMS OTP panel login.');
+  }
+  const mfaEnabled = false;
   const requirePasswordReset = parseBooleanArg('require-password-reset', false);
 
   const pool = getPool();
@@ -161,7 +163,7 @@ async function main() {
     values.push(`$${params.length}`);
 
     columns.push('mfa_totp_secret');
-    params.push(mfaEnabled ? totpSecret : null);
+    params.push(null);
     values.push(`$${params.length}`);
 
     columns.push('updated_at');
@@ -212,7 +214,7 @@ async function main() {
 
     await client.query('COMMIT');
     console.log(`Admin user ready: ${user.email} (${role})`);
-    console.log(`auth_mode: ${mfaEnabled ? 'totp' : 'sms_otp'}`);
+    console.log('auth_mode: sms_otp');
     if (availability.hasPhoneE164) {
       console.log(`phone_e164: ${phoneE164 || 'not_set'}`);
     } else {
