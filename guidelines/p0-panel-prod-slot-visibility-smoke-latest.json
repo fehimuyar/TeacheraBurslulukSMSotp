@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-03-20T23:30:39.432Z",
+  "timestamp": "2026-03-23T11:54:16.603Z",
   "panel_api_base": "https://panel-api.teachera.com.tr",
   "www_base": "https://teachera.com.tr",
   "totals": {
@@ -13,11 +13,15 @@
     {
       "id": "auth_login",
       "status": "PASS",
-      "detail": "HTTP 200",
+      "detail": "start:200 verify:200",
       "evidence": {
-        "status": 200,
+        "start_status": 200,
+        "verify_status": 200,
+        "otp_required": true,
         "has_token": true,
-        "error": null
+        "otp_source": "db_auto",
+        "start_error": null,
+        "verify_error": null
       }
     },
     {

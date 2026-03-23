@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import pg from 'pg';
 
 function safeTrim(value) {
   return String(value ?? '').trim();
@@ -34,6 +35,68 @@ function readOtpChallenge(payload) {
     challengeId: safeTrim(otp?.challenge_id || otp?.challengeId),
     challengeToken: safeTrim(otp?.challenge_token || otp?.challengeToken),
   };
+}
+
+function sanitizeConnectionString(value) {
+  const raw = safeTrim(value);
+  if (!raw) return '';
+  try {
+    const url = new URL(raw);
+    if (!['postgres:', 'postgresql:'].includes(url.protocol)) {
+      return raw;
+    }
+    const sslMode = safeTrim(url.searchParams.get('sslmode')).toLowerCase();
+    if (!sslMode || ['prefer', 'require', 'verify-ca'].includes(sslMode)) {
+      url.searchParams.set('sslmode', 'verify-full');
+    }
+    return url.toString();
+  } catch {
+    return raw;
+  }
+}
+
+function resolveDbSslForScript() {
+  const sslMode = safeTrim(process.env.PG_SSL_MODE).toLowerCase();
+  const isProduction = safeTrim(process.env.NODE_ENV).toLowerCase() === 'production';
+  if (sslMode === 'disable') return isProduction ? { rejectUnauthorized: true } : false;
+  if (sslMode === 'relaxed') return isProduction ? { rejectUnauthorized: true } : { rejectUnauthorized: false };
+  if (sslMode === 'strict') return { rejectUnauthorized: true };
+  return isProduction ? { rejectUnauthorized: true } : { rejectUnauthorized: false };
+}
+
+async function readLatestPanelOtpCode(client, { email, maxAgeSeconds = 300 }) {
+  const result = await client.query(
+    `
+      SELECT payload
+      FROM notification_jobs
+      WHERE template_code = 'PANEL_LOGIN_SMS_OTP'
+        AND channel = 'SMS'
+        AND lower(COALESCE(payload->>'email', payload->>'user_email', '')) = lower($1)
+        AND created_at >= NOW() - make_interval(secs => $2::int)
+      ORDER BY created_at DESC
+      LIMIT 1
+    `,
+    [email, maxAgeSeconds],
+  );
+  const payload = result.rows[0]?.payload;
+  const code = safeTrim(payload?.otp_code || payload?.otpCode);
+  return /^\d{6}$/.test(code) ? code : '';
+}
+
+async function waitForPanelOtpCode(pool, { email, maxAttempts = 8, delayMs = 900, maxAgeSeconds = 300 }) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const client = await pool.connect();
+    try {
+      const code = await readLatestPanelOtpCode(client, { email, maxAgeSeconds });
+      if (code) return code;
+    } finally {
+      client.release();
+    }
+    if (attempt < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  return '';
 }
 
 async function httpRequest({ method = 'GET', url, headers = {}, body, timeoutMs = 20000 }) {
@@ -90,17 +153,28 @@ async function run() {
     panelEmail: safeTrim(process.env.PANEL_EMAIL),
     panelPassword: safeTrim(process.env.PANEL_PASSWORD),
     panelOtpCode: safeTrim(process.env.PANEL_OTP_CODE),
+    dbConnectionString: sanitizeConnectionString(process.env.DATABASE_URL || process.env.POSTGRES_URL || ''),
   };
   const checks = [];
 
   const missingAuth = [];
   if (!cfg.panelEmail) missingAuth.push('PANEL_EMAIL');
   if (!cfg.panelPassword) missingAuth.push('PANEL_PASSWORD');
-  if (!cfg.panelOtpCode) missingAuth.push('PANEL_OTP_CODE');
 
   let panelToken = '';
+  let dbPool = null;
+  if (cfg.dbConnectionString) {
+    dbPool = new pg.Pool({
+      connectionString: cfg.dbConnectionString,
+      ssl: resolveDbSslForScript(),
+      max: 1,
+    });
+  }
 
-  if (missingAuth.length > 0) {
+  if (missingAuth.length > 0 || (!cfg.panelOtpCode && !dbPool)) {
+    if (!cfg.panelOtpCode && !dbPool) {
+      missingAuth.push('PANEL_OTP_CODE or DATABASE_URL/POSTGRES_URL (for OTP auto-read)');
+    }
     checks.push(
       makeCheck(
         'auth_prerequisites',
@@ -126,6 +200,13 @@ async function run() {
       && challenge.challengeToken;
 
     let verifyResp = { status: 0, json: null };
+    let otpCodeUsed = cfg.panelOtpCode;
+    if (hasChallenge && dbPool) {
+      const autoCode = await waitForPanelOtpCode(dbPool, { email: cfg.panelEmail });
+      if (autoCode) {
+        otpCodeUsed = autoCode;
+      }
+    }
     if (hasChallenge) {
       verifyResp = await httpRequest({
         method: 'POST',
@@ -134,7 +215,7 @@ async function run() {
         body: {
           email: cfg.panelEmail,
           password: cfg.panelPassword,
-          otpCode: cfg.panelOtpCode,
+          otpCode: otpCodeUsed,
           challengeId: challenge.challengeId,
           challengeToken: challenge.challengeToken,
         },
@@ -151,11 +232,15 @@ async function run() {
           verify_status: verifyResp.status || null,
           otp_required: loginResp.json?.otp_required === true,
           has_token: Boolean(panelToken),
+          otp_source: otpCodeUsed === cfg.panelOtpCode ? 'env' : 'db_auto',
           start_error: loginResp.json?.error || null,
           verify_error: verifyResp.json?.error || null,
         },
       ),
     );
+  }
+  if (dbPool) {
+    await dbPool.end();
   }
 
   if (panelToken) {

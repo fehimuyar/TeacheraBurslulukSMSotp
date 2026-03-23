@@ -1,6 +1,6 @@
 # P0 Panel Prod Slot Visibility Smoke
 
-- Timestamp: 2026-03-20T23:30:39.432Z
+- Timestamp: 2026-03-23T11:54:16.603Z
 - overall_pass: **true**
 - pass: 6, fail: 0, warn: 0, skip: 0
 
@@ -8,7 +8,7 @@
 
 | id | status | detail |
 | --- | --- | --- |
-| auth_login | PASS | HTTP 200 |
+| auth_login | PASS | start:200 verify:200 |
 | api_candidates_200 | PASS | HTTP 200 |
 | api_fields_section_slot | PASS | sample_count=5 |
 | api_export_200 | PASS | HTTP 200 |
