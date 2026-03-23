@@ -10,8 +10,16 @@ export interface BurslulukCandidateSession {
   studentFullName: string;
   parentFullName: string;
   parentPhoneE164: string;
+  parentEmail?: string;
   schoolName: string;
+  schoolDistrict?: string;
+  schoolType?: string;
   grade: number;
+  tckn?: string;
+  birthYear?: string;
+  branch?: string;
+  selectedSessionId?: string;
+  selectedSessionLabel?: string;
   ageRange: string;
   language: string;
   questionCount: number;
@@ -53,7 +61,7 @@ function draftKey(attemptId: string) {
 export function normalizeGrade(raw: unknown) {
   const value = Number(raw);
   if (!Number.isFinite(value)) return 8;
-  return Math.max(2, Math.min(11, Math.trunc(value)));
+  return Math.max(1, Math.min(12, Math.trunc(value)));
 }
 
 export function deriveAgeRangeFromGrade(grade: number) {

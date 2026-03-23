@@ -1,6 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { panelFetch } from '../../api/panelApi';
 import { canOperatePanelActions, isReadOnlyPanelRole } from './panelRoleAccess';
+import {
+  PanelFeedbackMessage,
+  PanelLoadingMessage,
+  panelDescriptionClassName,
+  panelEmptyRowClassName,
+  panelEyebrowClassName,
+  panelInputClassName,
+  panelPrimaryButtonClassName,
+  panelSecondaryButtonClassName,
+  panelSmallButtonClassName,
+  panelStatCardClassName,
+  panelTableContainerClassName,
+  panelTitleClassName,
+  panelWideSurfaceClassName,
+} from './panelUi';
 
 type NotificationRow = {
   job_id: string;
@@ -241,33 +256,33 @@ export default function NotificationCenterPanel({ active, role }: { active: bool
   };
 
   return (
-    <section className="rounded-[22px] border border-[#1A273A] bg-[#071021]/82 p-5 shadow-[0_14px_38px_rgba(0,0,0,0.28)] lg:col-span-2">
+    <section className={panelWideSurfaceClassName}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white/54">Bildirim Merkezi</p>
-          <h3 className="mt-2 text-[22px] font-semibold text-white">SMS / WhatsApp Job ve Event Takibi</h3>
-          <p className="mt-2 text-[13px] leading-[1.7] text-white/64">
+          <p className={panelEyebrowClassName}>Bildirim Merkezi</p>
+          <h3 className={panelTitleClassName}>SMS / WhatsApp Job ve Event Takibi</h3>
+          <p className={panelDescriptionClassName}>
             Job listesi, provider teslim/okunma eventleri ve retry/cancel/requeue işlemleri bu ekrandan yönetilir.
           </p>
         </div>
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
-          <p className="text-[12px] text-white/50">Toplam Job</p>
-          <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary.total_jobs ?? total)}</p>
+        <div className={panelStatCardClassName}>
+          <p className="text-[12px] font-['Neutraface_2_Text:Book',sans-serif] text-[#7A7063]">Toplam Job</p>
+          <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[22px] text-[#1B2B24]">{formatNumber(summary.total_jobs ?? total)}</p>
         </div>
-        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
-          <p className="text-[12px] text-white/50">DLQ Job</p>
-          <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary.dlq_jobs)}</p>
+        <div className={panelStatCardClassName}>
+          <p className="text-[12px] font-['Neutraface_2_Text:Book',sans-serif] text-[#7A7063]">DLQ Job</p>
+          <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[22px] text-[#1B2B24]">{formatNumber(summary.dlq_jobs)}</p>
         </div>
-        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
-          <p className="text-[12px] text-white/50">Failed Job</p>
-          <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary.failed_jobs)}</p>
+        <div className={panelStatCardClassName}>
+          <p className="text-[12px] font-['Neutraface_2_Text:Book',sans-serif] text-[#7A7063]">Failed Job</p>
+          <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[22px] text-[#1B2B24]">{formatNumber(summary.failed_jobs)}</p>
         </div>
-        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
-          <p className="text-[12px] text-white/50">Successful Job</p>
-          <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary.successful_jobs)}</p>
+        <div className={panelStatCardClassName}>
+          <p className="text-[12px] font-['Neutraface_2_Text:Book',sans-serif] text-[#7A7063]">Successful Job</p>
+          <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[22px] text-[#1B2B24]">{formatNumber(summary.successful_jobs)}</p>
         </div>
       </div>
 
@@ -277,8 +292,8 @@ export default function NotificationCenterPanel({ active, role }: { active: bool
           onClick={() => setDraftFilters((prev) => ({ ...prev, channel: '' }))}
           className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] transition ${
             draftFilters.channel === ''
-              ? 'border-[#D34840] bg-[#4B1817] text-white'
-              : 'border-[#1A273A] bg-[#0A192B]/90 text-white/75 hover:border-[#2D4363]'
+              ? 'border-[#2C5447] bg-[#24473C] text-white'
+              : 'border-[#DDD3C5] bg-[#FFFDF9] text-[#53635D] hover:border-[#BCA98F]'
           }`}
         >
           Tümü
@@ -288,8 +303,8 @@ export default function NotificationCenterPanel({ active, role }: { active: bool
           onClick={() => setDraftFilters((prev) => ({ ...prev, channel: 'SMS' }))}
           className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] transition ${
             draftFilters.channel === 'SMS'
-              ? 'border-[#D34840] bg-[#4B1817] text-white'
-              : 'border-[#1A273A] bg-[#0A192B]/90 text-white/75 hover:border-[#2D4363]'
+              ? 'border-[#2C5447] bg-[#24473C] text-white'
+              : 'border-[#DDD3C5] bg-[#FFFDF9] text-[#53635D] hover:border-[#BCA98F]'
           }`}
         >
           SMS
@@ -299,8 +314,8 @@ export default function NotificationCenterPanel({ active, role }: { active: bool
           onClick={() => setDraftFilters((prev) => ({ ...prev, channel: 'WHATSAPP' }))}
           className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] transition ${
             draftFilters.channel === 'WHATSAPP'
-              ? 'border-[#D34840] bg-[#4B1817] text-white'
-              : 'border-[#1A273A] bg-[#0A192B]/90 text-white/75 hover:border-[#2D4363]'
+              ? 'border-[#2C5447] bg-[#24473C] text-white'
+              : 'border-[#DDD3C5] bg-[#FFFDF9] text-[#53635D] hover:border-[#BCA98F]'
           }`}
         >
           WhatsApp
@@ -312,18 +327,18 @@ export default function NotificationCenterPanel({ active, role }: { active: bool
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Template / recipient / provider msg / error ara"
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         />
         <input
           value={draftFilters.campaignCode}
           onChange={(event) => setDraftFilters((prev) => ({ ...prev, campaignCode: event.target.value }))}
           placeholder="Campaign code"
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         />
         <select
           value={draftFilters.status}
           onChange={(event) => setDraftFilters((prev) => ({ ...prev, status: event.target.value }))}
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         >
           <option value="">Durum (tümü)</option>
           {STATUS_OPTIONS.map((status) => (
@@ -344,7 +359,7 @@ export default function NotificationCenterPanel({ active, role }: { active: bool
             setMessage('');
             setErrorMessage('');
           }}
-          className="rounded-xl bg-[#D92E27] px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.11em] text-white transition hover:bg-[#bf251f]"
+          className={panelPrimaryButtonClassName}
         >
           Filtreleri Uygula
         </button>
@@ -359,7 +374,7 @@ export default function NotificationCenterPanel({ active, role }: { active: bool
             setMessage('');
             setErrorMessage('');
           }}
-          className="rounded-xl border border-[#1A273A] bg-[#0A192B]/90 px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.11em] text-white/80 transition hover:border-[#2D4363]"
+          className={panelSecondaryButtonClassName}
         >
           Filtreleri Temizle
         </button>
@@ -367,15 +382,13 @@ export default function NotificationCenterPanel({ active, role }: { active: bool
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {isReadOnly ? (
-          <p className="rounded-lg border border-[#274063] bg-[#0A192B]/80 px-3 py-2 text-[12px] text-[#9FC7FF]">
-            READ_ONLY modu: bildirim aksiyonları kapalıdır.
-          </p>
+          <PanelFeedbackMessage tone="info">READ_ONLY modu: bildirim aksiyonları kapalıdır.</PanelFeedbackMessage>
         ) : null}
         <button
           type="button"
           onClick={() => void runAction('retry')}
           disabled={!canOperate || isActionRunning || selectedJobIds.length === 0}
-          className="rounded-xl border border-[#1A273A] bg-[#0A192B]/90 px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+          className={panelSecondaryButtonClassName}
         >
           Retry ({selectedJobIds.length})
         </button>
@@ -383,7 +396,7 @@ export default function NotificationCenterPanel({ active, role }: { active: bool
           type="button"
           onClick={() => void runAction('cancel')}
           disabled={!canOperate || isActionRunning || selectedJobIds.length === 0}
-          className="rounded-xl border border-[#1A273A] bg-[#0A192B]/90 px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+          className={panelSecondaryButtonClassName}
         >
           Cancel ({selectedJobIds.length})
         </button>
@@ -391,27 +404,23 @@ export default function NotificationCenterPanel({ active, role }: { active: bool
           type="button"
           onClick={() => void runAction('requeue_dlq')}
           disabled={!canOperate || isActionRunning || selectedJobIds.length === 0}
-          className="rounded-xl border border-[#1A273A] bg-[#0A192B]/90 px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+          className={panelSecondaryButtonClassName}
         >
           DLQ Requeue ({selectedJobIds.length})
         </button>
       </div>
 
-      {message ? (
-        <p className="mt-3 rounded-lg border border-[#244B39] bg-[#0E261E] px-3 py-2 text-[12px] text-[#9FE4D0]">{message}</p>
-      ) : null}
-      {errorMessage ? (
-        <p className="mt-3 rounded-lg border border-[#6F2824] bg-[#2B1214]/80 px-3 py-2 text-[12px] text-[#FFB8B1]">{errorMessage}</p>
-      ) : null}
+      {message ? <PanelFeedbackMessage className="mt-3" tone="success">{message}</PanelFeedbackMessage> : null}
+      {errorMessage ? <PanelFeedbackMessage className="mt-3" tone="error">{errorMessage}</PanelFeedbackMessage> : null}
 
-      {isLoading ? <p className="mt-3 text-[13px] text-white/65">Bildirim listesi yükleniyor...</p> : null}
+      {isLoading ? <PanelLoadingMessage>Bildirim listesi yükleniyor...</PanelLoadingMessage> : null}
 
       {!isLoading ? (
         <>
-          <div className="mt-4 overflow-x-auto">
-            <table className="min-w-[1460px] text-left text-[12px] text-white/80">
+          <div className={panelTableContainerClassName}>
+            <table className="min-w-[1460px] text-left font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#33463E]">
               <thead>
-                <tr className="border-b border-white/12 text-white/56">
+                <tr className="border-b border-[#E6DDCF] text-[#7A7063]">
                   <th className="px-2 py-2">
                       <input
                         type="checkbox"
@@ -439,13 +448,13 @@ export default function NotificationCenterPanel({ active, role }: { active: bool
               <tbody>
                 {items.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-2 py-6 text-center text-white/55">
+                    <td colSpan={8} className={panelEmptyRowClassName}>
                       Filtreye uygun bildirim kaydı bulunamadı.
                     </td>
                   </tr>
                 ) : null}
                 {items.map((item) => (
-                  <tr key={item.job_id} className="border-b border-white/6 align-top">
+                  <tr key={item.job_id} className="border-b border-[#F0E7DA] align-top">
                     <td className="px-2 py-2">
                       <input
                         type="checkbox"
@@ -461,8 +470,8 @@ export default function NotificationCenterPanel({ active, role }: { active: bool
                       />
                     </td>
                     <td className="px-2 py-2">
-                      <p className="font-semibold text-white">{shortId(item.job_id)}</p>
-                      <p className="text-white/55">{item.job_id}</p>
+                      <p className="font-['Neutraface_2_Text:Demi',sans-serif] text-[#1B2B24]">{shortId(item.job_id)}</p>
+                      <p className="text-[#7C7366]">{item.job_id}</p>
                     </td>
                     <td className="px-2 py-2">{item.channel || '-'}</td>
                     <td className="px-2 py-2">{item.template_code || '-'}</td>
@@ -476,11 +485,11 @@ export default function NotificationCenterPanel({ active, role }: { active: bool
             </table>
           </div>
 
-          <div className="mt-5 overflow-x-auto rounded-2xl border border-[#1A273A] bg-[#071021]/92 p-3">
-            <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-white/54">Provider Event Görünümü</p>
-            <table className="mt-2 min-w-[1120px] text-left text-[12px] text-white/80">
+          <div className="mt-5 overflow-x-auto rounded-[24px] border border-[#E4DBCE] bg-[#FFFDF9] p-3 shadow-[0_8px_22px_rgba(109,90,58,0.05)]">
+            <p className="font-['Neutraface_2_Text:Demi',sans-serif] text-[12px] uppercase tracking-[0.14em] text-[#7A7063]">Provider Event Görünümü</p>
+            <table className="mt-2 min-w-[1120px] text-left font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#33463E]">
               <thead>
-                <tr className="border-b border-white/12 text-white/56">
+                <tr className="border-b border-[#E6DDCF] text-[#7A7063]">
                   <th className="px-2 py-2">Job ID</th>
                   <th className="px-2 py-2">Provider Msg ID</th>
                   <th className="px-2 py-2">Sent</th>
@@ -492,13 +501,13 @@ export default function NotificationCenterPanel({ active, role }: { active: bool
               <tbody>
                 {items.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-2 py-5 text-center text-white/55">
+                    <td colSpan={6} className={panelEmptyRowClassName}>
                       Provider event kaydı bulunamadı.
                     </td>
                   </tr>
                 ) : null}
                 {items.map((item) => (
-                  <tr key={`event-${item.job_id}`} className="border-b border-white/6">
+                  <tr key={`event-${item.job_id}`} className="border-b border-[#F0E7DA]">
                     <td className="px-2 py-2">{shortId(item.job_id)}</td>
                     <td className="px-2 py-2">{item.provider_message_id || '-'}</td>
                     <td className="px-2 py-2">{formatDate(item.sent_at)}</td>
@@ -514,7 +523,7 @@ export default function NotificationCenterPanel({ active, role }: { active: bool
       ) : null}
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[12px] text-white/58">
+        <p className="font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#7A7063]">
           Toplam {formatNumber(total)} kayıt • Sayfa {page} / {pageCount}
         </p>
         <div className="flex gap-2">
@@ -522,7 +531,7 @@ export default function NotificationCenterPanel({ active, role }: { active: bool
             type="button"
             onClick={() => setPage((prev) => Math.max(1, prev - 1))}
             disabled={page <= 1 || isLoading}
-            className="rounded-lg border border-[#1A273A] bg-[#0A192B]/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+            className={panelSmallButtonClassName}
           >
             Önceki
           </button>
@@ -530,7 +539,7 @@ export default function NotificationCenterPanel({ active, role }: { active: bool
             type="button"
             onClick={() => setPage((prev) => Math.min(pageCount, prev + 1))}
             disabled={page >= pageCount || isLoading}
-            className="rounded-lg border border-[#1A273A] bg-[#0A192B]/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+            className={panelSmallButtonClassName}
           >
             Sonraki
           </button>

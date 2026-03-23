@@ -3,12 +3,20 @@ import {
   clearBruteForceState,
   registerBruteForceFailure,
 } from './_lib/abuseProtection.js';
+import { query } from './_lib/db.js';
 import { HttpError, isHttpError } from './_lib/errors.js';
 import { applyCorsPolicy, enforceServiceBoundary } from './_lib/http.js';
 import { enforceRateLimit, getRequestIp } from './_lib/redisRateLimit.js';
 
 const DEFAULT_UPSTREAM_TEMPLATE = 'https://formsubmit.co/ajax/{to}';
 const TURNSTILE_VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+const LEAD_FORM_TYPE_BY_SUBJECT = {
+  'Teachera Geri Arama Talebi': 'CALLBACK',
+  'Ucretsiz Deneme Seansi Talebi': 'FREE_TRIAL',
+  'Seviye Tespit Talebi': 'LEVEL_ASSESSMENT',
+  'Egitim Formati Danismanlik Talebi': 'FORMAT_CONSULTATION',
+  'Kurumsal Egitim Teklif Talebi': 'CORPORATE_OFFER',
+};
 
 function sendJson(res, status, payload) {
   res.status(status).setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -57,6 +65,119 @@ function sanitizeFields(rawFields) {
   }
 
   return sanitized;
+}
+
+function getLeadFormType(subject) {
+  return LEAD_FORM_TYPE_BY_SUBJECT[safeTrim(subject)] || '';
+}
+
+function normalizeLookupKey(value) {
+  return safeTrim(value)
+    .toLocaleLowerCase('tr-TR')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ı/g, 'i')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function buildFieldEntries(fields) {
+  return Object.entries(fields)
+    .map(([label, value]) => ({
+      label: safeTrim(label).slice(0, 120),
+      value: safeTrim(value).slice(0, 1200),
+    }))
+    .filter((item) => item.label);
+}
+
+function findFieldValue(fields, candidates) {
+  const candidateSet = new Set(candidates.map((item) => normalizeLookupKey(item)));
+
+  for (const [key, value] of Object.entries(fields)) {
+    if (!candidateSet.has(normalizeLookupKey(key))) continue;
+    const normalizedValue = safeTrim(value);
+    if (normalizedValue && normalizedValue !== '-') {
+      return normalizedValue;
+    }
+  }
+
+  return '';
+}
+
+function findFieldValueByPattern(fields, pattern) {
+  for (const value of Object.values(fields)) {
+    const normalizedValue = safeTrim(value);
+    if (normalizedValue && pattern.test(normalizedValue)) {
+      return normalizedValue;
+    }
+  }
+  return '';
+}
+
+function extractLeadFullName(fields) {
+  return findFieldValue(fields, ['Ad Soyad', 'Ad Soyadiniz', 'Yetkili Ad Soyad', 'Adı Soyadı', 'Ad Soyadınız']);
+}
+
+function extractLeadPhone(fields) {
+  return (
+    findFieldValue(fields, ['Telefon', 'Cep Telefonu', 'Telefon Numarasi', 'Telefon Numarası', 'GSM']) ||
+    findFieldValueByPattern(fields, /(?:\+?\d[\d\s()-]{8,})/)
+  );
+}
+
+function extractLeadEmail(fields) {
+  return (
+    findFieldValue(fields, ['E-posta', 'Eposta', 'Email', 'Mail']) ||
+    findFieldValueByPattern(fields, /^[^\s@]+@[^\s@]+\.[^\s@]+$/)
+  );
+}
+
+async function persistLeadSubmission({ subject, formSource, fields }) {
+  const formType = getLeadFormType(subject);
+  if (!formType) {
+    return { leadInbox: 'not_applicable' };
+  }
+
+  const fullName = extractLeadFullName(fields);
+  const phone = extractLeadPhone(fields);
+  const email = extractLeadEmail(fields);
+  const fieldEntries = buildFieldEntries(fields);
+
+  await query(
+    `
+      INSERT INTO lead_form_submissions (
+        form_type,
+        form_subject,
+        full_name,
+        phone,
+        email,
+        fields,
+        field_entries,
+        form_source
+      )
+      VALUES (
+        $1,
+        $2,
+        NULLIF($3, ''),
+        NULLIF($4, ''),
+        NULLIF($5, ''),
+        $6::jsonb,
+        $7::jsonb,
+        NULLIF($8, '')
+      )
+    `,
+    [
+      formType,
+      subject,
+      fullName,
+      phone,
+      email,
+      JSON.stringify(fields),
+      JSON.stringify(fieldEntries),
+      formSource,
+    ],
+  );
+
+  return { leadInbox: 'stored', formType };
 }
 
 function readCaptchaToken(body, req) {
@@ -315,6 +436,23 @@ export default async function handler(req, res) {
       return;
     }
 
+    let leadInbox = 'not_applicable';
+    try {
+      const persistResult = await persistLeadSubmission({
+        subject,
+        formSource,
+        fields,
+      });
+      leadInbox = persistResult.leadInbox;
+    } catch (persistError) {
+      leadInbox = 'store_failed';
+      console.error('[forms_lead_inbox_persist_failed]', {
+        subject,
+        formSource,
+        error: persistError instanceof Error ? persistError.message : String(persistError),
+      });
+    }
+
     const upstreamEndpoint = resolveUpstreamEndpoint(to);
     const upstreamPayload = {
       _subject: subject,
@@ -331,7 +469,7 @@ export default async function handler(req, res) {
     });
 
     if (!upstreamResponse.ok) {
-      sendJson(res, 502, { ok: false, error: 'upstream_failed', status: upstreamResponse.status });
+      sendJson(res, 502, { ok: false, error: 'upstream_failed', status: upstreamResponse.status, lead_inbox: leadInbox });
       return;
     }
 
@@ -344,7 +482,7 @@ export default async function handler(req, res) {
       identity: contactIdentity,
     });
 
-    sendJson(res, 200, { ok: true, captcha: 'verified' });
+    sendJson(res, 200, { ok: true, captcha: 'verified', lead_inbox: leadInbox });
   } catch (error) {
     if (isHttpError(error)) {
       sendJson(res, error.status, {

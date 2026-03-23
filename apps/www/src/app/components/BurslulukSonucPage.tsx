@@ -118,12 +118,27 @@ export default function BurslulukSonucPage() {
           </div>
         ) : null}
 
-        <div className="mt-8 flex flex-wrap gap-3">
+        {/* Randevu Al CTA */}
+        {result && result.status === 'VIEWED' && (
+          <div className="mt-8 rounded-3xl border border-[#2C5447]/30 bg-[#2C5447] p-6 text-center shadow-[0_12px_40px_rgba(44,84,71,0.3)]">
+            <p className="text-[14px] leading-[1.6] text-white/80">
+              Eğitim danışmanımızla ücretsiz görüşme randevusu alın
+            </p>
+            <Link
+              to="/bursluluk/randevu"
+              className="mt-4 inline-block rounded-full bg-white px-10 py-4 text-[14px] font-semibold uppercase tracking-[0.14em] text-[#2C5447] shadow-[0_8px_24px_rgba(255,255,255,0.2)] transition hover:shadow-[0_12px_32px_rgba(255,255,255,0.3)] active:scale-[0.97]"
+            >
+              Randevu Al
+            </Link>
+            <p className="mt-3 text-[12px] text-white/50">
+              Size uygun bir tarih ve saat seçin
+            </p>
+          </div>
+        )}
+
+        <div className="mt-6 flex flex-wrap gap-3">
           <Link to="/bursluluk/giris" className="rounded-full border border-white/18 px-6 py-3 text-[12px] uppercase tracking-[0.16em] text-white/74">
             Girise Don
-          </Link>
-          <Link to="/panel/dashboard?view=operations&focus=candidates" className="rounded-full border border-white/18 px-6 py-3 text-[12px] uppercase tracking-[0.16em] text-white/74">
-            Panel Takip
           </Link>
         </div>
       </div>

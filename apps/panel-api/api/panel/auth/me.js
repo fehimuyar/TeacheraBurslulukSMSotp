@@ -25,10 +25,6 @@ export default async function handler(req, res) {
       throw new HttpError(401, 'Panel authentication is required.', 'panel_unauthorized');
     }
 
-    if (!identity.mfaVerified) {
-      throw new HttpError(403, 'MFA verification is required.', 'panel_mfa_required');
-    }
-
     ok(res, {
       identity: {
         user_id: identity.userId,
@@ -36,6 +32,7 @@ export default async function handler(req, res) {
         full_name: identity.fullName,
         role: identity.role,
         mfa_verified: identity.mfaVerified,
+        otp_verified: identity.otpVerified,
         session_id: identity.sessionId,
         password_reset_required: Boolean(identity.passwordResetRequired),
       },

@@ -1,6 +1,26 @@
 import { useEffect, useMemo, useState } from 'react';
 import { panelFetch } from '../../api/panelApi';
+import CandidatePersonDrawer from './CandidatePersonDrawer';
 import { canExportPanelData, canOperatePanelActions, isReadOnlyPanelRole } from './panelRoleAccess';
+import {
+  PanelFeedbackMessage,
+  PanelLoadingMessage,
+  panelCompactInputClassName,
+  panelDescriptionClassName,
+  panelDangerButtonClassName,
+  panelEmptyRowClassName,
+  panelEyebrowClassName,
+  panelInputClassName,
+  panelPrimaryButtonClassName,
+  panelReadOnlyNoticeClassName,
+  panelSecondaryButtonClassName,
+  panelSmallButtonClassName,
+  panelSoftCardClassName,
+  panelStatCardClassName,
+  panelTableContainerClassName,
+  panelTitleClassName,
+  panelWideSurfaceClassName,
+} from './panelUi';
 
 type CandidateRow = {
   candidate_id: string;
@@ -272,6 +292,7 @@ export default function CandidateOperationsPanel({
   const [page, setPage] = useState(1);
   const [perPage] = useState(20);
   const [items, setItems] = useState<CandidateRow[]>([]);
+  const [drawerCandidate, setDrawerCandidate] = useState<CandidateRow | null>(null);
   const [total, setTotal] = useState(0);
   const [summary, setSummary] = useState<CandidateSummary>({});
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -511,16 +532,14 @@ export default function CandidateOperationsPanel({
   };
 
   return (
-    <section className="rounded-[22px] border border-[#1A273A] bg-[#071021]/82 p-5 shadow-[0_14px_38px_rgba(0,0,0,0.28)] lg:col-span-2">
+    <>
+    <section className={panelWideSurfaceClassName}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white/54">Aday Operasyon Gridi</p>
-          <h3 className="mt-2 text-[22px] font-semibold text-white">Bursluluk Durum Takibi</h3>
-          <p className="mt-2 text-[13px] leading-[1.7] text-white/64">
-            Başvuru, SMS, login, sınav, sonuç ve WhatsApp akışını aday bazında tek tabloda yönetin.
-          </p>
+          <p className={panelEyebrowClassName}>Aday Operasyon Gridi</p>
+          <h3 className={panelTitleClassName}>Bursluluk Durum Takibi</h3>
           {appliedFilters.campaignCode ? (
-            <p className="mt-2 inline-flex rounded-full border border-[#1A273A] bg-[#0A192B]/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-white/70">
+            <p className="mt-2 inline-flex rounded-full border border-[#DDD3C5] bg-[#FBF7F0] px-3 py-1 font-['Neutraface_2_Text:Demi',sans-serif] text-[11px] uppercase tracking-[0.1em] text-[#5E675F]">
               Global Kampanya: {appliedFilters.campaignCode}
             </p>
           ) : null}
@@ -531,7 +550,7 @@ export default function CandidateOperationsPanel({
             type="button"
             onClick={() => void handleExport('csv')}
             disabled={!canExport || isExportRunning}
-            className="rounded-xl border border-[#1A273A] bg-[#0A192B]/90 px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.11em] text-white/80 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-60"
+            className={panelSecondaryButtonClassName}
           >
             CSV Export
           </button>
@@ -539,7 +558,7 @@ export default function CandidateOperationsPanel({
             type="button"
             onClick={() => void handleExport('xls')}
             disabled={!canExport || isExportRunning}
-            className="rounded-xl border border-[#1A273A] bg-[#0A192B]/90 px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.11em] text-white/80 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-60"
+            className={panelSecondaryButtonClassName}
           >
             XLS Export
           </button>
@@ -547,36 +566,40 @@ export default function CandidateOperationsPanel({
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
-          <p className="text-[12px] text-white/50">Toplam Aday</p>
-          <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary.total_candidates ?? total)}</p>
+        <div className={panelStatCardClassName}>
+          <p className="text-[12px] font-['Neutraface_2_Text:Book',sans-serif] text-[#7A7063]">Toplam Aday</p>
+          <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[22px] text-[#1B2B24]">{formatNumber(summary.total_candidates ?? total)}</p>
         </div>
-        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
-          <p className="text-[12px] text-white/50">Sınav Tamamlayan</p>
-          <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary.exam_completed)}</p>
+        <div className={panelStatCardClassName}>
+          <p className="text-[12px] font-['Neutraface_2_Text:Book',sans-serif] text-[#7A7063]">Sınav Tamamlayan</p>
+          <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[22px] text-[#1B2B24]">{formatNumber(summary.exam_completed)}</p>
         </div>
-        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
-          <p className="text-[12px] text-white/50">Sonuç Görüntüleyen</p>
-          <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary.result_viewed)}</p>
+        <div className={panelStatCardClassName}>
+          <p className="text-[12px] font-['Neutraface_2_Text:Book',sans-serif] text-[#7A7063]">Sonuç Görüntüleyen</p>
+          <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[22px] text-[#1B2B24]">{formatNumber(summary.result_viewed)}</p>
         </div>
-        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
-          <p className="text-[12px] text-white/50">WA Problemli</p>
-          <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary.wa_problematic)}</p>
+        <div className={panelStatCardClassName}>
+          <p className="text-[12px] font-['Neutraface_2_Text:Book',sans-serif] text-[#7A7063]">WA Problemli</p>
+          <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[22px] text-[#1B2B24]">{formatNumber(summary.wa_problematic)}</p>
         </div>
       </div>
 
       {isReadOnly ? (
-        <p className="mt-3 rounded-lg border border-[#274063] bg-[#0A192B]/80 px-3 py-2 text-[12px] text-[#9FC7FF]">
+        <PanelFeedbackMessage className="mt-3" tone="info">
           READ_ONLY modu: listeleme ve export açık, aksiyon butonları kapalı.
-        </p>
+        </PanelFeedbackMessage>
       ) : null}
 
-      <div className="sticky top-[70px] z-20 mt-4 space-y-3 rounded-2xl border border-[#1A273A] bg-[#050f1f]/95 p-3 backdrop-blur-sm">
+      <details className="sticky top-[92px] z-20 mt-3 rounded-[16px] border border-[#E4DBCF] bg-[#FBF7F0] shadow-[0_8px_24px_rgba(109,90,58,0.06)] backdrop-blur-sm">
+        <summary className="cursor-pointer px-3 py-2 font-['Neutraface_2_Text:Demi',sans-serif] text-[11px] uppercase tracking-[0.14em] text-[#7A7063]">
+          Filtreler & Preset {(() => { const count = [query, draftFilters.schoolQuery, draftFilters.grade, draftFilters.smsStatus, draftFilters.loginStatus, draftFilters.examStatus, draftFilters.resultViewedStatus, draftFilters.waStatus].filter(Boolean).length; return count > 0 ? `(${count} aktif)` : ''; })()}
+        </summary>
+        <div className="space-y-3 px-3 pb-3">
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-[1fr_auto_auto_auto]">
           <select
             value={selectedPresetId}
             onChange={(event) => setSelectedPresetId(event.target.value)}
-            className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+            className={panelInputClassName}
           >
             <option value="">Kayıtlı filtre preset seçin</option>
             {presets.map((preset) => (
@@ -588,7 +611,7 @@ export default function CandidateOperationsPanel({
           <button
             type="button"
             onClick={handleSavePreset}
-            className="rounded-xl border border-[#1A273A] bg-[#0A192B]/90 px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.11em] text-white/80 transition hover:border-[#2D4363]"
+            className={panelSecondaryButtonClassName}
           >
             Preset Kaydet
           </button>
@@ -596,7 +619,7 @@ export default function CandidateOperationsPanel({
             type="button"
             onClick={handleApplyPreset}
             disabled={!selectedPresetId}
-            className="rounded-xl border border-[#1A273A] bg-[#0A192B]/90 px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.11em] text-white/80 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+            className={panelSecondaryButtonClassName}
           >
             Preset Uygula
           </button>
@@ -604,137 +627,138 @@ export default function CandidateOperationsPanel({
             type="button"
             onClick={handleDeletePreset}
             disabled={!selectedPresetId}
-            className="rounded-xl border border-[#6F2824] bg-[#2B1214]/80 px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.11em] text-[#FFB8B1] transition hover:border-[#8D3430] disabled:cursor-not-allowed disabled:opacity-55"
+            className={panelDangerButtonClassName}
           >
             Preset Sil
           </button>
         </div>
 
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Aday / veli / telefon / başvuru no ara"
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
-        />
-        <input
-          value={draftFilters.schoolQuery}
-          onChange={(event) => setDraftFilters((prev) => ({ ...prev, schoolQuery: event.target.value }))}
-          placeholder="Okul filtresi (metin)"
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
-        />
-        <select
-          value={draftFilters.grade}
-          onChange={(event) => setDraftFilters((prev) => ({ ...prev, grade: event.target.value }))}
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
-        >
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Aday / veli / telefon / başvuru no ara"
+            className={panelInputClassName}
+          />
+          <input
+            value={draftFilters.schoolQuery}
+            onChange={(event) => setDraftFilters((prev) => ({ ...prev, schoolQuery: event.target.value }))}
+            placeholder="Okul filtresi (metin)"
+            className={panelInputClassName}
+          />
+          <select
+            value={draftFilters.grade}
+            onChange={(event) => setDraftFilters((prev) => ({ ...prev, grade: event.target.value }))}
+            className={panelInputClassName}
+          >
           <option value="">Sınıf (tümü)</option>
           {GRADE_OPTIONS.map((value) => (
             <option key={value} value={value}>
               {value}
             </option>
           ))}
-        </select>
-        <select
-          value={draftFilters.smsStatus}
-          onChange={(event) => setDraftFilters((prev) => ({ ...prev, smsStatus: event.target.value }))}
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
-        >
+          </select>
+          <select
+            value={draftFilters.smsStatus}
+            onChange={(event) => setDraftFilters((prev) => ({ ...prev, smsStatus: event.target.value }))}
+            className={panelInputClassName}
+          >
           <option value="">SMS durumu (tümü)</option>
           {SMS_STATUS_OPTIONS.map((value) => (
             <option key={value} value={value}>
               {value}
             </option>
           ))}
-        </select>
-        <select
-          value={draftFilters.loginStatus}
-          onChange={(event) => setDraftFilters((prev) => ({ ...prev, loginStatus: event.target.value }))}
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
-        >
+          </select>
+          <select
+            value={draftFilters.loginStatus}
+            onChange={(event) => setDraftFilters((prev) => ({ ...prev, loginStatus: event.target.value }))}
+            className={panelInputClassName}
+          >
           <option value="">Login durumu (tümü)</option>
           {LOGIN_STATUS_OPTIONS.map((value) => (
             <option key={value} value={value}>
               {value}
             </option>
           ))}
-        </select>
-        <select
-          value={draftFilters.examStatus}
-          onChange={(event) => setDraftFilters((prev) => ({ ...prev, examStatus: event.target.value }))}
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
-        >
+          </select>
+          <select
+            value={draftFilters.examStatus}
+            onChange={(event) => setDraftFilters((prev) => ({ ...prev, examStatus: event.target.value }))}
+            className={panelInputClassName}
+          >
           <option value="">Sınav durumu (tümü)</option>
           {EXAM_STATUS_OPTIONS.map((value) => (
             <option key={value} value={value}>
               {value}
             </option>
           ))}
-        </select>
-        <select
-          value={draftFilters.resultViewedStatus}
-          onChange={(event) => setDraftFilters((prev) => ({ ...prev, resultViewedStatus: event.target.value }))}
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
-        >
+          </select>
+          <select
+            value={draftFilters.resultViewedStatus}
+            onChange={(event) => setDraftFilters((prev) => ({ ...prev, resultViewedStatus: event.target.value }))}
+            className={panelInputClassName}
+          >
           <option value="">Sonuç görüntüleme (tümü)</option>
           {RESULT_VIEWED_STATUS_OPTIONS.map((value) => (
             <option key={value} value={value}>
               {value}
             </option>
           ))}
-        </select>
-        <select
-          value={draftFilters.waStatus}
-          onChange={(event) => setDraftFilters((prev) => ({ ...prev, waStatus: event.target.value }))}
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
-        >
+          </select>
+          <select
+            value={draftFilters.waStatus}
+            onChange={(event) => setDraftFilters((prev) => ({ ...prev, waStatus: event.target.value }))}
+            className={panelInputClassName}
+          >
           <option value="">WhatsApp durumu (tümü)</option>
           {WA_STATUS_OPTIONS.map((value) => (
             <option key={value} value={value}>
               {value}
             </option>
           ))}
-        </select>
+          </select>
         </div>
 
         <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => {
-            setAppliedQuery(query.trim());
-            setAppliedFilters({ ...draftFilters });
-            setPage(1);
-            setMessage('');
-            setErrorMessage('');
-          }}
-          className="rounded-xl bg-[#D92E27] px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.11em] text-white transition hover:bg-[#bf251f]"
-        >
-          Filtreleri Uygula
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setQuery('');
-            setDraftFilters({ ...defaultFilters, campaignCode: normalizedSeedCampaignCode });
-            setAppliedQuery('');
-            setAppliedFilters({ ...defaultFilters, campaignCode: normalizedSeedCampaignCode });
-            setPage(1);
-            setMessage('');
-            setErrorMessage('');
-          }}
-          className="rounded-xl border border-[#1A273A] bg-[#0A192B]/90 px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.11em] text-white/80 transition hover:border-[#2D4363]"
-        >
-          Filtreleri Temizle
-        </button>
-        </div>
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => void runAction('sms_retry', selectedIds)}
-            disabled={!canOperate || isActionRunning || selectedIds.length === 0}
-          className="rounded-xl border border-[#1A273A] bg-[#0A192B]/90 px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+            onClick={() => {
+              setAppliedQuery(query.trim());
+              setAppliedFilters({ ...draftFilters });
+              setPage(1);
+              setMessage('');
+              setErrorMessage('');
+            }}
+            className={panelPrimaryButtonClassName}
+          >
+            Filtreleri Uygula
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setQuery('');
+              setDraftFilters({ ...defaultFilters, campaignCode: normalizedSeedCampaignCode });
+              setAppliedQuery('');
+              setAppliedFilters({ ...defaultFilters, campaignCode: normalizedSeedCampaignCode });
+              setPage(1);
+              setMessage('');
+              setErrorMessage('');
+            }}
+            className={panelSecondaryButtonClassName}
+          >
+            Filtreleri Temizle
+          </button>
+        </div>
+        </div>
+      </details>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => void runAction('sms_retry', selectedIds)}
+          disabled={!canOperate || isActionRunning || selectedIds.length === 0}
+          className={panelSecondaryButtonClassName}
         >
           Manual SMS Resend ({selectedIds.length})
         </button>
@@ -742,7 +766,7 @@ export default function CandidateOperationsPanel({
             type="button"
             onClick={() => void runAction('wa_send', selectedIds)}
             disabled={!canOperate || isActionRunning || selectedIds.length === 0}
-          className="rounded-xl border border-[#1A273A] bg-[#0A192B]/90 px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+          className={panelSecondaryButtonClassName}
         >
           Toplu WhatsApp Gönder ({selectedIds.length})
         </button>
@@ -751,7 +775,7 @@ export default function CandidateOperationsPanel({
           onChange={(event) => setOperatorNoteDraft(event.target.value)}
           placeholder="Operatör notu (seçili adaylara)"
           disabled={!canOperate}
-          className="h-[38px] min-w-[240px] flex-1 rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={`min-w-[240px] flex-1 ${panelCompactInputClassName}`}
         />
         <button
           type="button"
@@ -761,26 +785,22 @@ export default function CandidateOperationsPanel({
             })
           }
           disabled={!canOperate || isActionRunning || selectedIds.length === 0 || operatorNoteDraft.trim().length === 0}
-          className="rounded-xl border border-[#1A273A] bg-[#0A192B]/90 px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+          className={panelSecondaryButtonClassName}
         >
           Operatör Notu Ekle
         </button>
       </div>
 
-      {message ? (
-        <p className="mt-3 rounded-lg border border-[#244B39] bg-[#0E261E] px-3 py-2 text-[12px] text-[#9FE4D0]">{message}</p>
-      ) : null}
-      {errorMessage ? (
-        <p className="mt-3 rounded-lg border border-[#6F2824] bg-[#2B1214]/80 px-3 py-2 text-[12px] text-[#FFB8B1]">{errorMessage}</p>
-      ) : null}
+      {message ? <PanelFeedbackMessage className="mt-3" tone="success">{message}</PanelFeedbackMessage> : null}
+      {errorMessage ? <PanelFeedbackMessage className="mt-3" tone="error">{errorMessage}</PanelFeedbackMessage> : null}
 
-      {isLoading ? <p className="mt-3 text-[13px] text-white/65">Aday operasyon listesi yükleniyor...</p> : null}
+      {isLoading ? <PanelLoadingMessage>Aday operasyon listesi yükleniyor...</PanelLoadingMessage> : null}
 
       {!isLoading ? (
-        <div className="mt-4 overflow-x-auto">
-          <table className="min-w-[1750px] text-left text-[12px] text-white/80">
+        <div className={panelTableContainerClassName}>
+          <table className="min-w-[1750px] text-left font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#33463E]">
             <thead>
-              <tr className="border-b border-white/12 text-white/56">
+              <tr className="border-b border-[#E6DDCF] text-[#7A7063]">
                 <th className="px-2 py-2">
                     <input
                       type="checkbox"
@@ -817,7 +837,7 @@ export default function CandidateOperationsPanel({
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={17} className="px-2 py-6 text-center text-white/55">
+                  <td colSpan={17} className={panelEmptyRowClassName}>
                     Filtreye uygun kayıt bulunamadı.
                   </td>
                 </tr>
@@ -825,7 +845,7 @@ export default function CandidateOperationsPanel({
               {items.map((item) => {
                 const booleans = readBooleanStates(item);
                 return (
-                  <tr key={item.candidate_id} className="border-b border-white/6 align-top">
+                  <tr key={item.candidate_id} className="border-b border-[#F0E7DA] align-top cursor-pointer transition hover:bg-[#FBF7F0]" onClick={() => setDrawerCandidate(item)}>
                     <td className="px-2 py-2">
                       <input
                         type="checkbox"
@@ -841,12 +861,12 @@ export default function CandidateOperationsPanel({
                       />
                     </td>
                     <td className="px-2 py-2">
-                      <p className="font-semibold text-white">{item.student_full_name || '-'}</p>
-                      <p className="text-white/55">{item.application_no || item.candidate_id.slice(0, 8)}</p>
+                      <p className="font-['Neutraface_2_Text:Demi',sans-serif] text-[#1B2B24]">{item.student_full_name || '-'}</p>
+                      <p className="text-[#7C7366]">{item.application_no || item.candidate_id.slice(0, 8)}</p>
                     </td>
                     <td className="px-2 py-2">
                       <p>{item.school_name || '-'}</p>
-                      <p className="text-white/55">Sınıf: {item.grade ? String(item.grade) : '-'}</p>
+                      <p className="text-[#7C7366]">Sınıf: {item.grade ? String(item.grade) : '-'}</p>
                     </td>
                     <td className="px-2 py-2">{readActionBoolean(Boolean(item.application_status))}</td>
                     <td className="px-2 py-2">{readActionBoolean(booleans.credentialsSmsSent)}</td>
@@ -861,7 +881,7 @@ export default function CandidateOperationsPanel({
                     <td className="px-2 py-2">
                       {item.last_error_code ? (
                         <span
-                          className="cursor-help rounded border border-[#1A273A] bg-[#0A192B]/90 px-2 py-1 text-[11px] text-white/85"
+                          className="cursor-help rounded border border-[#D5CBC0] bg-[#FBF7F0] px-2 py-1 text-[11px] text-[#6B514F]"
                           title={resolveErrorCodeHelp(item.last_error_code)}
                         >
                           {item.last_error_code}
@@ -879,7 +899,7 @@ export default function CandidateOperationsPanel({
                         type="button"
                         onClick={() => void runAction('wa_send', [item.candidate_id])}
                         disabled={!canOperate || isActionRunning}
-                        className="rounded-lg border border-[#1A273A] bg-[#0A192B]/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+                        className={panelSmallButtonClassName}
                       >
                         Tekil WA
                       </button>
@@ -893,7 +913,7 @@ export default function CandidateOperationsPanel({
       ) : null}
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[12px] text-white/58">
+        <p className="font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#7A7063]">
           Toplam {formatNumber(total)} kayıt • Sayfa {page} / {pageCount}
         </p>
         <div className="flex gap-2">
@@ -901,7 +921,7 @@ export default function CandidateOperationsPanel({
             type="button"
             onClick={() => setPage((prev) => Math.max(1, prev - 1))}
             disabled={page <= 1 || isLoading}
-            className="rounded-lg border border-[#1A273A] bg-[#0A192B]/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+            className={panelSmallButtonClassName}
           >
             Önceki
           </button>
@@ -909,16 +929,44 @@ export default function CandidateOperationsPanel({
             type="button"
             onClick={() => setPage((prev) => Math.min(pageCount, prev + 1))}
             disabled={page >= pageCount || isLoading}
-            className="rounded-lg border border-[#1A273A] bg-[#0A192B]/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+            className={panelSmallButtonClassName}
           >
             Sonraki
           </button>
         </div>
       </div>
 
-      <div className="mt-3 rounded-lg border border-[#1A273A] bg-[#0A192B]/70 px-3 py-2 text-[11px] text-white/62">
-        Hata kodu sözlüğü: <span className="text-white/78">Son Hata Kodu</span> kolonunda kodun üzerine gelerek açıklamayı görebilirsiniz.
+      <div className={`${panelSoftCardClassName} mt-3 px-3 py-2 font-['Neutraface_2_Text:Book',sans-serif] text-[11px] text-[#706A61]`}>
+        Hata kodu sözlüğü: <span className="font-['Neutraface_2_Text:Demi',sans-serif] text-[#2E443B]">Son Hata Kodu</span> kolonunda kodun üzerine gelerek açıklamayı görebilirsiniz.
       </div>
     </section>
+
+    <CandidatePersonDrawer
+      open={drawerCandidate !== null}
+      onClose={() => setDrawerCandidate(null)}
+      candidate={drawerCandidate ? {
+        candidate_id: drawerCandidate.candidate_id,
+        application_no: drawerCandidate.application_no,
+        student_full_name: drawerCandidate.student_full_name,
+        grade: drawerCandidate.grade as number | null,
+        school_name: drawerCandidate.school_name,
+        result_score: drawerCandidate.result_score as number | null,
+        result_status: drawerCandidate.result_status,
+        result_viewed_at: drawerCandidate.result_viewed_at,
+        exam_status: drawerCandidate.exam_status,
+        exam_started_at: drawerCandidate.exam_started_at,
+        exam_submitted_at: drawerCandidate.exam_submitted_at,
+        credentials_sms_status: drawerCandidate.credentials_sms_status,
+        first_login_at: drawerCandidate.first_login_at,
+        wa_result_status: drawerCandidate.wa_result_status,
+        appointment_status: null,
+        registration_status: null,
+        crm_status: null,
+        operator_note: drawerCandidate.operator_note,
+        created_at: drawerCandidate.updated_at,
+      } : null}
+      role={role}
+    />
+    </>
   );
 }

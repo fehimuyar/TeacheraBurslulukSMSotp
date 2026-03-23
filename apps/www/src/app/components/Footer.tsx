@@ -139,6 +139,7 @@ export default function Footer() {
                    <li><a href="/#delivery-options" className="text-white/75 hover:text-white transition-colors">Eğitim Formatları</a></li>
                    <li><a href="/egitimlerimiz" className="text-white/75 hover:text-white transition-colors">Eğitim Programları</a></li>
                    <li><a href="/academy" className="text-white/75 hover:text-white transition-colors">Academy</a></li>
+                   <li><a href="/bursluluk-2026" className="text-white/75 hover:text-white transition-colors">Bursluluk Sınavı Başvuru</a></li>
                    <li><a href="/speakup" className="text-white/75 hover:text-white transition-colors">SpeakUp</a></li>
                    <li><a href="/#faq" className="text-white/75 hover:text-white transition-colors">S.S.S.</a></li>
                    <li><a href="/iletisim" className="text-white/75 hover:text-white transition-colors">İletişim</a></li>

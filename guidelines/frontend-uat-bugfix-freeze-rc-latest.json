@@ -1,10 +1,12 @@
 {
-  "timestamp": "2026-03-17T09:02:01.423Z",
-  "started_at": "2026-03-17T09:01:49.268Z",
+  "timestamp": "2026-03-18T04:54:31.474Z",
+  "started_at": "2026-03-18T04:54:17.636Z",
   "mode": {
     "http": true,
     "panel_full_auth": false,
+    "require_panel_full_auth": false,
     "panel_mfa_source": "none",
+    "panel_mfa_resolution_error": null,
     "load_test_bypass_key_available": true
   },
   "totals": {
@@ -16,8 +18,8 @@
   "blocking_failure_count": 0,
   "overall_ready_for_release_candidate": true,
   "release_candidate": {
-    "id": "rc-frontend-uat-20260317090201",
-    "freeze_started_at": "2026-03-17T09:02:01.423Z",
+    "id": "rc-frontend-uat-20260318045431",
+    "freeze_started_at": "2026-03-18T04:54:31.474Z",
     "notes": "No blocking frontend/API contract regressions detected in this run."
   },
   "checks": [
@@ -198,20 +200,20 @@
       "detail": "HTTP 200",
       "evidence": {
         "status": 200,
-        "attemptId": "c0cc7c83-f60d-4cde-b2ea-f703463361f1",
-        "applicationNo": "20260317-101689",
+        "attemptId": "812888c3-ba7d-4802-b640-166a0ad44f91",
+        "applicationNo": "20260318-101703",
         "hasSessionToken": true,
         "loadTestModeUsed": true,
         "body": {
           "ok": true,
           "session": {
-            "candidateId": "b98aaaba-e31a-4fbd-90d6-77d84133f843",
-            "applicationNo": "20260317-101689",
+            "candidateId": "e65c874b-b988-4dc4-8cf1-e3a1b0b6f682",
+            "applicationNo": "20260318-101703",
             "applicationStatus": "APPLIED",
-            "attemptId": "c0cc7c83-f60d-4cde-b2ea-f703463361f1",
+            "attemptId": "812888c3-ba7d-4802-b640-166a0ad44f91",
             "sessionToken": "[REDACTED]",
-            "expiresAt": "2026-03-17T12:01:53.208Z",
-            "startedAt": "2026-03-17T09:01:52.784Z",
+            "expiresAt": "2026-03-18T07:54:22.413Z",
+            "startedAt": "2026-03-18T04:54:21.807Z",
             "credentialsSmsStatus": "NOT_QUEUED",
             "consentVersion": "KVKK_v1_2026-03-13"
           }
@@ -227,11 +229,11 @@
         "body": {
           "ok": true,
           "session": {
-            "applicationNo": "20260317-101689",
-            "attemptId": "c0cc7c83-f60d-4cde-b2ea-f703463361f1",
-            "candidateId": "b98aaaba-e31a-4fbd-90d6-77d84133f843",
+            "applicationNo": "20260318-101703",
+            "attemptId": "812888c3-ba7d-4802-b640-166a0ad44f91",
+            "candidateId": "e65c874b-b988-4dc4-8cf1-e3a1b0b6f682",
             "sessionToken": "[REDACTED]",
-            "expiresAt": "2026-03-17T12:01:53.208Z",
+            "expiresAt": "2026-03-18T07:54:22.413Z",
             "examStatus": "STARTED",
             "examLanguage": "EN",
             "examAgeRange": "13-14",
@@ -245,7 +247,7 @@
           "gate": {
             "exam_open": true,
             "exam_open_at": null,
-            "server_time_utc": "2026-03-17T09:01:55.200Z",
+            "server_time_utc": "2026-03-18T04:54:24.623Z",
             "remaining_seconds": 0,
             "source": "default:open"
           }
@@ -261,7 +263,7 @@
         "gate": {
           "exam_open": true,
           "exam_open_at": null,
-          "server_time_utc": "2026-03-17T09:01:56.869Z",
+          "server_time_utc": "2026-03-18T04:54:26.258Z",
           "remaining_seconds": 0,
           "source": "default:open"
         }
@@ -275,7 +277,7 @@
         "status": 200,
         "body": {
           "ok": true,
-          "attempt_id": "c0cc7c83-f60d-4cde-b2ea-f703463361f1",
+          "attempt_id": "812888c3-ba7d-4802-b640-166a0ad44f91",
           "answered_count": 2
         }
       }
@@ -286,18 +288,18 @@
       "detail": "HTTP 200",
       "evidence": {
         "status": 200,
-        "resultId": "094a8833-74ac-41ec-ab60-6e5bb3dfe77b",
+        "resultId": "a52d9ae3-ce7c-49cb-aa59-186adf6978d1",
         "body": {
           "ok": true,
           "result": {
-            "attempt_id": "c0cc7c83-f60d-4cde-b2ea-f703463361f1",
-            "result_id": "094a8833-74ac-41ec-ab60-6e5bb3dfe77b",
+            "attempt_id": "812888c3-ba7d-4802-b640-166a0ad44f91",
+            "result_id": "a52d9ae3-ce7c-49cb-aa59-186adf6978d1",
             "status": "PUBLISHED",
             "score": 1,
             "percentage": 20,
             "placement_label": null,
             "cefr_band": null,
-            "published_at": "2026-03-17T09:01:59.190Z",
+            "published_at": "2026-03-18T04:54:28.820Z",
             "viewed_at": null
           },
           "notifications_enqueued": false
@@ -314,9 +316,9 @@
         "body": {
           "ok": true,
           "result": {
-            "result_id": "094a8833-74ac-41ec-ab60-6e5bb3dfe77b",
-            "attempt_id": "c0cc7c83-f60d-4cde-b2ea-f703463361f1",
-            "candidate_id": "b98aaaba-e31a-4fbd-90d6-77d84133f843",
+            "result_id": "a52d9ae3-ce7c-49cb-aa59-186adf6978d1",
+            "attempt_id": "812888c3-ba7d-4802-b640-166a0ad44f91",
+            "candidate_id": "e65c874b-b988-4dc4-8cf1-e3a1b0b6f682",
             "student_full_name": null,
             "parent_full_name": null,
             "parent_phone_e164": null,
@@ -334,9 +336,9 @@
             "placement_label": null,
             "cefr_band": null,
             "status": "PUBLISHED",
-            "started_at": "2026-03-17T09:01:52.784Z",
-            "submitted_at": "2026-03-17T09:01:59.190Z",
-            "published_at": "2026-03-17T09:01:59.190Z",
+            "started_at": "2026-03-18T04:54:21.807Z",
+            "submitted_at": "2026-03-18T04:54:28.820Z",
+            "published_at": "2026-03-18T04:54:28.820Z",
             "viewed_at": null,
             "pii_included": false
           }

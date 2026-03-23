@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { panelFetch } from '../../api/panelApi';
+import {
+  PanelFeedbackMessage,
+  PanelLoadingMessage,
+  panelDescriptionClassName,
+  panelEyebrowClassName,
+  panelInputClassName,
+  panelPrimaryButtonClassName,
+  panelStatCardClassName,
+  panelTitleClassName,
+  panelSurfaceClassName,
+} from './panelUi';
 
 type SettingItem = {
   key: string;
@@ -129,7 +140,7 @@ export default function SettingsOperationsPanel({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const canEdit = role === 'SUPER_ADMIN';
+  const canEdit = String(role || '').toUpperCase() === 'SUPER_ADMIN' || String(role || '').toUpperCase() === 'ADMIN';
 
   useEffect(() => {
     if (!active) return;
@@ -236,53 +247,55 @@ export default function SettingsOperationsPanel({
   };
 
   return (
-    <section className="rounded-[22px] border border-[#1A273A] bg-[#071021]/82 p-5 shadow-[0_14px_38px_rgba(0,0,0,0.28)]">
-      <p className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white/54">Ayarlar</p>
-      <h3 className="mt-2 text-[22px] font-semibold text-white">Kampanya + Şablon + Rol Konfigürasyonu</h3>
-      <p className="mt-2 text-[13px] leading-[1.7] text-white/64">
+    <section className={panelSurfaceClassName}>
+      <p className={panelEyebrowClassName}>Ayarlar</p>
+      <h3 className={panelTitleClassName}>Kampanya + Şablon + Rol Konfigürasyonu</h3>
+      <p className={panelDescriptionClassName}>
         Bu ekran kampanya zaman penceresi, SMS/WhatsApp şablonları, okul arama kapsamı ve panel rol matrisini tek yerden yönetir.
       </p>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
-          <p className="text-[12px] text-white/52">Toplam App Settings</p>
-          <p className="mt-1 text-[22px] font-semibold text-white">{initialCount}</p>
+        <div className={panelStatCardClassName}>
+          <p className="text-[12px] font-['Neutraface_2_Text:Book',sans-serif] text-[#7A7063]">Toplam App Settings</p>
+          <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[22px] text-[#1B2B24]">{initialCount}</p>
         </div>
-        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
-          <p className="text-[12px] text-white/52">Yönetilen Anahtar</p>
-          <p className="mt-1 text-[22px] font-semibold text-white">{trackedItems.length}</p>
+        <div className={panelStatCardClassName}>
+          <p className="text-[12px] font-['Neutraface_2_Text:Book',sans-serif] text-[#7A7063]">Yönetilen Anahtar</p>
+          <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[22px] text-[#1B2B24]">{trackedItems.length}</p>
         </div>
-        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
-          <p className="text-[12px] text-white/52">Yazma Yetkisi</p>
-          <p className="mt-1 text-[14px] font-semibold text-white">{canEdit ? 'SUPER_ADMIN (Aktif)' : 'Read-only'}</p>
+        <div className={panelStatCardClassName}>
+          <p className="text-[12px] font-['Neutraface_2_Text:Book',sans-serif] text-[#7A7063]">Yazma Yetkisi</p>
+          <p className="mt-1 font-['Neutraface_2_Text:Demi',sans-serif] text-[14px] text-[#1B2B24]">{canEdit ? 'SUPER_ADMIN (Aktif)' : 'Read-only'}</p>
         </div>
       </div>
+
+      {loading ? <PanelLoadingMessage>Ayar anahtarları yükleniyor...</PanelLoadingMessage> : null}
 
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
         <input
           value={form.campaignCode}
           onChange={(event) => setForm((prev) => ({ ...prev, campaignCode: event.target.value }))}
           placeholder="Kampanya kodu"
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         />
         <input
           type="text"
           value={form.schoolSearchCity}
           onChange={(event) => setForm((prev) => ({ ...prev, schoolSearchCity: event.target.value }))}
           placeholder="Okul arama şehri (örn: Konya)"
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         />
         <input
           type="datetime-local"
           value={form.examOpenAt}
           onChange={(event) => setForm((prev) => ({ ...prev, examOpenAt: event.target.value }))}
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         />
         <input
           type="datetime-local"
           value={form.examCloseAt}
           onChange={(event) => setForm((prev) => ({ ...prev, examCloseAt: event.target.value }))}
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         />
       </div>
 
@@ -291,28 +304,28 @@ export default function SettingsOperationsPanel({
           value={form.smsCredentialsTemplate}
           onChange={(event) => setForm((prev) => ({ ...prev, smsCredentialsTemplate: event.target.value }))}
           rows={3}
-          className="rounded-xl border border-[#1A273A] bg-[#030B18] px-3 py-2 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          className="rounded-[18px] border border-[#DDD4C6] bg-[#FFFCF7] px-3 py-2 font-['Neutraface_2_Text:Book',sans-serif] text-[13px] text-[#16251F] outline-none transition focus:border-[#9F865C] focus:bg-white focus:ring-4 focus:ring-[#EEE3CC]"
           placeholder="Credentials SMS şablonu"
         />
         <textarea
           value={form.smsExamOpenTemplate}
           onChange={(event) => setForm((prev) => ({ ...prev, smsExamOpenTemplate: event.target.value }))}
           rows={3}
-          className="rounded-xl border border-[#1A273A] bg-[#030B18] px-3 py-2 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          className="rounded-[18px] border border-[#DDD4C6] bg-[#FFFCF7] px-3 py-2 font-['Neutraface_2_Text:Book',sans-serif] text-[13px] text-[#16251F] outline-none transition focus:border-[#9F865C] focus:bg-white focus:ring-4 focus:ring-[#EEE3CC]"
           placeholder="Exam open SMS şablonu"
         />
         <textarea
           value={form.waResultTemplate}
           onChange={(event) => setForm((prev) => ({ ...prev, waResultTemplate: event.target.value }))}
           rows={3}
-          className="rounded-xl border border-[#1A273A] bg-[#030B18] px-3 py-2 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          className="rounded-[18px] border border-[#DDD4C6] bg-[#FFFCF7] px-3 py-2 font-['Neutraface_2_Text:Book',sans-serif] text-[13px] text-[#16251F] outline-none transition focus:border-[#9F865C] focus:bg-white focus:ring-4 focus:ring-[#EEE3CC]"
           placeholder="WhatsApp sonuç şablonu"
         />
         <input
           value={form.panelAllowedRoles}
           onChange={(event) => setForm((prev) => ({ ...prev, panelAllowedRoles: event.target.value }))}
           placeholder="Panel roller (virgülle)"
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         />
       </div>
 
@@ -321,22 +334,22 @@ export default function SettingsOperationsPanel({
           type="button"
           onClick={() => void handleSave()}
           disabled={loading || saving || !canEdit}
-          className="rounded-xl bg-[#D92E27] px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.11em] text-white transition hover:bg-[#bf251f] disabled:cursor-not-allowed disabled:opacity-60"
+          className={panelPrimaryButtonClassName}
         >
           {saving ? 'Kaydediliyor...' : 'Ayarları Kaydet'}
         </button>
         {!canEdit ? (
-          <span className="text-[12px] text-white/62">Bu ekranı görüntüleyebilirsiniz, güncelleme için SUPER_ADMIN gerekir.</span>
+          <span className="font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#7A7063]">Bu ekranı görüntüleyebilirsiniz, güncelleme için SUPER_ADMIN gerekir.</span>
         ) : null}
       </div>
 
-      {success ? <p className="mt-3 rounded-lg border border-[#244B39] bg-[#0E261E] px-3 py-2 text-[12px] text-[#9FE4D0]">{success}</p> : null}
-      {error ? <p className="mt-3 rounded-lg border border-[#6F2824] bg-[#2B1214]/80 px-3 py-2 text-[12px] text-[#FFB8B1]">{error}</p> : null}
+      {success ? <PanelFeedbackMessage className="mt-3" tone="success">{success}</PanelFeedbackMessage> : null}
+      {error ? <PanelFeedbackMessage className="mt-3" tone="error">{error}</PanelFeedbackMessage> : null}
 
       <div className="mt-4 overflow-x-auto">
-        <table className="min-w-[860px] text-left text-[12px] text-white/80">
+        <table className="min-w-[860px] text-left font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#33463E]">
           <thead>
-            <tr className="border-b border-white/12 text-white/56">
+            <tr className="border-b border-[#E6DDCF] text-[#7A7063]">
               <th className="px-2 py-2">Setting Key</th>
               <th className="px-2 py-2">Son Güncelleyen</th>
               <th className="px-2 py-2">Son Güncelleme</th>
@@ -344,7 +357,7 @@ export default function SettingsOperationsPanel({
           </thead>
           <tbody>
             {trackedItems.map((item) => (
-              <tr key={item.key} className="border-b border-white/6">
+              <tr key={item.key} className="border-b border-[#F0E7DA]">
                 <td className="px-2 py-2">{item.key}</td>
                 <td className="px-2 py-2">{item.updatedBy}</td>
                 <td className="px-2 py-2">{item.updatedAt}</td>

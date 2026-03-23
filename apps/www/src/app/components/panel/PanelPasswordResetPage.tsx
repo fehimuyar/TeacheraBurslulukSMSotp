@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { panelFetch } from '../../api/panelApi';
+import { PanelFeedbackMessage, panelSoftCardClassName } from './panelUi';
 
 async function readJsonSafe(response: Response) {
   try {
@@ -10,7 +11,7 @@ async function readJsonSafe(response: Response) {
 }
 
 const inputClassName =
-  'h-[56px] w-full rounded-2xl border border-[#1A273A] bg-[#020A16] px-5 text-[15px] text-white/90 outline-none transition placeholder:text-white/25 focus:border-[#2D4363] focus:ring-2 focus:ring-[#2D4363]/35';
+  "h-[60px] w-full rounded-[22px] border border-[#DDD4C6] bg-[#FFFCF7] px-5 text-[15px] text-[#16251F] outline-none transition placeholder:text-[#8A7F71] focus:border-[#9F865C] focus:bg-white focus:ring-4 focus:ring-[#EEE3CC]";
 
 export default function PanelPasswordResetPage() {
   const [newPassword, setNewPassword] = useState('');
@@ -97,20 +98,31 @@ export default function PanelPasswordResetPage() {
   };
 
   return (
-    <section className="relative min-h-screen overflow-hidden px-4 py-14 sm:px-6 md:py-20">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_4%_26%,rgba(110,17,30,0.35),transparent_34%),radial-gradient(circle_at_84%_12%,rgba(22,75,90,0.24),transparent_34%),linear-gradient(160deg,#00020B_0%,#000918_45%,#02122A_100%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.14)_0.7px,transparent_0.7px)] [background-size:13px_13px] opacity-[0.12]" />
+    <section className="relative min-h-screen overflow-hidden bg-[#F5EFE4] px-4 py-14 sm:px-6 md:py-20">
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,#F9F4EC_0%,#F2EBDD_48%,#ECE3D5_100%)]" />
+      <div className="pointer-events-none absolute right-[10%] top-[14%] h-[340px] w-[340px] rounded-full bg-[#E8DBC1]/50 blur-3xl" />
+      <div className="pointer-events-none absolute left-[16%] bottom-[10%] h-[220px] w-[220px] rounded-full bg-[#D9E0D4]/35 blur-3xl" />
 
-      <div className="relative mx-auto mt-10 w-full max-w-[760px] rounded-[28px] border border-[#1A2535] bg-[#0A1323]/82 p-7 shadow-[0_18px_50px_rgba(0,0,0,0.35)] backdrop-blur-sm sm:p-8 lg:p-9">
-        <p className="text-[14px] font-semibold uppercase tracking-[0.23em] text-white/52">Teachera Ops</p>
-        <h1 className="mt-3 text-[42px] font-semibold leading-[1.1] text-white sm:text-[46px]">Şifre Yenileme</h1>
-        <p className="mt-3 text-[17px] leading-[1.8] text-white/52">
+      <div className="relative mx-auto mt-10 w-full max-w-[760px] rounded-[34px] border border-[#E2D8C8] bg-[linear-gradient(180deg,rgba(255,253,249,0.95)_0%,rgba(252,248,242,0.92)_100%)] p-7 shadow-[0_40px_90px_rgba(109,90,58,0.12)] backdrop-blur-[18px] sm:p-8 lg:p-10">
+        <div className="flex items-center gap-4">
+          <div className="h-[2px] w-14 rounded-full bg-[#2C5447]" />
+          <p className="font-['Neutraface_2_Text:Demi',sans-serif] text-[12px] uppercase tracking-[0.23em] text-[#7A7063]">Teachera Ops</p>
+        </div>
+        <h1 className="mt-4 font-['Neutraface_2_Text:Bold',sans-serif] text-[40px] leading-[1.05] text-[#1B2B24] sm:text-[46px]">Şifre Yenileme</h1>
+        <p className="mt-3 font-['Neutraface_2_Text:Book',sans-serif] text-[16px] leading-[1.8] text-[#666D65]">
           Geçici şifre ile giriş yaptığınız için yeni şifre belirlemeniz gerekiyor.
         </p>
 
+        <div className={`${panelSoftCardClassName} mt-6`}>
+          <p className="font-['Neutraface_2_Text:Demi',sans-serif] text-[12px] uppercase tracking-[0.2em] text-[#7A7063]">Güvenlik Notu</p>
+          <p className="mt-2 font-['Neutraface_2_Text:Book',sans-serif] text-[15px] leading-[1.75] text-[#626860]">
+            Yeni şifre en az 10 karakter olmalı. Güncelleme tamamlandığında panel dashboard ekranına otomatik yönlendirme yapılır.
+          </p>
+        </div>
+
         <form className="mt-7 space-y-4" onSubmit={handleSubmit}>
           <label className="block">
-            <span className="mb-2 block text-[13px] font-semibold uppercase tracking-[0.2em] text-white/48">Yeni Şifre</span>
+            <span className="mb-2 block font-['Neutraface_2_Text:Demi',sans-serif] text-[12px] uppercase tracking-[0.2em] text-[#7A7063]">Yeni Şifre</span>
             <input
               autoComplete="new-password"
               className={inputClassName}
@@ -123,7 +135,7 @@ export default function PanelPasswordResetPage() {
           </label>
 
           <label className="block">
-            <span className="mb-2 block text-[13px] font-semibold uppercase tracking-[0.2em] text-white/48">Yeni Şifre (Tekrar)</span>
+            <span className="mb-2 block font-['Neutraface_2_Text:Demi',sans-serif] text-[12px] uppercase tracking-[0.2em] text-[#7A7063]">Yeni Şifre (Tekrar)</span>
             <input
               autoComplete="new-password"
               className={inputClassName}
@@ -136,7 +148,7 @@ export default function PanelPasswordResetPage() {
           </label>
 
           <button
-            className="mt-2 h-[56px] w-full rounded-2xl bg-[#CA3C35] px-4 text-[13px] font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-[#b4332d] disabled:cursor-not-allowed disabled:opacity-70"
+            className="mt-2 h-[60px] w-full rounded-[22px] bg-[#20372F] px-4 font-['Neutraface_2_Text:Demi',sans-serif] text-[12px] uppercase tracking-[0.22em] text-white shadow-[0_18px_34px_rgba(32,55,47,0.18)] transition hover:bg-[#172A23] disabled:cursor-not-allowed disabled:opacity-70"
             type="submit"
             disabled={isSubmitting}
           >
@@ -144,16 +156,12 @@ export default function PanelPasswordResetPage() {
           </button>
         </form>
 
-        {errorMessage ? (
-          <p className="mt-4 rounded-xl border border-[#6F2824] bg-[#2B1214]/80 px-4 py-3 text-[14px] text-[#FFB8B1]">
-            {errorMessage}
-          </p>
-        ) : null}
+        {errorMessage ? <PanelFeedbackMessage className="mt-4 text-[14px]" tone="error">{errorMessage}</PanelFeedbackMessage> : null}
 
         {successMessage ? (
-          <p className="mt-4 rounded-xl border border-[#1E5A4C] bg-[#0F2C27]/80 px-4 py-3 text-[14px] text-[#9FE4D0]">
+          <PanelFeedbackMessage className="mt-4 text-[14px]" tone="success">
             {successMessage}
-          </p>
+          </PanelFeedbackMessage>
         ) : null}
       </div>
     </section>

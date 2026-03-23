@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, lazy, Suspense, type CSSProperties } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { AnimatePresence } from 'motion/react';
 import { Outlet, useLocation } from 'react-router';
 import { SpeedInsights } from '@vercel/speed-insights/react';
@@ -27,6 +27,8 @@ export default function RootLayout() {
   const currentSectionRef = useRef('home');
   const location = useLocation();
   const liteMode = useLiteMode();
+  const isPanelRoute = location.pathname.startsWith('/panel/');
+  const isAuthPage = location.pathname === '/giris' || isPanelRoute;
 
   useEffect(() => {
     document.documentElement.lang = 'tr';
@@ -131,17 +133,12 @@ export default function RootLayout() {
     currentSectionRef.current = currentSection;
   }, [currentSection]);
 
-  const isPanelRoute = location.pathname.startsWith('/panel/');
-  const isAuthPage = location.pathname === '/giris' || isPanelRoute;
-  const rootStyle =
-    location.pathname === '/bursluluk-2026'
-      ? ({ '--fill-0': '#FFFFFF' } as CSSProperties)
-      : undefined;
+  const isBurslulukLandingRoute = location.pathname === '/bursluluk-2026';
 
   return (
     <FreeTrialProvider>
       <LevelAssessmentProvider>
-        <div className="relative min-h-screen bg-[#00000B]" style={rootStyle}>
+        <div className="relative min-h-screen bg-[#00000B]">
           <SeoManager />
 
           {!isPanelRoute && (
@@ -180,7 +177,7 @@ export default function RootLayout() {
 
           {!isPanelRoute && (
             <Suspense fallback={null}>
-              <WhatsAppButton />
+              {!isBurslulukLandingRoute && <WhatsAppButton />}
               {showDeferredUi && <CookieConsent />}
             </Suspense>
           )}

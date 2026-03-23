@@ -27,6 +27,11 @@ function normalizeRoleCode(role) {
   return normalized;
 }
 
+function readRequireOtpFlag() {
+  const value = safeTrim(process.env.PANEL_REQUIRE_OTP).toLowerCase();
+  return ['1', 'true', 'yes', 'on'].includes(value);
+}
+
 function unauthenticatedIdentity() {
   return {
     authenticated: false,
@@ -38,6 +43,7 @@ function unauthenticatedIdentity() {
     fullName: null,
     sessionId: null,
     mfaVerified: false,
+    otpVerified: false,
     passwordResetRequired: false,
   };
 }
@@ -82,7 +88,6 @@ function isSessionValid(row, claims) {
   if (!row) return false;
   if (safeTrim(row.user_status).toUpperCase() !== 'ACTIVE') return false;
   if (row.revoked_at) return false;
-  if (!row.mfa_verified_at) return false;
   if (!isKnownRole(row.role_code)) return false;
 
   const rowRole = normalizeRoleCode(row.role_code);
@@ -130,7 +135,7 @@ export async function getPanelIdentity(req) {
     return unauthenticatedIdentity();
   }
 
-  if (!claims.userId || !claims.sessionId || !isKnownRole(claims.role) || !claims.mfaVerified) {
+  if (!claims.userId || !claims.sessionId || !isKnownRole(claims.role)) {
     return unauthenticatedIdentity();
   }
 
@@ -147,6 +152,8 @@ export async function getPanelIdentity(req) {
 
   await touchSession(claims.sessionId);
 
+  const otpVerified = Boolean(claims.mfaVerified);
+
   return {
     authenticated: true,
     role: normalizeRoleCode(claims.role),
@@ -156,7 +163,8 @@ export async function getPanelIdentity(req) {
     email: safeTrim(row.email).toLowerCase(),
     fullName: safeTrim(row.full_name),
     sessionId: claims.sessionId,
-    mfaVerified: true,
+    mfaVerified: otpVerified,
+    otpVerified,
     passwordResetRequired: Boolean(row.password_reset_required),
   };
 }
@@ -166,8 +174,8 @@ export async function requireRole(req, allowedRoles) {
   if (!identity.authenticated) {
     throw new HttpError(401, 'Panel authentication is required.', 'panel_unauthorized');
   }
-  if (!identity.mfaVerified) {
-    throw new HttpError(403, 'MFA verification is required.', 'panel_mfa_required');
+  if (readRequireOtpFlag() && !identity.mfaVerified) {
+    throw new HttpError(403, 'OTP verification is required.', 'panel_otp_required');
   }
   if (identity.passwordResetRequired) {
     throw new HttpError(403, 'Password reset is required before accessing panel resources.', 'panel_password_reset_required');

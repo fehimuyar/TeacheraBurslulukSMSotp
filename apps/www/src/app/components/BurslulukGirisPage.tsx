@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router';
-import { candidateLogin, searchSchools, startExamSession, type SchoolSearchItem } from '../api/examApi';
+import { useNavigate } from 'react-router';
+import { candidateLogin, renewCandidateCredentials } from '../api/examApi';
+import { notifyError, notifySuccess } from '../lib/notifications';
 import { isValidTrMobilePhone, normalizeTrMobileInput, TR_MOBILE_PATTERN, TR_MOBILE_TITLE } from './phoneUtils';
-import { savePlacementExamLead } from './exam/placementExamSession';
+import {
+  getCredentialsResendRemainingSeconds,
+  startCredentialsResendCooldown,
+} from './bursluluk/credentialsResendCooldown';
 import {
   deriveAgeRangeFromGrade,
   normalizeGrade,
+  readCandidateSession,
   resolveDefaultExamOpenAt,
   saveCandidateSession,
 } from './bursluluk/burslulukFlowSession';
@@ -13,30 +18,15 @@ import {
 const CAMPAIGN_CODE = String(import.meta.env.VITE_BURSLULUK_CAMPAIGN_CODE || '2026_BURSLULUK').trim();
 const QUESTION_COUNT = Number(import.meta.env.VITE_BURSLULUK_QUESTION_COUNT || 40) || 40;
 
-const FALLBACK_KONYA_SCHOOLS: SchoolSearchItem[] = [
-  'Konya Meram Fen Lisesi',
-  'Konya Anadolu Lisesi',
-  'Selcuklu Bilim Sanat Merkezi',
-  'Karatay Imam Hatip Lisesi',
-  'Meram Koleji',
-  'Selcuklu Ataturk Ortaokulu',
-  'Karatay Ilkokulu',
-  'Meram Sehitler Ortaokulu',
-  'Konya TED Koleji',
-  'Konya Ozel Final Okullari',
-].map((name) => ({
-  id: null,
-  name,
-  district: null,
-  city: 'Konya',
-  source: 'fallback',
-}));
-
-const grades = Array.from({ length: 10 }, (_, index) => index + 2);
-
 function toE164FromTrMobile(value: string) {
   const digits = value.replace(/\D/g, '');
   return `+90${digits}`;
+}
+
+function fromE164ToTrMobile(value: string) {
+  const digits = String(value || '').replace(/\D/g, '');
+  const normalized = digits.startsWith('90') ? digits.slice(2) : digits;
+  return normalizeTrMobileInput(normalized);
 }
 
 function normalizeError(error: unknown, fallback: string) {
@@ -44,368 +34,297 @@ function normalizeError(error: unknown, fallback: string) {
   return fallback;
 }
 
-type Mode = 'apply' | 'login';
+function formatCooldown(seconds: number) {
+  const safeSeconds = Math.max(0, seconds);
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = safeSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+}
+
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <div className="mb-3 flex items-center gap-2.5 sm:mb-4 sm:gap-3">
+      <span className="h-px w-10 bg-[#4A7067]/44 sm:w-12" />
+      <span className="font-['Neutraface_2_Text:Demi',sans-serif] text-[10px] uppercase tracking-[0.22em] text-[#68232E]/58 sm:text-[11px] sm:tracking-[0.24em]">
+        {children}
+      </span>
+    </div>
+  );
+}
 
 export default function BurslulukGirisPage() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<Mode>('apply');
+  const existingSession = useMemo(() => readCandidateSession(), []);
 
-  const [schoolSearch, setSchoolSearch] = useState('');
-  const [schoolName, setSchoolName] = useState('');
-  const [studentFullName, setStudentFullName] = useState('');
-  const [grade, setGrade] = useState(8);
-  const [parentFullName, setParentFullName] = useState('');
-  const [parentPhone, setParentPhone] = useState('');
-  const [language, setLanguage] = useState('en');
-  const [kvkkConsent, setKvkkConsent] = useState(true);
-  const [contactConsent, setContactConsent] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSchoolSearchLoading, setIsSchoolSearchLoading] = useState(false);
-  const [schoolSearchResults, setSchoolSearchResults] = useState<SchoolSearchItem[]>(FALLBACK_KONYA_SCHOOLS.slice(0, 8));
-  const [errorMessage, setErrorMessage] = useState('');
-
-  const [loginApplicationNo, setLoginApplicationNo] = useState('');
+  const [loginApplicationNo, setLoginApplicationNo] = useState(existingSession?.applicationNo || '');
   const [loginPassword, setLoginPassword] = useState('');
   const [isLoginSubmitting, setIsLoginSubmitting] = useState(false);
-
-  const filteredSchools = useMemo(() => {
-    if (schoolSearchResults.length > 0) return schoolSearchResults;
-    return FALLBACK_KONYA_SCHOOLS.slice(0, 8);
-  }, [schoolSearchResults]);
+  const [showRenewFlow, setShowRenewFlow] = useState(false);
+  const [renewApplicationNo, setRenewApplicationNo] = useState(existingSession?.applicationNo || '');
+  const [renewPhone, setRenewPhone] = useState(fromE164ToTrMobile(existingSession?.parentPhoneE164 || ''));
+  const [isRenewSubmitting, setIsRenewSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [renewMessage, setRenewMessage] = useState('');
+  const [cooldownRemaining, setCooldownRemaining] = useState(() =>
+    getCredentialsResendRemainingSeconds(existingSession?.applicationNo || ''),
+  );
 
   useEffect(() => {
-    const query = schoolSearch.trim();
-    if (query.length < 2) {
-      setIsSchoolSearchLoading(false);
-      setSchoolSearchResults(FALLBACK_KONYA_SCHOOLS.slice(0, 8));
+    const applicationNo = renewApplicationNo.trim().toUpperCase();
+    if (!applicationNo) {
+      setCooldownRemaining(0);
       return;
     }
 
-    let isCancelled = false;
-    const timer = window.setTimeout(async () => {
-      setIsSchoolSearchLoading(true);
-      try {
-        const response = await searchSchools(query, 8);
-        if (isCancelled) return;
-        setSchoolSearchResults(response.items || []);
-      } catch {
-        if (isCancelled) return;
-        const fallback = FALLBACK_KONYA_SCHOOLS.filter((item) => item.name.toLowerCase().includes(query.toLowerCase())).slice(0, 8);
-        setSchoolSearchResults(fallback);
-      } finally {
-        if (!isCancelled) {
-          setIsSchoolSearchLoading(false);
-        }
-      }
-    }, 220);
+    setCooldownRemaining(getCredentialsResendRemainingSeconds(applicationNo));
+    const intervalId = window.setInterval(() => {
+      setCooldownRemaining(getCredentialsResendRemainingSeconds(applicationNo));
+    }, 1000);
 
-    return () => {
-      isCancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [schoolSearch]);
+    return () => window.clearInterval(intervalId);
+  }, [renewApplicationNo]);
 
-  const handleApplySubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setErrorMessage('');
-
-    const normalizedPhone = normalizeTrMobileInput(parentPhone);
-    if (!isValidTrMobilePhone(normalizedPhone)) {
-      setErrorMessage(TR_MOBILE_TITLE);
-      return;
+  useEffect(() => {
+    if (showRenewFlow && !renewApplicationNo.trim() && loginApplicationNo.trim()) {
+      setRenewApplicationNo(loginApplicationNo.trim().toUpperCase());
     }
-    if (!kvkkConsent) {
-      setErrorMessage('Basvuru icin KVKK acik riza onayi gereklidir.');
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const normalizedGrade = normalizeGrade(grade);
-      const ageRange = deriveAgeRangeFromGrade(normalizedGrade);
-      const response = await startExamSession({
-        studentFullName: studentFullName.trim(),
-        parentFullName: parentFullName.trim(),
-        parentPhoneE164: toE164FromTrMobile(normalizedPhone),
-        schoolName: schoolName.trim() || schoolSearch.trim() || undefined,
-        grade: normalizedGrade,
-        ageRange,
-        language,
-        source: 'bursluluk_2026_apply_form',
-        campaignCode: CAMPAIGN_CODE,
-        questionCount: QUESTION_COUNT,
-        consent: {
-          kvkkApproved: kvkkConsent,
-          contactConsent,
-          consentVersion: 'KVKK_v1_2026-03-13',
-          legalTextVersion: 'KVKK_v1_2026-03-13',
-          source: 'bursluluk_form_web',
-        },
-      });
-
-      const session = response.session;
-      saveCandidateSession({
-        applicationNo: session.applicationNo,
-        attemptId: session.attemptId,
-        sessionToken: session.sessionToken,
-        candidateId: session.candidateId,
-        expiresAt: session.expiresAt,
-        startedAt: session.startedAt,
-        credentialsSmsStatus: session.credentialsSmsStatus,
-        consentVersion: session.consentVersion,
-        studentFullName: studentFullName.trim(),
-        parentFullName: parentFullName.trim(),
-        parentPhoneE164: toE164FromTrMobile(normalizedPhone),
-        schoolName: schoolName.trim() || schoolSearch.trim(),
-        grade: normalizedGrade,
-        ageRange,
-        language,
-        questionCount: QUESTION_COUNT,
-        campaignCode: CAMPAIGN_CODE,
-        examOpenAt: resolveDefaultExamOpenAt(),
-      });
-
-      savePlacementExamLead({
-        fullName: studentFullName.trim(),
-        phone: normalizedPhone,
-        email: '',
-        age: ageRange,
-        language,
-        source: 'bursluluk_2026_apply_form',
-        kvkkConsent: true,
-        contactConsent,
-        kvkkConsentVersion: 'KVKK_v1_2026-03-13',
-        kvkkLegalTextVersion: 'KVKK_v1_2026-03-13',
-        consentCapturedAt: new Date().toISOString(),
-      });
-
-      navigate('/bursluluk/onay');
-    } catch (error) {
-      setErrorMessage(normalizeError(error, 'Basvuru kaydi basarisiz. Lutfen tekrar deneyin.'));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  }, [showRenewFlow, renewApplicationNo, loginApplicationNo]);
 
   const handleLoginSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorMessage('');
+    setRenewMessage('');
     setIsLoginSubmitting(true);
+
     try {
       if (!loginApplicationNo.trim() || !loginPassword.trim()) {
-        throw new Error('Kullanici adi ve sifre alanlarini doldurun.');
+        throw new Error('Kullanıcı adı ve şifre alanlarını doldurun.');
       }
+
       const response = await candidateLogin({
         username: loginApplicationNo.trim(),
         password: loginPassword.trim(),
         campaignCode: CAMPAIGN_CODE,
       });
+
       const session = response.session;
       const candidate = response.candidate || {};
+      const isSameCandidate = existingSession?.applicationNo === session.applicationNo;
+
       saveCandidateSession({
         applicationNo: session.applicationNo,
         attemptId: session.attemptId,
         sessionToken: session.sessionToken,
         candidateId: session.candidateId,
         expiresAt: session.expiresAt,
-        studentFullName: candidate.studentFullName || 'Aday Ogrenci',
-        parentFullName: candidate.parentFullName || 'Veli',
-        parentPhoneE164: '',
-        schoolName: '',
-        grade: normalizeGrade(candidate.grade ?? 8),
-        ageRange: session.examAgeRange || deriveAgeRangeFromGrade(normalizeGrade(candidate.grade ?? 8)),
-        language: session.examLanguage || 'en',
+        studentFullName: candidate.studentFullName || existingSession?.studentFullName || 'Aday Öğrenci',
+        parentFullName: candidate.parentFullName || existingSession?.parentFullName || 'Veli',
+        parentPhoneE164: isSameCandidate ? existingSession?.parentPhoneE164 || '' : '',
+        schoolName: isSameCandidate ? existingSession?.schoolName || '' : '',
+        schoolDistrict: isSameCandidate ? existingSession?.schoolDistrict : undefined,
+        schoolType: isSameCandidate ? existingSession?.schoolType : undefined,
+        grade: normalizeGrade(candidate.grade ?? existingSession?.grade ?? 8),
+        tckn: isSameCandidate ? existingSession?.tckn : undefined,
+        birthYear: isSameCandidate ? existingSession?.birthYear : undefined,
+        branch: isSameCandidate ? existingSession?.branch : undefined,
+        selectedSessionId: isSameCandidate ? existingSession?.selectedSessionId : undefined,
+        selectedSessionLabel: isSameCandidate ? existingSession?.selectedSessionLabel : undefined,
+        ageRange:
+          session.examAgeRange
+          || (isSameCandidate ? existingSession?.ageRange : undefined)
+          || deriveAgeRangeFromGrade(normalizeGrade(candidate.grade ?? existingSession?.grade ?? 8)),
+        language: session.examLanguage || (isSameCandidate ? existingSession?.language : undefined) || 'en',
         questionCount: Number(session.questionCount || QUESTION_COUNT),
         campaignCode: CAMPAIGN_CODE,
-        examOpenAt: response.gate?.exam_open_at || resolveDefaultExamOpenAt(),
+        examOpenAt: response.gate?.exam_open_at || existingSession?.examOpenAt || resolveDefaultExamOpenAt(),
       });
+
       navigate('/bursluluk/bekleme');
     } catch (error) {
-      setErrorMessage(normalizeError(error, 'Aday girisi basarisiz.'));
+      setErrorMessage(normalizeError(error, 'Aday girişi başarısız.'));
     } finally {
       setIsLoginSubmitting(false);
     }
   };
 
+  const handleRenewSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setErrorMessage('');
+    setRenewMessage('');
+
+    const applicationNo = renewApplicationNo.trim().toUpperCase();
+    const normalizedPhone = normalizeTrMobileInput(renewPhone);
+
+    if (!applicationNo) {
+      setErrorMessage('Başvuru numarası zorunludur.');
+      return;
+    }
+    if (!isValidTrMobilePhone(normalizedPhone)) {
+      setErrorMessage(TR_MOBILE_TITLE);
+      return;
+    }
+    if (cooldownRemaining > 0 || isRenewSubmitting) {
+      return;
+    }
+
+    setIsRenewSubmitting(true);
+
+    try {
+      await renewCandidateCredentials(null, {
+        applicationNo,
+        parentPhoneE164: toE164FromTrMobile(normalizedPhone),
+        campaignCode: CAMPAIGN_CODE,
+      });
+
+      startCredentialsResendCooldown(applicationNo);
+      setCooldownRemaining(getCredentialsResendRemainingSeconds(applicationNo));
+      setRenewMessage('Şifreniz kayıtlı telefon numarasına tekrar gönderildi.');
+      notifySuccess('Şifre kayıtlı telefon numarasına tekrar gönderildi.');
+      setLoginApplicationNo(applicationNo);
+    } catch (error) {
+      const message = normalizeError(error, 'Şifre tekrar gönderilemedi.');
+      setErrorMessage(message);
+      notifyError(message);
+    } finally {
+      setIsRenewSubmitting(false);
+    }
+  };
+
   return (
-    <section className="relative min-h-screen overflow-hidden px-4 pb-16 pt-[118px] sm:px-6 lg:px-12 lg:pt-[142px]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_18%,rgba(146,11,35,0.34),transparent_42%),radial-gradient(circle_at_84%_12%,rgba(39,102,129,0.26),transparent_34%),linear-gradient(138deg,#06050D_0%,#0A0C16_52%,#05070F_100%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.18)_0.75px,transparent_0.75px)] [background-size:14px_14px] opacity-[0.14]" />
+    <section className="relative min-h-screen overflow-hidden bg-[#F7F3ED] px-4 pb-16 pt-[118px] sm:px-6 lg:px-12 lg:pb-20 lg:pt-[142px]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(244,235,209,0.76),transparent_34%),radial-gradient(circle_at_86%_12%,rgba(74,112,103,0.06),transparent_26%),linear-gradient(180deg,#FBF8F3_0%,#F5EFE7_28%,#F7F3ED_54%,#F1E9DE_100%)]" />
+      <div className="pointer-events-none absolute left-[-8%] top-[8%] h-72 w-72 rounded-full bg-[#F4EBD1]/80 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-[14%] right-[-10%] h-80 w-80 rounded-full bg-[#324D47]/[0.06] blur-3xl" />
 
-      <div className="relative mx-auto w-full max-w-[1080px]">
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <h1 className="text-[30px] font-semibold text-white sm:text-[38px]">Bursluluk Giris ve Basvuru</h1>
-          <Link to="/bursluluk-2026" className="rounded-full border border-white/18 px-4 py-2 text-[12px] uppercase tracking-[0.16em] text-white/70">
-            Landing
-          </Link>
-        </div>
+      <div className="relative mx-auto max-w-[960px]">
+        <div className="rounded-[30px] border border-[#DDD3C7] bg-white/88 p-5 shadow-[0_24px_58px_rgba(25,20,15,0.06)] sm:p-7 lg:p-8">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.88fr)]">
+            <form onSubmit={handleLoginSubmit} className="rounded-[26px] border border-[#E2D8CC] bg-[#FCFAF7] p-5 sm:p-6">
+              <SectionLabel>Giriş Yap</SectionLabel>
 
-        <div className="mb-6 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setMode('apply')}
-            className={`rounded-full px-5 py-2 text-[12px] font-semibold uppercase tracking-[0.14em] ${mode === 'apply' ? 'bg-[#D92E27] text-white' : 'border border-white/18 text-white/70'}`}
-          >
-            Yeni Basvuru
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('login')}
-            className={`rounded-full px-5 py-2 text-[12px] font-semibold uppercase tracking-[0.14em] ${mode === 'login' ? 'bg-[#D92E27] text-white' : 'border border-white/18 text-white/70'}`}
-          >
-            Aday Girisi
-          </button>
-        </div>
+              <label className="block">
+                <span className="mb-2.5 block font-['Neutraface_2_Text:Demi',sans-serif] text-[11px] uppercase tracking-[0.16em] text-[#5B4F45]">
+                  Başvuru No
+                </span>
+                <input
+                  className="min-h-[54px] w-full rounded-[18px] border border-[#D8CDC0] bg-white px-4 text-[15px] text-[#2F2621] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#8F8173] focus:border-[#4A7067]/55 focus:shadow-[0_0_0_4px_rgba(74,112,103,0.08)]"
+                  value={loginApplicationNo}
+                  onChange={(event) => setLoginApplicationNo(event.target.value.toUpperCase())}
+                  placeholder="Örn. 20260320-100001"
+                  autoComplete="username"
+                  required
+                />
+              </label>
 
-        {mode === 'apply' ? (
-          <form onSubmit={handleApplySubmit} className="grid gap-4 rounded-[26px] border border-white/12 bg-[#0A1323]/82 p-6 sm:grid-cols-2 sm:p-8">
-            <label className="block sm:col-span-2">
-              <span className="mb-2 block text-[12px] uppercase tracking-[0.15em] text-white/56">Okul (Konya, arama)</span>
-              <input
-                className="h-12 w-full rounded-xl border border-white/18 bg-[#061021] px-4 text-white outline-none focus:border-[#cf3b35]"
-                value={schoolSearch}
-                onChange={(event) => {
-                  setSchoolSearch(event.target.value);
-                  setSchoolName('');
+              <label className="mt-4 block">
+                <span className="mb-2.5 block font-['Neutraface_2_Text:Demi',sans-serif] text-[11px] uppercase tracking-[0.16em] text-[#5B4F45]">
+                  Şifre
+                </span>
+                <input
+                  className="min-h-[54px] w-full rounded-[18px] border border-[#D8CDC0] bg-white px-4 text-[15px] text-[#2F2621] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#8F8173] focus:border-[#4A7067]/55 focus:shadow-[0_0_0_4px_rgba(74,112,103,0.08)]"
+                  value={loginPassword}
+                  onChange={(event) => setLoginPassword(event.target.value)}
+                  placeholder="SMS ile gelen şifre"
+                  autoComplete="current-password"
+                  required
+                />
+              </label>
+
+              <button
+                type="submit"
+                disabled={isLoginSubmitting}
+                className="mt-5 inline-flex min-h-[54px] w-full items-center justify-center rounded-full bg-[#E70000] px-6 py-3.5 font-['Neutraface_2_Text:Demi',sans-serif] text-[12px] uppercase tracking-[0.16em] text-white shadow-[0_16px_32px_rgba(231,0,0,0.14)] transition-[background-color,box-shadow,opacity] duration-200 hover:bg-[#C50000] hover:shadow-[0_20px_38px_rgba(231,0,0,0.2)] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isLoginSubmitting ? 'Giriş Yapılıyor...' : 'Giriş Yap'}
+              </button>
+            </form>
+
+            <div className="rounded-[26px] border border-[#DDD3C7] bg-[linear-gradient(180deg,#FCF8F2_0%,#F5EDE3_100%)] p-5 sm:p-6">
+              <SectionLabel>Şifremi Yenile</SectionLabel>
+              <h2 className="font-['Neutraface_2_Display:Titling',sans-serif] text-[22px] uppercase leading-[1.08] tracking-[0.03em] text-[#68232E] sm:text-[26px]">
+                SMS gelmediyse tekrar gönderin
+              </h2>
+              <p className="mt-3 text-[14px] leading-[1.76] text-[#5B4F45] sm:text-[15px]">
+                Başvuru numaranız ve veli telefonunuz ile şifreyi kayıtlı numaraya tekrar gönderebilirsiniz.
+              </p>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowRenewFlow((current) => !current);
+                  setErrorMessage('');
+                  setRenewMessage('');
                 }}
-                placeholder="Okul adini yazin"
-              />
-              {filteredSchools.length ? (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {filteredSchools.map((item) => (
-                    <button
-                      key={item.id || item.name}
-                      type="button"
-                      onClick={() => {
-                        setSchoolName(item.name);
-                        setSchoolSearch(item.name);
-                      }}
-                      className="rounded-full border border-white/16 px-3 py-1 text-[11px] text-white/76 hover:border-[#cf3b35]"
-                    >
-                      {item.name}
-                    </button>
-                  ))}
-                </div>
+                className="mt-5 inline-flex min-h-[48px] items-center justify-center rounded-full border border-[#D6CABC] bg-white px-5 py-3 text-[12px] font-['Neutraface_2_Text:Demi',sans-serif] uppercase tracking-[0.16em] text-[#68232E] transition-colors duration-200 hover:bg-[#F8F2EA]"
+              >
+                {showRenewFlow ? 'Akışı Kapat' : 'Şifremi Yenile'}
+              </button>
+
+              {showRenewFlow ? (
+                <form onSubmit={handleRenewSubmit} className="mt-5 border-t border-[#E2D8CC] pt-5">
+                  <label className="block">
+                    <span className="mb-2.5 block font-['Neutraface_2_Text:Demi',sans-serif] text-[11px] uppercase tracking-[0.16em] text-[#5B4F45]">
+                      Başvuru No
+                    </span>
+                    <input
+                      className="min-h-[52px] w-full rounded-[18px] border border-[#D8CDC0] bg-white px-4 text-[15px] text-[#2F2621] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#8F8173] focus:border-[#4A7067]/55 focus:shadow-[0_0_0_4px_rgba(74,112,103,0.08)]"
+                      value={renewApplicationNo}
+                      onChange={(event) => setRenewApplicationNo(event.target.value.toUpperCase())}
+                      placeholder="Örn. 20260320-100001"
+                      required
+                    />
+                  </label>
+
+                  <label className="mt-4 block">
+                    <span className="mb-2.5 block font-['Neutraface_2_Text:Demi',sans-serif] text-[11px] uppercase tracking-[0.16em] text-[#5B4F45]">
+                      Veli Telefonu
+                    </span>
+                    <input
+                      className="min-h-[52px] w-full rounded-[18px] border border-[#D8CDC0] bg-white px-4 text-[15px] text-[#2F2621] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#8F8173] focus:border-[#4A7067]/55 focus:shadow-[0_0_0_4px_rgba(74,112,103,0.08)]"
+                      value={renewPhone}
+                      onChange={(event) => setRenewPhone(normalizeTrMobileInput(event.target.value))}
+                      placeholder="5XX XXX XX XX"
+                      pattern={TR_MOBILE_PATTERN}
+                      title={TR_MOBILE_TITLE}
+                      inputMode="tel"
+                      required
+                    />
+                  </label>
+
+                  <button
+                    type="submit"
+                    disabled={isRenewSubmitting || cooldownRemaining > 0}
+                    className="mt-5 inline-flex min-h-[52px] w-full items-center justify-center rounded-full bg-[#324D47] px-6 py-3.5 font-['Neutraface_2_Text:Demi',sans-serif] text-[12px] uppercase tracking-[0.16em] text-white shadow-[0_16px_32px_rgba(50,77,71,0.16)] transition-[background-color,box-shadow,opacity] duration-200 hover:bg-[#3D5E56] hover:shadow-[0_20px_38px_rgba(50,77,71,0.2)] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isRenewSubmitting
+                      ? 'Gönderiliyor...'
+                      : cooldownRemaining > 0
+                        ? `Tekrar Gönder ${formatCooldown(cooldownRemaining)}`
+                        : 'Şifreyi Tekrar Gönder'}
+                  </button>
+
+                  {cooldownRemaining > 0 ? (
+                    <p className="mt-3 text-[13px] leading-[1.7] text-[#6A5A4F]">
+                      Aynı başvuru için kısa süre içinde tekrar gönderim yapılamaz.
+                    </p>
+                  ) : null}
+                </form>
               ) : null}
-              {isSchoolSearchLoading ? <p className="mt-2 text-[12px] text-white/54">Okullar yukleniyor...</p> : null}
-            </label>
+            </div>
+          </div>
 
-            <label className="block">
-              <span className="mb-2 block text-[12px] uppercase tracking-[0.15em] text-white/56">Ogrenci Ad Soyad</span>
-              <input
-                className="h-12 w-full rounded-xl border border-white/18 bg-[#061021] px-4 text-white outline-none focus:border-[#cf3b35]"
-                value={studentFullName}
-                onChange={(event) => setStudentFullName(event.target.value)}
-                required
-              />
-            </label>
+          {renewMessage ? (
+            <div className="mt-5 rounded-[20px] border border-[#CFE2D8] bg-[#F5FBF7] px-4 py-4 text-[14px] leading-[1.7] text-[#2E5B4F]">
+              {renewMessage}
+            </div>
+          ) : null}
 
-            <label className="block">
-              <span className="mb-2 block text-[12px] uppercase tracking-[0.15em] text-white/56">Sinif (2-11)</span>
-              <select
-                className="h-12 w-full rounded-xl border border-white/18 bg-[#061021] px-4 text-white outline-none focus:border-[#cf3b35]"
-                value={grade}
-                onChange={(event) => setGrade(Number(event.target.value))}
-              >
-                {grades.map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="block">
-              <span className="mb-2 block text-[12px] uppercase tracking-[0.15em] text-white/56">Veli Ad Soyad</span>
-              <input
-                className="h-12 w-full rounded-xl border border-white/18 bg-[#061021] px-4 text-white outline-none focus:border-[#cf3b35]"
-                value={parentFullName}
-                onChange={(event) => setParentFullName(event.target.value)}
-                required
-              />
-            </label>
-
-            <label className="block">
-              <span className="mb-2 block text-[12px] uppercase tracking-[0.15em] text-white/56">Veli Telefonu</span>
-              <input
-                className="h-12 w-full rounded-xl border border-white/18 bg-[#061021] px-4 text-white outline-none focus:border-[#cf3b35]"
-                value={parentPhone}
-                onChange={(event) => setParentPhone(normalizeTrMobileInput(event.target.value))}
-                placeholder="5XX XXX XX XX"
-                pattern={TR_MOBILE_PATTERN}
-                title={TR_MOBILE_TITLE}
-                required
-              />
-            </label>
-
-            <label className="block">
-              <span className="mb-2 block text-[12px] uppercase tracking-[0.15em] text-white/56">Sinav Dili</span>
-              <select
-                className="h-12 w-full rounded-xl border border-white/18 bg-[#061021] px-4 text-white outline-none focus:border-[#cf3b35]"
-                value={language}
-                onChange={(event) => setLanguage(event.target.value)}
-              >
-                <option value="en">English</option>
-                <option value="de">Deutsch</option>
-                <option value="fr">Francais</option>
-                <option value="es">Espanol</option>
-              </select>
-            </label>
-
-            <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-[#071021]/90 p-3 text-[13px] text-white/74 sm:col-span-2">
-              <input type="checkbox" checked={kvkkConsent} onChange={(event) => setKvkkConsent(event.target.checked)} className="mt-1" />
-              KVKK acik riza metnini okudum ve onayliyorum.
-            </label>
-
-            <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-[#071021]/90 p-3 text-[13px] text-white/74 sm:col-span-2">
-              <input type="checkbox" checked={contactConsent} onChange={(event) => setContactConsent(event.target.checked)} className="mt-1" />
-              SMS/WhatsApp bilgilendirmesi almayi kabul ediyorum.
-            </label>
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="h-12 rounded-xl bg-[#D92E27] text-[12px] font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-[#bf251f] disabled:opacity-70 sm:col-span-2"
-            >
-              {isSubmitting ? 'Kaydediliyor...' : 'Basvuruyu Tamamla'}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleLoginSubmit} className="grid gap-4 rounded-[26px] border border-white/12 bg-[#0A1323]/82 p-6 sm:grid-cols-2 sm:p-8">
-            <label className="block">
-              <span className="mb-2 block text-[12px] uppercase tracking-[0.15em] text-white/56">Kullanici Adi (Basvuru No)</span>
-              <input
-                className="h-12 w-full rounded-xl border border-white/18 bg-[#061021] px-4 text-white outline-none focus:border-[#cf3b35]"
-                value={loginApplicationNo}
-                onChange={(event) => setLoginApplicationNo(event.target.value)}
-                required
-              />
-            </label>
-            <label className="block">
-              <span className="mb-2 block text-[12px] uppercase tracking-[0.15em] text-white/56">Sifre (SMS)</span>
-              <input
-                className="h-12 w-full rounded-xl border border-white/18 bg-[#061021] px-4 text-white outline-none focus:border-[#cf3b35]"
-                value={loginPassword}
-                onChange={(event) => setLoginPassword(event.target.value)}
-                required
-              />
-            </label>
-            <button
-              type="submit"
-              disabled={isLoginSubmitting}
-              className="h-12 rounded-xl bg-[#D92E27] text-[12px] font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-[#bf251f] disabled:opacity-70 sm:col-span-2"
-            >
-              {isLoginSubmitting ? 'Giris yapiliyor...' : 'Aday Girisi Yap'}
-            </button>
-          </form>
-        )}
-
-        {errorMessage ? (
-          <p className="mt-4 rounded-xl border border-[#6F2824] bg-[#2B1214]/80 px-4 py-3 text-[14px] text-[#FFB8B1]">
-            {errorMessage}
-          </p>
-        ) : null}
+          {errorMessage ? (
+            <div className="mt-5 rounded-[20px] border border-[#E5C8C1] bg-[#FFF7F5] px-4 py-4 text-[14px] leading-[1.7] text-[#8A3A32]">
+              {errorMessage}
+            </div>
+          ) : null}
+        </div>
       </div>
     </section>
   );

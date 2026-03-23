@@ -102,6 +102,24 @@ export interface ExamSessionStatusResponse {
   };
 }
 
+export interface RenewCandidateCredentialsPayload {
+  attemptId?: string;
+  applicationNo?: string;
+  parentPhoneE164?: string;
+  campaignCode?: string;
+}
+
+export interface RenewCandidateCredentialsResponse {
+  credentials: {
+    applicationNo: string;
+    sessionToken: string;
+    expiresAt: string;
+    phone: string;
+    credentialsSmsStatus: string;
+    jobId: string;
+  };
+}
+
 export interface SubmitExamPayload {
   attemptId: string;
   completionStatus: 'completed' | 'time_limit_reached' | 'left_exam';
@@ -245,6 +263,27 @@ export async function getExamSessionStatus(sessionToken: string, attemptId: stri
   });
 
   return parseApiResponse<ExamSessionStatusResponse>(response);
+}
+
+export async function renewCandidateCredentials(
+  sessionToken: string | null | undefined,
+  payload: RenewCandidateCredentialsPayload,
+): Promise<RenewCandidateCredentialsResponse> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  };
+  if (String(sessionToken || '').trim()) {
+    headers['x-exam-session-token'] = String(sessionToken).trim();
+  }
+
+  const response = await fetch(resolveExamEndpoint('/api/exam/session/credentials'), {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  });
+
+  return parseApiResponse<RenewCandidateCredentialsResponse>(response);
 }
 
 export async function submitExam(sessionToken: string, payload: SubmitExamPayload): Promise<SubmitExamResponse> {

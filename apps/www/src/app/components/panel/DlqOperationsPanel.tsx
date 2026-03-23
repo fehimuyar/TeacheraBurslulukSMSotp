@@ -1,6 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
 import { panelFetch } from '../../api/panelApi';
 import { canOperatePanelActions, isReadOnlyPanelRole } from './panelRoleAccess';
+import {
+  PanelFeedbackMessage,
+  PanelLoadingMessage,
+  panelDangerButtonClassName,
+  panelDescriptionClassName,
+  panelEmptyRowClassName,
+  panelEyebrowClassName,
+  panelInputClassName,
+  panelPrimaryButtonClassName,
+  panelSecondaryButtonClassName,
+  panelSmallButtonClassName,
+  panelStatCardClassName,
+  panelTableContainerClassName,
+  panelTitleClassName,
+  panelWideSurfaceClassName,
+} from './panelUi';
 
 type DlqRow = {
   id: string;
@@ -260,29 +276,29 @@ export default function DlqOperationsPanel({ active, role }: { active: boolean; 
   };
 
   return (
-    <section className="rounded-[22px] border border-[#1A273A] bg-[#071021]/82 p-5 shadow-[0_14px_38px_rgba(0,0,0,0.28)] lg:col-span-2">
+    <section className={panelWideSurfaceClassName}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white/54">DLQ & Hata</p>
-          <h3 className="mt-2 text-[22px] font-semibold text-white">DLQ Operasyon Ekranı</h3>
-          <p className="mt-2 text-[13px] leading-[1.7] text-white/64">
+          <p className={panelEyebrowClassName}>DLQ & Hata</p>
+          <h3 className={panelTitleClassName}>DLQ Operasyon Ekranı</h3>
+          <p className={panelDescriptionClassName}>
             Kanal, hata kodu ve retry bilgisine göre DLQ kayıtlarını filtreleyin; retry, template change, assign ve close işlemlerini yürütün.
           </p>
         </div>
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
-          <p className="text-[12px] text-white/50">Toplam DLQ</p>
-          <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary.total_dlq ?? total)}</p>
+        <div className={panelStatCardClassName}>
+          <p className="text-[12px] font-['Neutraface_2_Text:Book',sans-serif] text-[#7A7063]">Toplam DLQ</p>
+          <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[22px] text-[#1B2B24]">{formatNumber(summary.total_dlq ?? total)}</p>
         </div>
-        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
-          <p className="text-[12px] text-white/50">Açık DLQ</p>
-          <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary.open_dlq)}</p>
+        <div className={panelStatCardClassName}>
+          <p className="text-[12px] font-['Neutraface_2_Text:Book',sans-serif] text-[#7A7063]">Açık DLQ</p>
+          <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[22px] text-[#1B2B24]">{formatNumber(summary.open_dlq)}</p>
         </div>
-        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
-          <p className="text-[12px] text-white/50">Kapalı DLQ</p>
-          <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary.closed_dlq)}</p>
+        <div className={panelStatCardClassName}>
+          <p className="text-[12px] font-['Neutraface_2_Text:Book',sans-serif] text-[#7A7063]">Kapalı DLQ</p>
+          <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[22px] text-[#1B2B24]">{formatNumber(summary.closed_dlq)}</p>
         </div>
       </div>
 
@@ -291,18 +307,18 @@ export default function DlqOperationsPanel({ active, role }: { active: boolean; 
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Error code / root cause ara"
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         />
         <input
           value={draftFilters.campaignCode}
           onChange={(event) => setDraftFilters((prev) => ({ ...prev, campaignCode: event.target.value }))}
           placeholder="Campaign code"
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         />
         <select
           value={draftFilters.channel}
           onChange={(event) => setDraftFilters((prev) => ({ ...prev, channel: event.target.value as DlqFilters['channel'] }))}
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         >
           <option value="">Kanal (tümü)</option>
           {CHANNEL_OPTIONS.map((value) => (
@@ -314,7 +330,7 @@ export default function DlqOperationsPanel({ active, role }: { active: boolean; 
         <select
           value={draftFilters.status}
           onChange={(event) => setDraftFilters((prev) => ({ ...prev, status: event.target.value }))}
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         >
           <option value="">Status (tümü)</option>
           {STATUS_OPTIONS.map((value) => (
@@ -327,19 +343,19 @@ export default function DlqOperationsPanel({ active, role }: { active: boolean; 
           value={draftFilters.errorCode}
           onChange={(event) => setDraftFilters((prev) => ({ ...prev, errorCode: event.target.value }))}
           placeholder="Error code"
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         />
         <input
           value={draftFilters.retryFrom}
           onChange={(event) => setDraftFilters((prev) => ({ ...prev, retryFrom: event.target.value }))}
           placeholder="Retry min"
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         />
         <input
           value={draftFilters.retryTo}
           onChange={(event) => setDraftFilters((prev) => ({ ...prev, retryTo: event.target.value }))}
           placeholder="Retry max"
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         />
       </div>
 
@@ -353,7 +369,7 @@ export default function DlqOperationsPanel({ active, role }: { active: boolean; 
             setMessage('');
             setErrorMessage('');
           }}
-          className="rounded-xl bg-[#D92E27] px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.11em] text-white transition hover:bg-[#bf251f]"
+          className={panelPrimaryButtonClassName}
         >
           Filtreleri Uygula
         </button>
@@ -368,7 +384,7 @@ export default function DlqOperationsPanel({ active, role }: { active: boolean; 
             setMessage('');
             setErrorMessage('');
           }}
-          className="rounded-xl border border-[#1A273A] bg-[#0A192B]/90 px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.11em] text-white/80 transition hover:border-[#2D4363]"
+          className={panelSecondaryButtonClassName}
         >
           Filtreleri Temizle
         </button>
@@ -380,13 +396,13 @@ export default function DlqOperationsPanel({ active, role }: { active: boolean; 
           onChange={(event) => setAssignTo(event.target.value)}
           placeholder="Operatöre ata (email/isim)"
           disabled={!canOperate}
-          className="h-[38px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         />
         <select
           value={templateCode}
           onChange={(event) => setTemplateCode(event.target.value as (typeof TEMPLATE_OPTIONS)[number])}
           disabled={!canOperate}
-          className="h-[38px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         >
           {TEMPLATE_OPTIONS.map((value) => (
             <option key={value} value={value}>
@@ -399,21 +415,19 @@ export default function DlqOperationsPanel({ active, role }: { active: boolean; 
           onChange={(event) => setRootCauseNote(event.target.value)}
           placeholder="Root cause note (close için zorunlu)"
           disabled={!canOperate}
-          className="h-[38px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         />
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {isReadOnly ? (
-          <p className="rounded-lg border border-[#274063] bg-[#0A192B]/80 px-3 py-2 text-[12px] text-[#9FC7FF]">
-            READ_ONLY modu: DLQ aksiyonları kapalıdır.
-          </p>
+          <PanelFeedbackMessage tone="info">READ_ONLY modu: DLQ aksiyonları kapalıdır.</PanelFeedbackMessage>
         ) : null}
         <button
           type="button"
           onClick={() => void runAction('retry', selectedIds)}
           disabled={!canOperate || isActionRunning || selectedIds.length === 0}
-          className="rounded-xl border border-[#1A273A] bg-[#0A192B]/90 px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+          className={panelSecondaryButtonClassName}
         >
           Retry ({selectedIds.length})
         </button>
@@ -421,7 +435,7 @@ export default function DlqOperationsPanel({ active, role }: { active: boolean; 
           type="button"
           onClick={() => void runAction('change_template', selectedIds)}
           disabled={!canOperate || isActionRunning || selectedIds.length === 0}
-          className="rounded-xl border border-[#1A273A] bg-[#0A192B]/90 px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+          className={panelSecondaryButtonClassName}
         >
           Şablon Değiştir ({selectedIds.length})
         </button>
@@ -429,7 +443,7 @@ export default function DlqOperationsPanel({ active, role }: { active: boolean; 
           type="button"
           onClick={() => void runAction('assign', selectedIds)}
           disabled={!canOperate || isActionRunning || selectedIds.length === 0 || assignTo.trim().length === 0}
-          className="rounded-xl border border-[#1A273A] bg-[#0A192B]/90 px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+          className={panelSecondaryButtonClassName}
         >
           Operatöre Ata ({selectedIds.length})
         </button>
@@ -437,26 +451,22 @@ export default function DlqOperationsPanel({ active, role }: { active: boolean; 
           type="button"
           onClick={() => void runAction('close', selectedIds)}
           disabled={!canOperate || isActionRunning || selectedIds.length === 0 || rootCauseNote.trim().length === 0}
-          className="rounded-xl border border-[#6F2824] bg-[#2B1214]/90 px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-[#FFB8B1] transition hover:border-[#8B332C] disabled:cursor-not-allowed disabled:opacity-55"
+          className={panelDangerButtonClassName}
         >
           Kapat (Root Cause) ({selectedIds.length})
         </button>
       </div>
 
-      {message ? (
-        <p className="mt-3 rounded-lg border border-[#244B39] bg-[#0E261E] px-3 py-2 text-[12px] text-[#9FE4D0]">{message}</p>
-      ) : null}
-      {errorMessage ? (
-        <p className="mt-3 rounded-lg border border-[#6F2824] bg-[#2B1214]/80 px-3 py-2 text-[12px] text-[#FFB8B1]">{errorMessage}</p>
-      ) : null}
+      {message ? <PanelFeedbackMessage className="mt-3" tone="success">{message}</PanelFeedbackMessage> : null}
+      {errorMessage ? <PanelFeedbackMessage className="mt-3" tone="error">{errorMessage}</PanelFeedbackMessage> : null}
 
-      {isLoading ? <p className="mt-3 text-[13px] text-white/65">DLQ listesi yükleniyor...</p> : null}
+      {isLoading ? <PanelLoadingMessage>DLQ listesi yükleniyor...</PanelLoadingMessage> : null}
 
       {!isLoading ? (
-        <div className="mt-4 overflow-x-auto">
-          <table className="min-w-[1500px] text-left text-[12px] text-white/80">
+        <div className={panelTableContainerClassName}>
+          <table className="min-w-[1500px] text-left font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#33463E]">
             <thead>
-              <tr className="border-b border-white/12 text-white/56">
+              <tr className="border-b border-[#E6DDCF] text-[#7A7063]">
                 <th className="px-2 py-2">
                     <input
                       type="checkbox"
@@ -488,14 +498,14 @@ export default function DlqOperationsPanel({ active, role }: { active: boolean; 
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="px-2 py-6 text-center text-white/55">
+                  <td colSpan={12} className={panelEmptyRowClassName}>
                     Filtreye uygun DLQ kaydı bulunamadı.
                   </td>
                 </tr>
               ) : null}
 
               {items.map((item) => (
-                <tr key={item.id} className="border-b border-white/6 align-top">
+                <tr key={item.id} className="border-b border-[#F0E7DA] align-top">
                   <td className="px-2 py-2">
                     <input
                       type="checkbox"
@@ -511,8 +521,8 @@ export default function DlqOperationsPanel({ active, role }: { active: boolean; 
                     />
                   </td>
                   <td className="px-2 py-2">
-                    <p className="font-semibold text-white">{shortId(item.id)}</p>
-                    <p className="text-white/55">{item.id}</p>
+                    <p className="font-['Neutraface_2_Text:Demi',sans-serif] text-[#1B2B24]">{shortId(item.id)}</p>
+                    <p className="text-[#7C7366]">{item.id}</p>
                   </td>
                   <td className="px-2 py-2">{shortId(item.source_job_id)}</td>
                   <td className="px-2 py-2">{item.channel || '-'}</td>
@@ -526,14 +536,14 @@ export default function DlqOperationsPanel({ active, role }: { active: boolean; 
                   </td>
                   <td className="px-2 py-2">{formatDate(item.updated_at)}</td>
                   <td className="px-2 py-2">
-                    <button
-                      type="button"
-                      onClick={() => void runAction('retry', [item.id])}
-                      disabled={!canOperate || isActionRunning}
-                      className="rounded-lg border border-[#1A273A] bg-[#0A192B]/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
-                    >
-                      Retry
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => void runAction('retry', [item.id])}
+                        disabled={!canOperate || isActionRunning}
+                        className={panelSmallButtonClassName}
+                      >
+                        Retry
+                      </button>
                   </td>
                 </tr>
               ))}
@@ -543,7 +553,7 @@ export default function DlqOperationsPanel({ active, role }: { active: boolean; 
       ) : null}
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[12px] text-white/58">
+        <p className="font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#7A7063]">
           Toplam {formatNumber(total)} kayıt • Sayfa {page} / {pageCount}
         </p>
         <div className="flex gap-2">
@@ -551,7 +561,7 @@ export default function DlqOperationsPanel({ active, role }: { active: boolean; 
             type="button"
             onClick={() => setPage((prev) => Math.max(1, prev - 1))}
             disabled={page <= 1 || isLoading}
-            className="rounded-lg border border-[#1A273A] bg-[#0A192B]/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+            className={panelSmallButtonClassName}
           >
             Önceki
           </button>
@@ -559,7 +569,7 @@ export default function DlqOperationsPanel({ active, role }: { active: boolean; 
             type="button"
             onClick={() => setPage((prev) => Math.min(pageCount, prev + 1))}
             disabled={page >= pageCount || isLoading}
-            className="rounded-lg border border-[#1A273A] bg-[#0A192B]/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+            className={panelSmallButtonClassName}
           >
             Sonraki
           </button>

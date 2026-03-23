@@ -60,7 +60,7 @@ function answerRows(questions: BurslulukQuestion[], answers: Record<string, stri
 
 export default function BurslulukExamPage() {
   const navigate = useNavigate();
-  const session = readBurslulukCandidateSession();
+  const [session] = useState(() => readBurslulukCandidateSession());
 
   const [questions] = useState(() => getBurslulukQuestions());
   const [answers, setAnswers] = useState<Record<string, string>>({});

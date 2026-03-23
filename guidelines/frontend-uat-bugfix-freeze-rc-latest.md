@@ -1,6 +1,6 @@
 # Frontend UAT + Bugfix Freeze + Release Candidate Report
 
-- Timestamp: 2026-03-17T09:02:01.423Z
+- Timestamp: 2026-03-18T04:54:31.474Z
 - overall_ready_for_release_candidate: **true**
 - pass: 23, fail: 0, warn: 0, skip: 0
 
@@ -34,7 +34,7 @@
 
 ## Candidate
 
-- release_candidate_id: `rc-frontend-uat-20260317090201`
-- freeze_window_started_at: 2026-03-17T09:02:01.423Z
+- release_candidate_id: `rc-frontend-uat-20260318045431`
+- freeze_window_started_at: 2026-03-18T04:54:31.474Z
 - notes: No blocking frontend/API contract regressions detected in this run.
 

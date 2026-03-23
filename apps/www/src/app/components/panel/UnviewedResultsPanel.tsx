@@ -1,6 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { panelFetch } from '../../api/panelApi';
 import { canOperatePanelActions, isReadOnlyPanelRole } from './panelRoleAccess';
+import {
+  PanelFeedbackMessage,
+  PanelLoadingMessage,
+  panelDescriptionClassName,
+  panelEmptyRowClassName,
+  panelEyebrowClassName,
+  panelInputClassName,
+  panelPrimaryButtonClassName,
+  panelSecondaryButtonClassName,
+  panelSmallButtonClassName,
+  panelStatCardClassName,
+  panelTableContainerClassName,
+  panelTitleClassName,
+  panelWideSurfaceClassName,
+} from './panelUi';
 
 type UnviewedRow = {
   candidate_id: string;
@@ -229,23 +244,23 @@ export default function UnviewedResultsPanel({ active, role }: { active: boolean
   };
 
   return (
-    <section className="rounded-[22px] border border-[#1A273A] bg-[#071021]/82 p-5 shadow-[0_14px_38px_rgba(0,0,0,0.28)] lg:col-span-2">
+    <section className={panelWideSurfaceClassName}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white/54">Sonuç Görmeyenler</p>
-          <h3 className="mt-2 text-[22px] font-semibold text-white">Unviewed Results Operasyon Ekranı</h3>
-          <p className="mt-2 text-[13px] leading-[1.7] text-white/64">
+          <p className={panelEyebrowClassName}>Sonuç Görmeyenler</p>
+          <h3 className={panelTitleClassName}>Unviewed Results Operasyon Ekranı</h3>
+          <p className={panelDescriptionClassName}>
             Sonuç yayını yapılmış ancak görüntülenmemiş adayları filtreleyin, tekil veya toplu WhatsApp sonucu gönderin.
           </p>
         </div>
 
         <div className="min-w-[220px]">
-          <label className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-white/58">WhatsApp Şablonu</label>
+          <label className="mb-1 block font-['Neutraface_2_Text:Demi',sans-serif] text-[11px] uppercase tracking-[0.1em] text-[#7A7063]">WhatsApp Şablonu</label>
           <select
             value={templateCode}
             onChange={(event) => setTemplateCode(event.target.value as (typeof TEMPLATE_OPTIONS)[number])}
             disabled={!canOperate}
-            className="h-[40px] w-full rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+            className="h-[40px] w-full rounded-[18px] border border-[#DDD4C6] bg-[#FFFCF7] px-3 font-['Neutraface_2_Text:Book',sans-serif] text-[13px] text-[#16251F] outline-none transition focus:border-[#9F865C] focus:bg-white focus:ring-4 focus:ring-[#EEE3CC]"
           >
             {TEMPLATE_OPTIONS.map((value) => (
               <option key={value} value={value}>
@@ -257,17 +272,17 @@ export default function UnviewedResultsPanel({ active, role }: { active: boolean
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
-          <p className="text-[12px] text-white/50">Toplam Unviewed</p>
-          <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary.total_unviewed ?? total)}</p>
+        <div className={panelStatCardClassName}>
+          <p className="text-[12px] font-['Neutraface_2_Text:Book',sans-serif] text-[#7A7063]">Toplam Unviewed</p>
+          <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[22px] text-[#1B2B24]">{formatNumber(summary.total_unviewed ?? total)}</p>
         </div>
-        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
-          <p className="text-[12px] text-white/50">WA Sorunlu</p>
-          <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary.wa_problematic)}</p>
+        <div className={panelStatCardClassName}>
+          <p className="text-[12px] font-['Neutraface_2_Text:Book',sans-serif] text-[#7A7063]">WA Sorunlu</p>
+          <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[22px] text-[#1B2B24]">{formatNumber(summary.wa_problematic)}</p>
         </div>
-        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
-          <p className="text-[12px] text-white/50">WA Ulaştı</p>
-          <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary.wa_reached)}</p>
+        <div className={panelStatCardClassName}>
+          <p className="text-[12px] font-['Neutraface_2_Text:Book',sans-serif] text-[#7A7063]">WA Ulaştı</p>
+          <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[22px] text-[#1B2B24]">{formatNumber(summary.wa_reached)}</p>
         </div>
       </div>
 
@@ -276,18 +291,18 @@ export default function UnviewedResultsPanel({ active, role }: { active: boolean
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Aday / okul ara"
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         />
         <input
           value={draftFilters.campaignCode}
           onChange={(event) => setDraftFilters((prev) => ({ ...prev, campaignCode: event.target.value }))}
           placeholder="Campaign code"
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         />
         <select
           value={draftFilters.grade}
           onChange={(event) => setDraftFilters((prev) => ({ ...prev, grade: event.target.value }))}
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         >
           <option value="">Sınıf (tümü)</option>
           {GRADE_OPTIONS.map((value) => (
@@ -299,7 +314,7 @@ export default function UnviewedResultsPanel({ active, role }: { active: boolean
         <select
           value={draftFilters.waStatus}
           onChange={(event) => setDraftFilters((prev) => ({ ...prev, waStatus: event.target.value }))}
-          className="h-[42px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[13px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         >
           <option value="">WA durum (tümü)</option>
           {WA_STATUS_OPTIONS.map((value) => (
@@ -308,22 +323,22 @@ export default function UnviewedResultsPanel({ active, role }: { active: boolean
             </option>
           ))}
         </select>
-        <label className="flex items-center gap-2 text-[12px] text-white/66">
+        <label className="flex items-center gap-2 font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#6E6A62]">
           <span>Yayın başlangıç</span>
           <input
             type="date"
             value={draftFilters.publishedFrom}
             onChange={(event) => setDraftFilters((prev) => ({ ...prev, publishedFrom: event.target.value }))}
-            className="h-[36px] rounded-lg border border-[#1A273A] bg-[#030B18] px-2 text-[12px] text-white/90 outline-none focus:border-[#2D4363]"
+            className="h-[36px] rounded-[14px] border border-[#DDD4C6] bg-[#FFFCF7] px-2 font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#16251F] outline-none transition focus:border-[#9F865C] focus:bg-white focus:ring-4 focus:ring-[#EEE3CC]"
           />
         </label>
-        <label className="flex items-center gap-2 text-[12px] text-white/66">
+        <label className="flex items-center gap-2 font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#6E6A62]">
           <span>Yayın bitiş</span>
           <input
             type="date"
             value={draftFilters.publishedTo}
             onChange={(event) => setDraftFilters((prev) => ({ ...prev, publishedTo: event.target.value }))}
-            className="h-[36px] rounded-lg border border-[#1A273A] bg-[#030B18] px-2 text-[12px] text-white/90 outline-none focus:border-[#2D4363]"
+            className="h-[36px] rounded-[14px] border border-[#DDD4C6] bg-[#FFFCF7] px-2 font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#16251F] outline-none transition focus:border-[#9F865C] focus:bg-white focus:ring-4 focus:ring-[#EEE3CC]"
           />
         </label>
       </div>
@@ -338,7 +353,7 @@ export default function UnviewedResultsPanel({ active, role }: { active: boolean
             setMessage('');
             setErrorMessage('');
           }}
-          className="rounded-xl bg-[#D92E27] px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.11em] text-white transition hover:bg-[#bf251f]"
+          className={panelPrimaryButtonClassName}
         >
           Filtreleri Uygula
         </button>
@@ -353,7 +368,7 @@ export default function UnviewedResultsPanel({ active, role }: { active: boolean
             setMessage('');
             setErrorMessage('');
           }}
-          className="rounded-xl border border-[#1A273A] bg-[#0A192B]/90 px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.11em] text-white/80 transition hover:border-[#2D4363]"
+          className={panelSecondaryButtonClassName}
         >
           Filtreleri Temizle
         </button>
@@ -361,34 +376,28 @@ export default function UnviewedResultsPanel({ active, role }: { active: boolean
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {isReadOnly ? (
-          <p className="rounded-lg border border-[#274063] bg-[#0A192B]/80 px-3 py-2 text-[12px] text-[#9FC7FF]">
-            READ_ONLY modu: WhatsApp gönderim aksiyonları kapalıdır.
-          </p>
+          <PanelFeedbackMessage tone="info">READ_ONLY modu: WhatsApp gönderim aksiyonları kapalıdır.</PanelFeedbackMessage>
         ) : null}
         <button
           type="button"
           onClick={() => void sendWhatsapp(selectedIds)}
           disabled={!canOperate || isActionRunning || selectedIds.length === 0}
-          className="rounded-xl border border-[#1A273A] bg-[#0A192B]/90 px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+          className={panelSecondaryButtonClassName}
         >
           Toplu WhatsApp Gönder ({selectedIds.length})
         </button>
       </div>
 
-      {message ? (
-        <p className="mt-3 rounded-lg border border-[#244B39] bg-[#0E261E] px-3 py-2 text-[12px] text-[#9FE4D0]">{message}</p>
-      ) : null}
-      {errorMessage ? (
-        <p className="mt-3 rounded-lg border border-[#6F2824] bg-[#2B1214]/80 px-3 py-2 text-[12px] text-[#FFB8B1]">{errorMessage}</p>
-      ) : null}
+      {message ? <PanelFeedbackMessage className="mt-3" tone="success">{message}</PanelFeedbackMessage> : null}
+      {errorMessage ? <PanelFeedbackMessage className="mt-3" tone="error">{errorMessage}</PanelFeedbackMessage> : null}
 
-      {isLoading ? <p className="mt-3 text-[13px] text-white/65">Sonuç görmeyen aday listesi yükleniyor...</p> : null}
+      {isLoading ? <PanelLoadingMessage>Sonuç görmeyen aday listesi yükleniyor...</PanelLoadingMessage> : null}
 
       {!isLoading ? (
-        <div className="mt-4 overflow-x-auto">
-          <table className="min-w-[1320px] text-left text-[12px] text-white/80">
+        <div className={panelTableContainerClassName}>
+          <table className="min-w-[1320px] text-left font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#33463E]">
             <thead>
-              <tr className="border-b border-white/12 text-white/56">
+              <tr className="border-b border-[#E6DDCF] text-[#7A7063]">
                 <th className="px-2 py-2">
                     <input
                       type="checkbox"
@@ -417,14 +426,14 @@ export default function UnviewedResultsPanel({ active, role }: { active: boolean
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-2 py-6 text-center text-white/55">
+                  <td colSpan={9} className={panelEmptyRowClassName}>
                     Filtreye uygun sonuç görmeyen aday bulunamadı.
                   </td>
                 </tr>
               ) : null}
 
               {items.map((item) => (
-                <tr key={item.candidate_id} className="border-b border-white/6 align-top">
+                <tr key={item.candidate_id} className="border-b border-[#F0E7DA] align-top">
                   <td className="px-2 py-2">
                     <input
                       type="checkbox"
@@ -439,7 +448,7 @@ export default function UnviewedResultsPanel({ active, role }: { active: boolean
                       }}
                     />
                   </td>
-                  <td className="px-2 py-2 font-semibold text-white">{item.student_full_name || '-'}</td>
+                  <td className="px-2 py-2 font-['Neutraface_2_Text:Demi',sans-serif] text-[#1B2B24]">{item.student_full_name || '-'}</td>
                   <td className="px-2 py-2">{item.school_name || '-'}</td>
                   <td className="px-2 py-2">{item.grade ? String(item.grade) : '-'}</td>
                   <td className="px-2 py-2">{formatDate(item.last_login_at)}</td>
@@ -447,14 +456,14 @@ export default function UnviewedResultsPanel({ active, role }: { active: boolean
                   <td className="px-2 py-2">{item.wa_result_status || '-'}</td>
                   <td className="px-2 py-2">{formatDate(item.wa_last_sent_at)}</td>
                   <td className="px-2 py-2">
-                    <button
-                      type="button"
-                      onClick={() => void sendWhatsapp([item.candidate_id])}
-                      disabled={!canOperate || isActionRunning}
-                      className="rounded-lg border border-[#1A273A] bg-[#0A192B]/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
-                    >
-                      Tekil WA Gönder
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => void sendWhatsapp([item.candidate_id])}
+                        disabled={!canOperate || isActionRunning}
+                        className={panelSmallButtonClassName}
+                      >
+                        Tekil WA Gönder
+                      </button>
                   </td>
                 </tr>
               ))}
@@ -464,7 +473,7 @@ export default function UnviewedResultsPanel({ active, role }: { active: boolean
       ) : null}
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[12px] text-white/58">
+        <p className="font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#7A7063]">
           Toplam {formatNumber(total)} kayıt • Sayfa {page} / {pageCount}
         </p>
         <div className="flex gap-2">
@@ -472,7 +481,7 @@ export default function UnviewedResultsPanel({ active, role }: { active: boolean
             type="button"
             onClick={() => setPage((prev) => Math.max(1, prev - 1))}
             disabled={page <= 1 || isLoading}
-            className="rounded-lg border border-[#1A273A] bg-[#0A192B]/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+            className={panelSmallButtonClassName}
           >
             Önceki
           </button>
@@ -480,7 +489,7 @@ export default function UnviewedResultsPanel({ active, role }: { active: boolean
             type="button"
             onClick={() => setPage((prev) => Math.min(pageCount, prev + 1))}
             disabled={page >= pageCount || isLoading}
-            className="rounded-lg border border-[#1A273A] bg-[#0A192B]/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+            className={panelSmallButtonClassName}
           >
             Sonraki
           </button>

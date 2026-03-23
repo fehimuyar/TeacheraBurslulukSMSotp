@@ -79,9 +79,6 @@ export default async function handler(req, res) {
     if (!identity.authenticated) {
       throw new HttpError(401, 'Panel authentication is required.', 'panel_unauthorized');
     }
-    if (!identity.mfaVerified) {
-      throw new HttpError(403, 'MFA verification is required.', 'panel_mfa_required');
-    }
 
     const body = await parseBody(req);
     if (!body || typeof body !== 'object') {
@@ -175,7 +172,7 @@ export default async function handler(req, res) {
         sessionId,
         role: identity.role,
         email: identity.email,
-        mfaVerified: true,
+        mfaVerified: Boolean(identity.mfaVerified),
         ttlMinutes,
       });
       const tokenHash = hashPanelSessionToken(tokenPayload.token);
