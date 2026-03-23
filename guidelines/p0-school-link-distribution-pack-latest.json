@@ -1,0 +1,67 @@
+{
+  "timestamp": "2026-03-23T14:00:40.761Z",
+  "config": {
+    "source_csv": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-school-target-130.csv",
+    "base_url": "https://teachera.com.tr/bursluluk-2026",
+    "expected_school_count": 130
+  },
+  "summary": {
+    "generated_links": 130,
+    "unique_schools": 130,
+    "required_headers_ok": true,
+    "missing_headers": [],
+    "invalid_line_count": 0,
+    "expected_school_count_ok": true,
+    "by_channel_group": [
+      {
+        "value": "social_paid",
+        "count": 78
+      },
+      {
+        "value": "mall_screen",
+        "count": 26
+      },
+      {
+        "value": "outdoor_qr",
+        "count": 26
+      }
+    ],
+    "by_utm_source": [
+      {
+        "value": "facebook",
+        "count": 26
+      },
+      {
+        "value": "instagram",
+        "count": 26
+      },
+      {
+        "value": "konya_avm",
+        "count": 26
+      },
+      {
+        "value": "konya_outdoor",
+        "count": 26
+      },
+      {
+        "value": "youtube",
+        "count": 26
+      }
+    ],
+    "by_district": [
+      {
+        "value": "KARATAY",
+        "count": 116
+      },
+      {
+        "value": "MERAM",
+        "count": 14
+      }
+    ]
+  },
+  "output": {
+    "csv_path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-school-link-distribution-pack-latest.csv",
+    "json_path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-school-link-distribution-pack-latest.json",
+    "md_path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-school-link-distribution-pack-latest.md"
+  }
+}

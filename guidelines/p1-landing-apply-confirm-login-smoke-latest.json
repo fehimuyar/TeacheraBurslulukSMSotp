@@ -1,11 +1,11 @@
 {
-  "ok": true,
+  "ok": false,
   "checks": {
     "routes_bursluluk_redirects_to_landing": true,
     "routes_exam_result_ascii_canonical": true,
     "routes_exam_result_accent_redirects": true,
     "legacy_routes_kept_in_sync": true,
-    "landing_cta_to_giris": true,
+    "landing_cta_to_giris": false,
     "apply_submit_starts_session_and_navigates_confirm": true,
     "login_submit_calls_candidate_login_and_navigates_waiting": true,
     "login_reset_flow_present": true,
@@ -14,5 +14,5 @@
     "waiting_to_exam_navigation_ascii_canonical": true,
     "flow_session_expires_at_guard_present": true
   },
-  "generated_at_utc": "2026-03-21T07:28:38.490Z"
+  "generated_at_utc": "2026-03-23T14:26:03.530Z"
 }

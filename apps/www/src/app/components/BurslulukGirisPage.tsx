@@ -11,25 +11,15 @@ import {
   resolveDefaultExamOpenAt,
   saveCandidateSession,
 } from './bursluluk/burslulukFlowSession';
+import { KONYA_SCHOOL_CATALOG } from './bursluluk/konyaSchoolCatalog';
 
 const CAMPAIGN_CODE = String(import.meta.env.VITE_BURSLULUK_CAMPAIGN_CODE || '2026_BURSLULUK').trim();
 const QUESTION_COUNT = Number(import.meta.env.VITE_BURSLULUK_QUESTION_COUNT || 40) || 40;
 
-const FALLBACK_KONYA_SCHOOLS: SchoolSearchItem[] = [
-  'Konya Meram Fen Lisesi',
-  'Konya Anadolu Lisesi',
-  'Selcuklu Bilim Sanat Merkezi',
-  'Karatay Imam Hatip Lisesi',
-  'Meram Koleji',
-  'Selcuklu Ataturk Ortaokulu',
-  'Karatay Ilkokulu',
-  'Meram Sehitler Ortaokulu',
-  'Konya TED Koleji',
-  'Konya Ozel Final Okullari',
-].map((name) => ({
+const FALLBACK_KONYA_SCHOOLS: SchoolSearchItem[] = KONYA_SCHOOL_CATALOG.map((item) => ({
   id: null,
-  name,
-  district: null,
+  name: item.name,
+  district: item.district || null,
   city: 'Konya',
   source: 'fallback',
 }));

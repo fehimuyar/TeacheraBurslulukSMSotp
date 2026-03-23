@@ -6,7 +6,7 @@ import { Client } from 'pg';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const GUIDELINES_DIR = path.join(ROOT, 'guidelines');
-const DEFAULT_CSV_PATH = path.join(GUIDELINES_DIR, 'p0-school-master-130-fake.csv');
+const DEFAULT_CSV_PATH = path.join(GUIDELINES_DIR, 'p0-school-target-130.csv');
 const JSON_ARTIFACT = path.join(GUIDELINES_DIR, 'p0-school-coverage-smoke-latest.json');
 const MD_ARTIFACT = path.join(GUIDELINES_DIR, 'p0-school-coverage-smoke-latest.md');
 

@@ -1,0 +1,154 @@
+{
+  "timestamp": "2026-03-23T14:00:40.759Z",
+  "input": {
+    "target_csv": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-school-target-130.csv",
+    "missing_csv": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-school-coverage-missing-schools-latest.csv"
+  },
+  "summary": {
+    "expected_target_schools": 130,
+    "missing_schools": 129,
+    "by_channel_group": [
+      {
+        "channel_group": "social_paid",
+        "count": 77
+      },
+      {
+        "channel_group": "mall_screen",
+        "count": 26
+      },
+      {
+        "channel_group": "outdoor_qr",
+        "count": 26
+      }
+    ],
+    "by_utm_source": [
+      {
+        "utm_source": "facebook",
+        "count": 26
+      },
+      {
+        "utm_source": "instagram",
+        "count": 26
+      },
+      {
+        "utm_source": "konya_avm",
+        "count": 26
+      },
+      {
+        "utm_source": "konya_outdoor",
+        "count": 26
+      },
+      {
+        "utm_source": "youtube",
+        "count": 25
+      }
+    ]
+  },
+  "preview": [
+    {
+      "school_name": "Akabe İlkokulu",
+      "district": "KARATAY",
+      "channel_group": "mall_screen",
+      "utm_source": "konya_avm",
+      "apply_url": "https://teachera.com.tr/bursluluk-2026?utm_source=konya_avm&utm_medium=screen&utm_campaign=bursluluk_2026_school_coverage&utm_content=karatay-akabe-ilkokulu&utm_term=karatay"
+    },
+    {
+      "school_name": "Aliye-Hüseyin Tekbaş İlkokulu",
+      "district": "KARATAY",
+      "channel_group": "mall_screen",
+      "utm_source": "konya_avm",
+      "apply_url": "https://teachera.com.tr/bursluluk-2026?utm_source=konya_avm&utm_medium=screen&utm_campaign=bursluluk_2026_school_coverage&utm_content=karatay-aliye-huseyin-tekbas-ilkokulu&utm_term=karatay"
+    },
+    {
+      "school_name": "Birol Polat İlkokulu",
+      "district": "KARATAY",
+      "channel_group": "mall_screen",
+      "utm_source": "konya_avm",
+      "apply_url": "https://teachera.com.tr/bursluluk-2026?utm_source=konya_avm&utm_medium=screen&utm_campaign=bursluluk_2026_school_coverage&utm_content=karatay-birol-polat-ilkokulu&utm_term=karatay"
+    },
+    {
+      "school_name": "Çatalhüyük Melikşah İlkokulu",
+      "district": "KARATAY",
+      "channel_group": "mall_screen",
+      "utm_source": "konya_avm",
+      "apply_url": "https://teachera.com.tr/bursluluk-2026?utm_source=konya_avm&utm_medium=screen&utm_campaign=bursluluk_2026_school_coverage&utm_content=karatay-catalhuyuk-meliksah-ilkokulu&utm_term=karatay"
+    },
+    {
+      "school_name": "Çumralıoğlu Vakfı Anadolu İmam Hatip Lisesi",
+      "district": "KARATAY",
+      "channel_group": "mall_screen",
+      "utm_source": "konya_avm",
+      "apply_url": "https://teachera.com.tr/bursluluk-2026?utm_source=konya_avm&utm_medium=screen&utm_campaign=bursluluk_2026_school_coverage&utm_content=karatay-cumralioglu-vakfi-anadolu-imam-hatip-lisesi&utm_term=karatay"
+    },
+    {
+      "school_name": "GÖÇÜ İLKOKULU",
+      "district": "KARATAY",
+      "channel_group": "mall_screen",
+      "utm_source": "konya_avm",
+      "apply_url": "https://teachera.com.tr/bursluluk-2026?utm_source=konya_avm&utm_medium=screen&utm_campaign=bursluluk_2026_school_coverage&utm_content=karatay-gocu-ilkokulu&utm_term=karatay"
+    },
+    {
+      "school_name": "Hacıveyiszade Mahallesi Ahmet Haşhaş İlkokulu",
+      "district": "KARATAY",
+      "channel_group": "mall_screen",
+      "utm_source": "konya_avm",
+      "apply_url": "https://teachera.com.tr/bursluluk-2026?utm_source=konya_avm&utm_medium=screen&utm_campaign=bursluluk_2026_school_coverage&utm_content=karatay-haciveyiszade-mahallesi-ahmet-hashas-ilkokulu&utm_term=karatay"
+    },
+    {
+      "school_name": "Hayıroğlu İmam Hatip Ortaokulu",
+      "district": "KARATAY",
+      "channel_group": "mall_screen",
+      "utm_source": "konya_avm",
+      "apply_url": "https://teachera.com.tr/bursluluk-2026?utm_source=konya_avm&utm_medium=screen&utm_campaign=bursluluk_2026_school_coverage&utm_content=karatay-hayiroglu-imam-hatip-ortaokulu&utm_term=karatay"
+    },
+    {
+      "school_name": "İSA CAN BEZİRCİ İMAM HATİP ORTAOKULU",
+      "district": "KARATAY",
+      "channel_group": "mall_screen",
+      "utm_source": "konya_avm",
+      "apply_url": "https://teachera.com.tr/bursluluk-2026?utm_source=konya_avm&utm_medium=screen&utm_campaign=bursluluk_2026_school_coverage&utm_content=karatay-isa-can-bezirci-imam-hatip-ortaokulu&utm_term=karatay"
+    },
+    {
+      "school_name": "İzzet Bezirci İlkokulu",
+      "district": "KARATAY",
+      "channel_group": "mall_screen",
+      "utm_source": "konya_avm",
+      "apply_url": "https://teachera.com.tr/bursluluk-2026?utm_source=konya_avm&utm_medium=screen&utm_campaign=bursluluk_2026_school_coverage&utm_content=karatay-izzet-bezirci-ilkokulu&utm_term=karatay"
+    },
+    {
+      "school_name": "Karatay Ali Ulvi Kurucu Anadolu İmam Hatip Lisesi",
+      "district": "KARATAY",
+      "channel_group": "mall_screen",
+      "utm_source": "konya_avm",
+      "apply_url": "https://teachera.com.tr/bursluluk-2026?utm_source=konya_avm&utm_medium=screen&utm_campaign=bursluluk_2026_school_coverage&utm_content=karatay-karatay-ali-ulvi-kurucu-anadolu-imam-hatip-lisesi&utm_term=karatay"
+    },
+    {
+      "school_name": "Karatay Borsa İstanbul Gazi Mustafa Kemal Turizm Mesleki ve Teknik Anadolu Lisesi",
+      "district": "KARATAY",
+      "channel_group": "mall_screen",
+      "utm_source": "konya_avm",
+      "apply_url": "https://teachera.com.tr/bursluluk-2026?utm_source=konya_avm&utm_medium=screen&utm_campaign=bursluluk_2026_school_coverage&utm_content=karatay-karatay-borsa-istanbul-gazi-mustafa-kemal-turizm-mesleki-ve-teknik-anadolu-lisesi&utm_term=karatay"
+    },
+    {
+      "school_name": "Karatay İlhan-Nuran Keskin Ortaokulu",
+      "district": "KARATAY",
+      "channel_group": "mall_screen",
+      "utm_source": "konya_avm",
+      "apply_url": "https://teachera.com.tr/bursluluk-2026?utm_source=konya_avm&utm_medium=screen&utm_campaign=bursluluk_2026_school_coverage&utm_content=karatay-karatay-ilhan-nuran-keskin-ortaokulu&utm_term=karatay"
+    },
+    {
+      "school_name": "Karatay Ticaret Mesleki ve Teknik Anadolu Lisesi",
+      "district": "KARATAY",
+      "channel_group": "mall_screen",
+      "utm_source": "konya_avm",
+      "apply_url": "https://teachera.com.tr/bursluluk-2026?utm_source=konya_avm&utm_medium=screen&utm_campaign=bursluluk_2026_school_coverage&utm_content=karatay-karatay-ticaret-mesleki-ve-teknik-anadolu-lisesi&utm_term=karatay"
+    },
+    {
+      "school_name": "Konya Türk Telekom Sosyal Bilimler Lisesi",
+      "district": "KARATAY",
+      "channel_group": "mall_screen",
+      "utm_source": "konya_avm",
+      "apply_url": "https://teachera.com.tr/bursluluk-2026?utm_source=konya_avm&utm_medium=screen&utm_campaign=bursluluk_2026_school_coverage&utm_content=karatay-konya-turk-telekom-sosyal-bilimler-lisesi&utm_term=karatay"
+    }
+  ]
+}

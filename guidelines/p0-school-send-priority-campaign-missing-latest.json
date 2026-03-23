@@ -1,0 +1,41 @@
+{
+  "timestamp": "2026-03-23T13:43:55.878Z",
+  "total_campaign_missing": 129,
+  "by_utm_source": [
+    {
+      "utm_source": "konya_avm",
+      "count": 26
+    },
+    {
+      "utm_source": "instagram",
+      "count": 26
+    },
+    {
+      "utm_source": "facebook",
+      "count": 26
+    },
+    {
+      "utm_source": "konya_outdoor",
+      "count": 26
+    },
+    {
+      "utm_source": "youtube",
+      "count": 25
+    }
+  ],
+  "by_channel_group": [
+    {
+      "channel_group": "social_paid",
+      "count": 77
+    },
+    {
+      "channel_group": "mall_screen",
+      "count": 26
+    },
+    {
+      "channel_group": "outdoor_qr",
+      "count": 26
+    }
+  ],
+  "output_csv": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-school-send-priority-campaign-missing-latest.csv"
+}

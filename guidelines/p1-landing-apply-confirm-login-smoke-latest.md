@@ -1,7 +1,7 @@
 # P1 Landing/Apply/Confirm/Login Smoke
 
-- Generated (UTC): 2026-03-21T07:28:38.490Z
-- Status: PASS
+- Generated (UTC): 2026-03-23T14:26:03.530Z
+- Status: FAIL
 
 ## Checks
 
@@ -9,7 +9,7 @@
 - routes_exam_result_ascii_canonical: PASS
 - routes_exam_result_accent_redirects: PASS
 - legacy_routes_kept_in_sync: PASS
-- landing_cta_to_giris: PASS
+- landing_cta_to_giris: FAIL
 - apply_submit_starts_session_and_navigates_confirm: PASS
 - login_submit_calls_candidate_login_and_navigates_waiting: PASS
 - login_reset_flow_present: PASS

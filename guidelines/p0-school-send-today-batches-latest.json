@@ -1,0 +1,53 @@
+{
+  "total_missing": 124,
+  "batches": [
+    {
+      "batch": 1,
+      "size": 31,
+      "channel_counts": {
+        "konya_avm": 7,
+        "youtube": 6,
+        "konya_outdoor": 6,
+        "facebook": 6,
+        "instagram": 6
+      },
+      "file": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-school-send-today-batch-01.csv"
+    },
+    {
+      "batch": 2,
+      "size": 31,
+      "channel_counts": {
+        "instagram": 7,
+        "konya_avm": 6,
+        "youtube": 6,
+        "konya_outdoor": 6,
+        "facebook": 6
+      },
+      "file": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-school-send-today-batch-02.csv"
+    },
+    {
+      "batch": 3,
+      "size": 31,
+      "channel_counts": {
+        "facebook": 7,
+        "instagram": 6,
+        "konya_avm": 6,
+        "youtube": 6,
+        "konya_outdoor": 6
+      },
+      "file": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-school-send-today-batch-03.csv"
+    },
+    {
+      "batch": 4,
+      "size": 31,
+      "channel_counts": {
+        "konya_outdoor": 7,
+        "facebook": 6,
+        "konya_avm": 6,
+        "instagram": 6,
+        "youtube": 6
+      },
+      "file": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-school-send-today-batch-04.csv"
+    }
+  ]
+}

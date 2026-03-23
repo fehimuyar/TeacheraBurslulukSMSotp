@@ -1,19 +1,19 @@
 {
-  "timestamp": "2026-03-21T13:03:49.485Z",
+  "timestamp": "2026-03-23T14:15:51.154Z",
   "config": {
     "csv_path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-school-target-130.csv",
     "expected_school_count": 130,
     "campaign_code": "2026_BURSLULUK",
-    "date_tr": "2026-03-21",
-    "require_db": true,
+    "date_tr": "2026-03-23",
+    "require_db": false,
     "strict_traffic": false,
     "upsert_mode": false,
     "has_db_url": true
   },
   "totals": {
-    "pass": 11,
+    "pass": 12,
     "fail": 0,
-    "warn": 3,
+    "warn": 2,
     "skip": 1
   },
   "overall_pass": true,
@@ -143,10 +143,10 @@
     {
       "id": "db_campaign_school_coverage",
       "status": "WARN",
-      "detail": "campaign schools=18, expected>=130",
+      "detail": "campaign schools=26, expected>=130",
       "evidence": {
         "campaign_code": "2026_BURSLULUK",
-        "campaign_school_count": 18,
+        "campaign_school_count": 26,
         "expected_school_count": 130,
         "strict_traffic": false
       }
@@ -154,22 +154,22 @@
     {
       "id": "db_same_day_attr_school_coverage",
       "status": "WARN",
-      "detail": "same-day attribution schools=1, expected>=130",
+      "detail": "same-day attribution schools=9, expected>=130",
       "evidence": {
         "campaign_code": "2026_BURSLULUK",
-        "date_tr": "2026-03-21",
-        "school_count": 1,
+        "date_tr": "2026-03-23",
+        "school_count": 9,
         "expected_school_count": 130,
         "strict_traffic": false
       }
     },
     {
       "id": "db_same_day_channel_coverage",
-      "status": "WARN",
-      "detail": "Missing channels: facebook, instagram, konya_avm, konya_outdoor, youtube",
+      "status": "PASS",
+      "detail": "All expected channels observed: facebook, instagram, konya_avm, konya_outdoor, youtube",
       "evidence": {
         "campaign_code": "2026_BURSLULUK",
-        "date_tr": "2026-03-21",
+        "date_tr": "2026-03-23",
         "expected_channels": [
           "facebook",
           "instagram",
@@ -178,15 +178,14 @@
           "youtube"
         ],
         "observed_channels": [
-          "google"
-        ],
-        "missing_channels": [
           "facebook",
+          "google",
           "instagram",
           "konya_avm",
           "konya_outdoor",
           "youtube"
         ],
+        "missing_channels": [],
         "strict_traffic": false
       }
     }

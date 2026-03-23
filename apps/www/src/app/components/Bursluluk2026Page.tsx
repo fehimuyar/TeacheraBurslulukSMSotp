@@ -1,8 +1,11 @@
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 
 const trustBadges = ['ÜCRETSİZ', 'MEB ONAYLI', 'ONLINE'] as const;
 
 export default function Bursluluk2026Page() {
+  const location = useLocation();
+  const girisSearch = String(location.search || '').trim();
+
   return (
     <section className="relative min-h-screen overflow-hidden px-4 pb-16 pt-[118px] sm:px-6 lg:px-12 lg:pt-[142px]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(146,11,35,0.36),transparent_42%),radial-gradient(circle_at_86%_12%,rgba(75,66,96,0.26),transparent_34%),linear-gradient(138deg,#06050D_0%,#0A0C16_52%,#05070F_100%)]" />
@@ -42,7 +45,10 @@ export default function Bursluluk2026Page() {
 
           <div className="mt-8">
             <Link
-              to="/bursluluk/giris"
+              to={{
+                pathname: '/bursluluk/giris',
+                search: girisSearch,
+              }}
               className="inline-flex items-center gap-2 rounded-full bg-[#D92E27] px-8 py-4 text-[12px] font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-[#bf251f]"
             >
               Hemen Başvur

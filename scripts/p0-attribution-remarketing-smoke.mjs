@@ -22,6 +22,12 @@ function normalizeBase(raw, fallback) {
   return value.replace(/\/+$/, '');
 }
 
+function optionalString(raw, max = 240) {
+  const value = normalizeEnvToken(raw);
+  if (!value) return '';
+  return value.slice(0, max);
+}
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -127,19 +133,37 @@ async function run() {
     throw new Error('DATABASE_URL or SMOKE_DB_URL is required.');
   }
 
-  const utmCampaign = `p0_attr_${Date.now()}`.slice(0, 60);
-  const attribution = {
-    utm_source: 'google',
-    utm_medium: 'cpc',
+  const utmSource = optionalString(process.env.SMOKE_UTM_SOURCE || process.env.UTM_SOURCE, 80) || 'google';
+  const utmMedium = optionalString(process.env.SMOKE_UTM_MEDIUM || process.env.UTM_MEDIUM, 80) || 'cpc';
+  const utmCampaign = (optionalString(process.env.SMOKE_UTM_CAMPAIGN || process.env.UTM_CAMPAIGN, 120) || `p0_attr_${Date.now()}`).slice(0, 60);
+  const utmTerm = optionalString(process.env.SMOKE_UTM_TERM || process.env.UTM_TERM, 120) || 'bursluluk';
+  const utmContent = optionalString(process.env.SMOKE_UTM_CONTENT || process.env.UTM_CONTENT, 120) || 'panel-first-p0';
+  const landingPath = optionalString(process.env.SMOKE_LANDING_PATH || process.env.LANDING_PATH, 240) || '/bursluluk-2026';
+  const landingBase = normalizeBase(process.env.SMOKE_LANDING_BASE_URL || 'https://teachera.com.tr');
+  const landingUrlParams = new URLSearchParams({
+    utm_source: utmSource,
+    utm_medium: utmMedium,
     utm_campaign: utmCampaign,
-    utm_term: 'bursluluk',
-    utm_content: 'panel-first-p0',
+    utm_term: utmTerm,
+    utm_content: utmContent,
+  });
+  const landingUrl = `${landingBase}${landingPath}?${landingUrlParams.toString()}`;
+  const referrer = optionalString(process.env.SMOKE_REFERRER || process.env.REFERRER, 500) || `https://${utmSource}.com/`;
+  const smokeSchoolName = optionalString(process.env.SMOKE_SCHOOL_NAME || process.env.SCHOOL_NAME, 160) || 'Smoke School Attribution';
+  const smokeSource = optionalString(process.env.SMOKE_SOURCE_LABEL, 160) || 'p0_attribution_remarketing_smoke';
+
+  const attribution = {
+    utm_source: utmSource,
+    utm_medium: utmMedium,
+    utm_campaign: utmCampaign,
+    utm_term: utmTerm,
+    utm_content: utmContent,
     gclid: `gclid_${randomDigits(6)}`,
     fbclid: `fbclid_${randomDigits(6)}`,
     msclkid: `msclkid_${randomDigits(6)}`,
-    landing_path: '/bursluluk/giris',
-    landing_url: `https://teachera.com.tr/bursluluk/giris?utm_campaign=${encodeURIComponent(utmCampaign)}`,
-    referrer: 'https://google.com/',
+    landing_path: landingPath,
+    landing_url: landingUrl,
+    referrer,
   };
 
   const startResp = await httpRequest({
@@ -154,13 +178,13 @@ async function run() {
       identityNo: buildIdentityNo(),
       birthYear: 2014,
       parentPhoneE164: `+90500${randomDigits(7)}`,
-      schoolName: 'Smoke School Attribution',
+      schoolName: smokeSchoolName,
       grade: 8,
       section: '8-A',
       selectedExamAt: '2026-03-28T10:00:00.000Z',
       ageRange: '13-17',
       language: 'en',
-      source: 'p0_attribution_remarketing_smoke',
+      source: smokeSource,
       campaignCode: cfg.campaignCode,
       questionCount: 5,
       attribution,
