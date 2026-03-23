@@ -1,16 +1,16 @@
 {
-  "timestamp": "2026-03-21T14:02:21.902Z",
+  "timestamp": "2026-03-23T11:28:14.168Z",
   "mode": {
     "http": true,
     "artifact": true
   },
   "totals": {
-    "pass": 25,
-    "fail": 0,
+    "pass": 24,
+    "fail": 1,
     "warn": 0,
     "skip": 0
   },
-  "overall_ready_for_step_20": true,
+  "overall_ready_for_step_20": false,
   "checks": [
     {
       "id": "artifact_step14_exists",
@@ -32,11 +32,11 @@
     {
       "id": "artifact_step14_freshness",
       "status": "PASS",
-      "detail": "artifact fresh (412 min <= 10080 min).",
+      "detail": "artifact fresh (3138 min <= 10080 min).",
       "evidence": {
         "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/panel-step-14-closeout-smoke-latest.json",
         "timestamp": "2026-03-21T07:09:59.596Z",
-        "age_minutes": 412,
+        "age_minutes": 3138,
         "max_age_hours": 168
       }
     },
@@ -60,11 +60,11 @@
     {
       "id": "artifact_step16_freshness",
       "status": "PASS",
-      "detail": "artifact fresh (412 min <= 10080 min).",
+      "detail": "artifact fresh (3138 min <= 10080 min).",
       "evidence": {
         "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/panel-step-16-ops-grid-smoke-latest.json",
         "timestamp": "2026-03-21T07:10:02.813Z",
-        "age_minutes": 412,
+        "age_minutes": 3138,
         "max_age_hours": 168
       }
     },
@@ -88,11 +88,11 @@
     {
       "id": "artifact_step17_freshness",
       "status": "PASS",
-      "detail": "artifact fresh (412 min <= 10080 min).",
+      "detail": "artifact fresh (3138 min <= 10080 min).",
       "evidence": {
         "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/panel-step-17-rbac-session-smoke-latest.json",
         "timestamp": "2026-03-21T07:10:03.704Z",
-        "age_minutes": 412,
+        "age_minutes": 3138,
         "max_age_hours": 168
       }
     },
@@ -116,11 +116,11 @@
     {
       "id": "artifact_step18_freshness",
       "status": "PASS",
-      "detail": "artifact fresh (412 min <= 10080 min).",
+      "detail": "artifact fresh (3138 min <= 10080 min).",
       "evidence": {
         "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/panel-step-18-rbac-policy-smoke-latest.json",
         "timestamp": "2026-03-21T07:10:06.308Z",
-        "age_minutes": 412,
+        "age_minutes": 3138,
         "max_age_hours": 168
       }
     },
@@ -144,11 +144,11 @@
     {
       "id": "artifact_step19_freshness",
       "status": "PASS",
-      "detail": "artifact fresh (412 min <= 10080 min).",
+      "detail": "artifact fresh (3138 min <= 10080 min).",
       "evidence": {
         "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/panel-step-19-data-contract-smoke-latest.json",
         "timestamp": "2026-03-21T07:10:07.498Z",
-        "age_minutes": 412,
+        "age_minutes": 3138,
         "max_age_hours": 168
       }
     },
@@ -172,11 +172,11 @@
     {
       "id": "artifact_step21_freshness",
       "status": "PASS",
-      "detail": "artifact fresh (1024 min <= 1440 min).",
+      "detail": "artifact fresh (16 min <= 1440 min).",
       "evidence": {
         "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/panel-step-21-settings-release-gate-smoke-latest.json",
-        "timestamp": "2026-03-20T20:58:13.036Z",
-        "age_minutes": 1024,
+        "timestamp": "2026-03-23T11:12:07.150Z",
+        "age_minutes": 16,
         "max_age_hours": 24
       }
     },
@@ -199,12 +199,12 @@
     },
     {
       "id": "artifact_slot_visibility_freshness",
-      "status": "PASS",
-      "detail": "artifact fresh (872 min <= 1440 min).",
+      "status": "FAIL",
+      "detail": "artifact stale (3598 min > 1440 min).",
       "evidence": {
         "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-panel-prod-slot-visibility-smoke-latest.json",
         "timestamp": "2026-03-20T23:30:39.432Z",
-        "age_minutes": 872,
+        "age_minutes": 3598,
         "max_age_hours": 24
       }
     },

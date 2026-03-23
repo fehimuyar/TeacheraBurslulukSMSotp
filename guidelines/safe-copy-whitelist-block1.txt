@@ -1,0 +1,5 @@
+guidelines/bursluluk-2026-panel-audit-2026-03-23.md
+guidelines/bursluluk-2026-season-end-handoff.md
+guidelines/bursluluk-v1-panel-frontend-living-log.md
+guidelines/panel-v2-backend-requirements.md
+apps/www/public/teachera-logo.svg
