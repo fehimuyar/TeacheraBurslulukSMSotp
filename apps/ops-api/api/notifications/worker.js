@@ -137,6 +137,15 @@ function shouldAssumeDelivered() {
   return safeTrim(process.env.NOTIFICATION_ASSUME_DELIVERED || 'false').toLowerCase() === 'true';
 }
 
+function readProviderTimeoutMs() {
+  return readBoundedInt(
+    process.env.NOTIFICATION_PROVIDER_TIMEOUT_MS ?? 8000,
+    8000,
+    1000,
+    30000,
+  );
+}
+
 function readBoundedInt(value, fallback, min, max) {
   const parsed = Number.parseInt(String(value ?? ''), 10);
   if (!Number.isFinite(parsed)) return fallback;
@@ -195,21 +204,38 @@ async function sendJobToProvider(job) {
     throw new Error(`missing_provider_endpoint_${job.channel}`);
   }
 
-  const response = await fetch(config.endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      ...(config.token ? { Authorization: `Bearer ${config.token}` } : {}),
-    },
-    body: JSON.stringify({
-      channel: job.channel,
-      template_code: job.template_code,
-      recipient: job.recipient,
-      payload: job.payload || {},
-      client_reference_id: job.id,
-    }),
-  });
+  const providerTimeoutMs = readProviderTimeoutMs();
+  const abortController = new AbortController();
+  const timeoutHandle = setTimeout(() => {
+    abortController.abort();
+  }, providerTimeoutMs);
+
+  let response;
+  try {
+    response = await fetch(config.endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        ...(config.token ? { Authorization: `Bearer ${config.token}` } : {}),
+      },
+      signal: abortController.signal,
+      body: JSON.stringify({
+        channel: job.channel,
+        template_code: job.template_code,
+        recipient: job.recipient,
+        payload: job.payload || {},
+        client_reference_id: job.id,
+      }),
+    });
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error('provider_timeout');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
 
   if (!response.ok) {
     throw new Error(`provider_status_${response.status}`);
@@ -275,7 +301,7 @@ export default async function handler(req, res) {
 
     try {
       const body = req.method === 'GET' ? null : await parseBody(req);
-      const limit = readBoundedInt(body?.limit ?? req.query?.limit ?? 50, 50, 1, 200);
+      const limit = readBoundedInt(body?.limit ?? req.query?.limit ?? 20, 20, 1, 200);
       const campaignCode = safeTrim(body?.campaign_code ?? body?.campaignCode ?? req.query?.campaign_code).slice(0, 120);
       const reconcileLimit = readBoundedInt(
         body?.reconcile_limit ?? body?.reconcileLimit ?? req.query?.reconcile_limit ?? process.env.NOTIFICATION_RECONCILE_LIMIT ?? 50,
