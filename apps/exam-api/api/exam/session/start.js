@@ -22,7 +22,6 @@ import { enforceRateLimit, getRequestIp } from '../../_lib/redisRateLimit.js';
 
 const REDACTED_NAME = '[ENCRYPTED_PII]';
 const ensuredCampaignCodes = new Set();
-const cachedSchoolIds = new Map();
 const DEFAULT_KVKK_CONSENT_VERSION = optionalString(process.env.KVKK_CONSENT_VERSION, 120) || 'KVKK_v1_2026-03-13';
 const DEFAULT_KVKK_LEGAL_TEXT_VERSION = optionalString(process.env.KVKK_LEGAL_TEXT_VERSION, 120) || DEFAULT_KVKK_CONSENT_VERSION;
 const DEFAULT_EXAM_LOGIN_URL = 'https://teachera.com.tr/bursluluk/giris';
@@ -382,49 +381,21 @@ async function writeVersionedKvkkConsent(
   );
 }
 
-function rememberSchoolId(cacheKey, schoolId) {
-  if (!cacheKey || !schoolId) return;
-  cachedSchoolIds.set(cacheKey, schoolId);
-  if (cachedSchoolIds.size > 2000) {
-    cachedSchoolIds.clear();
-    cachedSchoolIds.set(cacheKey, schoolId);
-  }
-}
-
 async function resolveSchoolId(client, schoolName) {
   if (!schoolName) return null;
-  const cacheKey = schoolName.toLowerCase();
-  const cached = cachedSchoolIds.get(cacheKey);
-  if (cached) return cached;
 
-  const inserted = await client.query(
+  const upserted = await client.query(
     `
       INSERT INTO schools (name)
       VALUES ($1)
-      ON CONFLICT (name) DO NOTHING
+      ON CONFLICT (name) DO UPDATE
+      SET name = EXCLUDED.name
       RETURNING id
     `,
     [schoolName],
   );
 
-  if (inserted.rowCount > 0) {
-    const schoolId = inserted.rows[0]?.id || null;
-    rememberSchoolId(cacheKey, schoolId);
-    return schoolId;
-  }
-
-  const existing = await client.query(
-    `
-      SELECT id
-      FROM schools
-      WHERE name = $1
-      LIMIT 1
-    `,
-    [schoolName],
-  );
-  const schoolId = existing.rows[0]?.id || null;
-  rememberSchoolId(cacheKey, schoolId);
-  return schoolId;
+  return upserted.rows[0]?.id || null;
 }
 
 async function upsertGuardian(
