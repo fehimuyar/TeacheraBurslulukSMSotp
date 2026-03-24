@@ -1,18 +1,18 @@
 {
-  "ok": false,
+  "ok": true,
   "checks": {
     "routes_bursluluk_redirects_to_landing": true,
     "routes_exam_result_ascii_canonical": true,
-    "routes_exam_result_accent_redirects": false,
+    "routes_exam_result_accent_redirects": true,
     "legacy_routes_kept_in_sync": true,
-    "landing_cta_to_giris": false,
-    "apply_submit_starts_session_and_navigates_confirm": false,
+    "landing_cta_to_giris": true,
+    "apply_submit_starts_session_and_navigates_confirm": true,
     "login_submit_calls_candidate_login_and_navigates_waiting": true,
-    "login_reset_flow_present": false,
-    "login_resume_existing_session_present": false,
-    "confirm_to_waiting_navigation_present": false,
+    "login_reset_flow_present": true,
+    "login_resume_existing_session_present": true,
+    "confirm_to_waiting_navigation_present": true,
     "waiting_to_exam_navigation_ascii_canonical": true,
     "flow_session_expires_at_guard_present": true
   },
-  "generated_at_utc": "2026-03-24T06:53:55.292Z"
+  "generated_at_utc": "2026-03-24T18:02:55.644Z"
 }

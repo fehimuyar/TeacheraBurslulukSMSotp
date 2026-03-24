@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { panelFetch } from '../../api/panelApi';
 import CandidatePersonDrawer from './CandidatePersonDrawer';
-import { canExportPanelData, canOperatePanelActions, isReadOnlyPanelRole } from './panelRoleAccess';
+import { canExportPanelData, canOperatePanelActions, canPushCrm, isReadOnlyPanelRole } from './panelRoleAccess';
 import {
   PanelFeedbackMessage,
   PanelLoadingMessage,

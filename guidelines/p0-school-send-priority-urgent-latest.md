@@ -1,33 +1,32 @@
 # P0 School Send Priority (Urgent Missing Coverage)
 
-- Timestamp: 2026-03-24T07:03:49.589Z
+- Timestamp: 2026-03-24T08:21:44.763Z
 - Expected target schools: 130
-- Missing schools (urgent send): 130
-- Output CSV: `/Users/aliye/Documents/New project/TeacheraBurslulukSMSotp-cc0439a-local-20260324-083634/guidelines/p0-school-send-priority-urgent-latest.csv`
+- Missing schools (urgent send): 124
+- Output CSV: `/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/p0-school-send-priority-urgent-latest.csv`
 
 ## Channel Breakdown
 
 | channel_group | count |
 | --- | --- |
-| social_paid | 78 |
-| mall_screen | 26 |
-| outdoor_qr | 26 |
+| social_paid | 74 |
+| mall_screen | 25 |
+| outdoor_qr | 25 |
 
 ## UTM Source Breakdown
 
 | utm_source | count |
 | --- | --- |
-| facebook | 26 |
-| instagram | 26 |
-| konya_avm | 26 |
-| konya_outdoor | 26 |
-| youtube | 26 |
+| facebook | 25 |
+| instagram | 25 |
+| konya_avm | 25 |
+| konya_outdoor | 25 |
+| youtube | 24 |
 
 ## First 15 Urgent Rows
 
 | school_name | district | channel_group | utm_source | apply_url |
 | --- | --- | --- | --- | --- |
-| Akabe İlkokulu | KARATAY | mall_screen | konya_avm | https://teachera.com.tr/bursluluk-2026?utm_source=konya_avm&utm_medium=screen&utm_campaign=bursluluk_2026_school_coverage&utm_content=karatay-akabe-ilkokulu&utm_term=karatay |
 | Aliye-Hüseyin Tekbaş İlkokulu | KARATAY | mall_screen | konya_avm | https://teachera.com.tr/bursluluk-2026?utm_source=konya_avm&utm_medium=screen&utm_campaign=bursluluk_2026_school_coverage&utm_content=karatay-aliye-huseyin-tekbas-ilkokulu&utm_term=karatay |
 | Birol Polat İlkokulu | KARATAY | mall_screen | konya_avm | https://teachera.com.tr/bursluluk-2026?utm_source=konya_avm&utm_medium=screen&utm_campaign=bursluluk_2026_school_coverage&utm_content=karatay-birol-polat-ilkokulu&utm_term=karatay |
 | Çatalhüyük Melikşah İlkokulu | KARATAY | mall_screen | konya_avm | https://teachera.com.tr/bursluluk-2026?utm_source=konya_avm&utm_medium=screen&utm_campaign=bursluluk_2026_school_coverage&utm_content=karatay-catalhuyuk-meliksah-ilkokulu&utm_term=karatay |
@@ -42,4 +41,5 @@
 | Karatay İlhan-Nuran Keskin Ortaokulu | KARATAY | mall_screen | konya_avm | https://teachera.com.tr/bursluluk-2026?utm_source=konya_avm&utm_medium=screen&utm_campaign=bursluluk_2026_school_coverage&utm_content=karatay-karatay-ilhan-nuran-keskin-ortaokulu&utm_term=karatay |
 | Karatay Ticaret Mesleki ve Teknik Anadolu Lisesi | KARATAY | mall_screen | konya_avm | https://teachera.com.tr/bursluluk-2026?utm_source=konya_avm&utm_medium=screen&utm_campaign=bursluluk_2026_school_coverage&utm_content=karatay-karatay-ticaret-mesleki-ve-teknik-anadolu-lisesi&utm_term=karatay |
 | Konya Türk Telekom Sosyal Bilimler Lisesi | KARATAY | mall_screen | konya_avm | https://teachera.com.tr/bursluluk-2026?utm_source=konya_avm&utm_medium=screen&utm_campaign=bursluluk_2026_school_coverage&utm_content=karatay-konya-turk-telekom-sosyal-bilimler-lisesi&utm_term=karatay |
+| Mehmet-Hanife Yapıcı Anadolu Lisesi | KARATAY | mall_screen | konya_avm | https://teachera.com.tr/bursluluk-2026?utm_source=konya_avm&utm_medium=screen&utm_campaign=bursluluk_2026_school_coverage&utm_content=karatay-mehmet-hanife-yapici-anadolu-lisesi&utm_term=karatay |
 

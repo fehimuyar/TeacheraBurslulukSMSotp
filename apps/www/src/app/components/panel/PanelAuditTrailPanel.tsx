@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { panelFetch, resolvePanelEndpoint } from '../../api/panelApi';
+import { canExportAudit, canReadAudit } from './panelRoleAccess';
 import {
   PanelFeedbackMessage,
   panelDescriptionClassName,

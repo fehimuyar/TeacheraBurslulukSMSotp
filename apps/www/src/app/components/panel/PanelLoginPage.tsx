@@ -108,19 +108,39 @@ function normalizeOtp(value: string) {
   return String(value || '').replace(/\D+/g, '').slice(0, 6);
 }
 
+function normalizeEmail(value: string) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 export default function PanelLoginPage() {
-  const [tckn, setTckn] = useState('');
+  const [loginIdentifier, setLoginIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [otpCode, setOtpCode] = useState('');
+  const [otpChallengeId, setOtpChallengeId] = useState('');
+  const [otpChallengeToken, setOtpChallengeToken] = useState('');
+  const [otpMaskedPhone, setOtpMaskedPhone] = useState('');
   const [isSessionCheckLoading, setIsSessionCheckLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  const normalizedTckn = normalizeTckn(tckn);
+  const normalizedIdentifier = String(loginIdentifier || '').trim();
+  const isEmailLogin = normalizedIdentifier.includes('@');
+  const normalizedEmail = isEmailLogin ? normalizeEmail(normalizedIdentifier) : '';
+  const normalizedTckn = isEmailLogin ? '' : normalizeTckn(normalizedIdentifier);
   const normalizedOtp = normalizeOtp(otpCode);
+  const isOtpStep = Boolean(otpChallengeId && otpChallengeToken);
+  const hasValidIdentifier = isEmailLogin ? isValidEmail(normalizedEmail) : normalizedTckn.length === 11;
 
-  const canSubmit = normalizedTckn.length === 11 && password && !isSubmitting && !isSessionCheckLoading;
+  const canSubmit = hasValidIdentifier
+    && password
+    && (!isOtpStep || normalizedOtp.length === 6)
+    && !isSubmitting
+    && !isSessionCheckLoading;
 
   useEffect(() => {
     let cancelled = false;
@@ -182,7 +202,8 @@ export default function PanelLoginPage() {
         Accept: 'application/json',
       },
       body: JSON.stringify({
-        email: email.trim(),
+        tckn: normalizedTckn || undefined,
+        email: normalizedEmail || undefined,
         password,
       }),
     });
@@ -216,8 +237,8 @@ export default function PanelLoginPage() {
 
   const handleResendCode = async () => {
     if (isSubmitting) return;
-    if (!email.trim() || !password) {
-      setErrorMessage('Kodu tekrar göndermek için e-posta ve şifre alanlarını doldurun.');
+    if (!hasValidIdentifier || !password) {
+      setErrorMessage('Kodu tekrar göndermek için kullanıcı adı (E-posta veya TC) ve şifre alanlarını doldurun.');
       return;
     }
 
@@ -242,7 +263,7 @@ export default function PanelLoginPage() {
     setIsSubmitting(true);
 
     if (isPanelPreviewRuntimeEnabled()) {
-      writePanelPreviewIdentity(createPanelPreviewIdentity(normalizedTckn));
+      writePanelPreviewIdentity(createPanelPreviewIdentity(normalizedTckn || normalizedIdentifier));
       setSuccessMessage('Tasarım önizleme modu açıldı. Panel arayüzüne yönlendiriliyorsunuz...');
       window.setTimeout(() => {
         window.location.assign('/panel/dashboard');
@@ -264,9 +285,12 @@ export default function PanelLoginPage() {
           Accept: 'application/json',
         },
         body: JSON.stringify({
-          tckn: normalizedTckn,
+          tckn: normalizedTckn || undefined,
+          email: normalizedEmail || undefined,
           password,
-          otpCode: normalizedOtp.length === 6 ? normalizedOtp : undefined,
+          otpCode: normalizedOtp,
+          challengeId: otpChallengeId,
+          challengeToken: otpChallengeToken,
         }),
       });
 
@@ -277,7 +301,7 @@ export default function PanelLoginPage() {
           isPanelPreviewRuntimeEnabled() &&
           /email.*password.*mfacode/i.test(mismatchMessage.replace(/\s+/g, ' '))
         ) {
-          writePanelPreviewIdentity(createPanelPreviewIdentity(normalizedTckn));
+          writePanelPreviewIdentity(createPanelPreviewIdentity(normalizedTckn || normalizedIdentifier));
           setSuccessMessage('Eski panel auth kontratı algılandı. Tasarım önizleme modu ile devam ediliyor...');
           window.setTimeout(() => {
             window.location.assign('/panel/dashboard');
@@ -347,15 +371,16 @@ export default function PanelLoginPage() {
 
           <form className="mt-8 space-y-4 lg:mt-10" onSubmit={handleSubmit}>
             <label className="block">
-              <span className={fieldLabelClassName}>TC</span>
+              <span className={fieldLabelClassName}>Kullanıcı Adı (E-posta veya TC)</span>
               <input
                 autoComplete="username"
                 className={inputClassName}
-                inputMode="numeric"
-                maxLength={11}
+                inputMode={isEmailLogin ? 'email' : 'text'}
+                maxLength={120}
                 type="text"
-                value={normalizedTckn}
-                onChange={(event) => setTckn(normalizeTckn(event.target.value))}
+                value={loginIdentifier}
+                onChange={(event) => setLoginIdentifier(event.target.value)}
+                placeholder="admin@teachera.com.tr veya 11 haneli TC"
                 required
               />
             </label>
@@ -372,25 +397,32 @@ export default function PanelLoginPage() {
               />
             </label>
 
-            <label className="block">
-              <span className={fieldLabelClassName}>OTP</span>
-              <input
-                autoComplete="one-time-code"
-                className={inputClassName}
-                inputMode="numeric"
-                maxLength={6}
-                type="text"
-                value={normalizedOtp}
-                onChange={(event) => setOtpCode(normalizeOtp(event.target.value))}
-              />
-            </label>
+            {isOtpStep ? (
+              <label className="block">
+                <span className={fieldLabelClassName}>SMS OTP (6 Hane)</span>
+                <input
+                  autoComplete="one-time-code"
+                  className={inputClassName}
+                  inputMode="numeric"
+                  maxLength={6}
+                  type="text"
+                  value={normalizedOtp}
+                  onChange={(event) => setOtpCode(normalizeOtp(event.target.value))}
+                />
+                {otpMaskedPhone ? (
+                  <span className="mt-2 block text-[12px] text-[#7A7063]">
+                    Kod gönderilen telefon: {otpMaskedPhone}
+                  </span>
+                ) : null}
+              </label>
+            ) : null}
 
             <button
               className="mt-3 flex h-[64px] w-full cursor-pointer items-center justify-center rounded-[22px] bg-[#20372F] px-4 text-[12px] font-semibold uppercase tracking-[0.24em] text-white shadow-[0_18px_34px_rgba(32,55,47,0.18)] transition duration-200 hover:bg-[#172A23] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#EEE3CC] disabled:cursor-not-allowed disabled:bg-[#8B9188]"
               type="submit"
               disabled={!canSubmit}
             >
-              Giriş Yap
+              {isSubmitting ? (isOtpStep ? 'Kod Doğrulanıyor' : 'Kod Gönderiliyor') : (isOtpStep ? 'Kodu Doğrula' : 'SMS Kodu Gönder')}
             </button>
 
             {isOtpStep ? (

@@ -49,8 +49,6 @@ const menuItems: MenuItem[] = [
   { id: 'prices', label: 'Fiyatlar', href: '/fiyatlar', isRoute: true },
   { id: 'programs', label: 'Eğitim Programları', href: '/egitimlerimiz', isRoute: true },
   { id: 'academy', label: 'Teachera Academy', href: '/academy', isRoute: true, highlight: true },
-  { id: 'scholarship', label: 'Bursluluk Başvuru', href: '/bursluluk-2026', isRoute: true },
-  { id: 'scholarship-login', label: 'Bursluluk Giriş', href: '/bursluluk/giris', isRoute: true },
   { id: 'contact', label: 'İletişim', href: '/iletisim', isRoute: true },
 ];
 
@@ -315,7 +313,7 @@ export default function MobileMenu({ onClose, currentSection: _currentSection }:
                                  0{index + 1}
                               </span>
                               
-                              <span className={`
+                              <span lang="tr" className={`
                                  text-[1.86rem] sm:text-[2.02rem] md:text-[2.2rem] font-['Neutraface_2_Text:Book',sans-serif] tracking-tight transition-all duration-300 text-left leading-[1.06] break-words min-w-0
                                  ${
                                    item.isRoute && item.href === currentPath

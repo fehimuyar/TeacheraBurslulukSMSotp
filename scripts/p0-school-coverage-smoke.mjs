@@ -7,6 +7,7 @@ import { Client } from 'pg';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const GUIDELINES_DIR = path.join(ROOT, 'guidelines');
 const DEFAULT_CSV_PATH = path.join(GUIDELINES_DIR, 'p0-school-target-130.csv');
+const LANDING_PAGE_PATH = path.join(ROOT, 'apps', 'www', 'src', 'app', 'components', 'Bursluluk2026Page.tsx');
 const JSON_ARTIFACT = path.join(GUIDELINES_DIR, 'p0-school-coverage-smoke-latest.json');
 const MD_ARTIFACT = path.join(GUIDELINES_DIR, 'p0-school-coverage-smoke-latest.md');
 
@@ -315,6 +316,30 @@ async function run() {
       { expected_channels: expectedChannels },
     ),
   );
+
+  try {
+    const landingSource = await fs.readFile(LANDING_PAGE_PATH, 'utf8');
+    const forwardsAttribution = landingSource.includes('startExamSession({') && landingSource.includes('attribution:');
+    checks.push(
+      makeCheck(
+        'frontend_apply_submit_includes_attribution',
+        forwardsAttribution ? 'PASS' : 'FAIL',
+        forwardsAttribution
+          ? 'Landing apply submit forwards attribution into startExamSession payload.'
+          : 'Landing apply submit is missing attribution forwarding in startExamSession payload.',
+        { path: LANDING_PAGE_PATH },
+      ),
+    );
+  } catch (error) {
+    checks.push(
+      makeCheck(
+        'frontend_apply_submit_includes_attribution',
+        'FAIL',
+        'Landing page source could not be inspected for attribution forwarding.',
+        { path: LANDING_PAGE_PATH, error: error?.message || String(error) },
+      ),
+    );
+  }
 
   if (!dbUrl) {
     checks.push(

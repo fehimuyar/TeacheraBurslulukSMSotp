@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { panelFetch } from '../../api/panelApi';
+import PanelIpPolicyPanel from './PanelIpPolicyPanel';
+import { canWriteSettings } from './panelRoleAccess';
 import {
   PanelFeedbackMessage,
   PanelLoadingMessage,
@@ -225,7 +227,36 @@ export default function SettingsOperationsPanel({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const canEdit = String(role || '').toUpperCase() === 'SUPER_ADMIN' || String(role || '').toUpperCase() === 'ADMIN';
+  const [releaseGate, setReleaseGate] = useState<ReleaseGateReport | null>(null);
+  const [releaseGateLoading, setReleaseGateLoading] = useState(false);
+  const [releaseGateError, setReleaseGateError] = useState('');
+  const [releaseGateCampaignCode, setReleaseGateCampaignCode] = useState('');
+  const canEdit = canWriteSettings(role, permissions);
+  const settingsQueryKeys = useMemo(
+    () => Array.from(new Set([...Object.values(SETTINGS_KEYS), ...Object.values(LEGACY_SETTINGS_KEYS)])).join(','),
+    [],
+  );
+
+  const loadReleaseGate = useCallback(async (campaignCodeHint = '') => {
+    setReleaseGateLoading(true);
+    setReleaseGateError('');
+    try {
+      const campaignCode = campaignCodeHint.trim();
+      const suffix = campaignCode ? '?campaign_code=' + encodeURIComponent(campaignCode) : '';
+      const response = await panelFetch('/api/panel/settings/release-gate' + suffix, { method: 'GET' });
+      const payload = await safeJson<ReleaseGatePayload>(response);
+      if (!response.ok || !payload?.release_gate) {
+        throw new Error(readError(payload, 'Release gate durumu alınamadı.'));
+      }
+      setReleaseGate(payload.release_gate || null);
+      setReleaseGateCampaignCode(String(payload.campaign_code || campaignCode || '').trim());
+    } catch (releaseError) {
+      setReleaseGate(null);
+      setReleaseGateError(releaseError instanceof Error ? releaseError.message : 'Release gate durumu alınamadı.');
+    } finally {
+      setReleaseGateLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!active) return;
@@ -441,6 +472,82 @@ export default function SettingsOperationsPanel({
 
       {success ? <PanelFeedbackMessage className="mt-3" tone="success">{success}</PanelFeedbackMessage> : null}
       {error ? <PanelFeedbackMessage className="mt-3" tone="error">{error}</PanelFeedbackMessage> : null}
+
+      <div className='mt-4 rounded-[22px] border border-[#E6DDCF] bg-[#FFFCF7] p-4'>
+        <div className='flex flex-wrap items-start justify-between gap-3'>
+          <div>
+            <p className="font-['Neutraface_2_Text:Demi',sans-serif] text-[12px] uppercase tracking-[0.12em] text-[#7A7063]">Release Gate</p>
+            <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[16px] text-[#1B2B24]">Kampanya Aktivasyon Kontrolu</p>
+            <p className="mt-1 font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#5C5247]">
+              SMS sifre akisi ve panel write/update sagligi gecmeden aktivasyon write bloklanir.
+            </p>
+          </div>
+          <button
+            type='button'
+            onClick={() => void loadReleaseGate(form.campaignCode)}
+            disabled={releaseGateLoading}
+            className={panelPrimaryButtonClassName}
+          >
+            {releaseGateLoading ? 'Yenileniyor...' : 'Gate Yenile'}
+          </button>
+        </div>
+
+        <div className='mt-3 grid gap-3 sm:grid-cols-3'>
+          <div className={panelStatCardClassName}>
+            <p className="text-[12px] font-['Neutraface_2_Text:Book',sans-serif] text-[#7A7063]">Durum</p>
+            <p
+              className={
+                "mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[16px] "
+                + (releaseGate?.passed ? 'text-[#0F6B4B]' : 'text-[#A63C2E]')
+              }
+            >
+              {releaseGate?.enabled === false ? 'DISABLED' : releaseGate?.passed ? 'PASS' : 'BLOCKED'}
+            </p>
+          </div>
+          <div className={panelStatCardClassName}>
+            <p className="text-[12px] font-['Neutraface_2_Text:Book',sans-serif] text-[#7A7063]">Kampanya</p>
+            <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[16px] text-[#1B2B24]">{releaseGateCampaignCode || '-'}</p>
+          </div>
+          <div className={panelStatCardClassName}>
+            <p className="text-[12px] font-['Neutraface_2_Text:Book',sans-serif] text-[#7A7063]">Son Kontrol</p>
+            <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[16px] text-[#1B2B24]">
+              {formatDateTime(releaseGate?.checked_at || null)}
+            </p>
+          </div>
+        </div>
+
+        {releaseGateError ? <PanelFeedbackMessage className='mt-3' tone='error'>{releaseGateError}</PanelFeedbackMessage> : null}
+
+        {Array.isArray(releaseGate?.checks) && releaseGate.checks.length > 0 ? (
+          <div className='mt-3 overflow-x-auto'>
+            <table className="min-w-[760px] text-left font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#33463E]">
+              <thead>
+                <tr className='border-b border-[#E6DDCF] text-[#7A7063]'>
+                  <th className='px-2 py-2'>Kontrol</th>
+                  <th className='px-2 py-2'>Durum</th>
+                  <th className='px-2 py-2'>Ozet</th>
+                </tr>
+              </thead>
+              <tbody>
+                {releaseGate.checks.map((check, index) => (
+                  <tr key={`${check.code || 'check'}-${index}`} className='border-b border-[#F0E7DA]'>
+                    <td className='px-2 py-2'>{formatGateCheckLabel(String(check.code || '-'))}</td>
+                    <td
+                      className={
+                        "px-2 py-2 font-['Neutraface_2_Text:Demi',sans-serif] "
+                        + (check.passed ? 'text-[#0F6B4B]' : 'text-[#A63C2E]')
+                      }
+                    >
+                      {check.passed ? 'PASS' : 'FAIL'}
+                    </td>
+                    <td className='px-2 py-2 text-[#5C5247]'>{summarizeGateCheck(check)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+      </div>
 
       <div className="mt-4 overflow-x-auto">
         <table className="min-w-[860px] text-left font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#33463E]">

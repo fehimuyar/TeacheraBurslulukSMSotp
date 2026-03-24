@@ -239,6 +239,28 @@ interface SeoLandingCtaOptions {
   position?: string;
 }
 
+export interface AttributionSubmissionPayload {
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_term?: string;
+  utm_content?: string;
+  gclid?: string;
+  fbclid?: string;
+  msclkid?: string;
+  first_touch_utm_source?: string;
+  first_touch_utm_medium?: string;
+  first_touch_utm_campaign?: string;
+  last_touch_utm_source?: string;
+  last_touch_utm_medium?: string;
+  last_touch_utm_campaign?: string;
+  first_touch_captured_at?: string;
+  last_touch_captured_at?: string;
+  landing_path?: string;
+  landing_url?: string;
+  referrer?: string;
+}
+
 interface AttributionState {
   values: Partial<Record<AttributionKey, string>>;
   updatedAt: string;
@@ -463,6 +485,27 @@ function getAttributionContext() {
     first_touch_captured_at: firstTouch?.updatedAt,
     last_touch_captured_at: lastTouch.updatedAt,
   };
+}
+
+export function getAttributionSubmissionPayload(): AttributionSubmissionPayload {
+  if (typeof window === 'undefined') return {};
+
+  const { lastTouch, firstTouch } = captureAttributionFromUrlInternal();
+  const hasTrackedValues = Object.keys(lastTouch.values).length > 0 || Object.keys(firstTouch?.values || {}).length > 0;
+  const payload: AttributionSubmissionPayload = {
+    ...(lastTouch.values as Partial<AttributionSubmissionPayload>),
+    ...(toPrefixedAttribution('last_touch_', lastTouch.values) as Partial<AttributionSubmissionPayload>),
+    ...(toPrefixedAttribution('first_touch_', firstTouch?.values || {}) as Partial<AttributionSubmissionPayload>),
+    first_touch_captured_at: firstTouch?.updatedAt,
+    last_touch_captured_at: hasTrackedValues ? lastTouch.updatedAt : undefined,
+    landing_path: window.location.pathname,
+    landing_url: window.location.href,
+    referrer: document.referrer || undefined,
+  };
+
+  return Object.fromEntries(
+    Object.entries(payload).filter(([, value]) => typeof value === 'string' && value.trim().length > 0),
+  ) as AttributionSubmissionPayload;
 }
 
 function readSessionId(): string {

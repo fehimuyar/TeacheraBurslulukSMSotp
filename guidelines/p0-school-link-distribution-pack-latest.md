@@ -1,8 +1,8 @@
 # P0 School Link Distribution Pack
 
-- Timestamp: 2026-03-24T07:03:31.803Z
+- Timestamp: 2026-03-24T08:21:44.527Z
 - base_url: `https://teachera.com.tr/bursluluk-2026`
-- source_csv: `/Users/aliye/Documents/New project/TeacheraBurslulukSMSotp-cc0439a-local-20260324-083634/guidelines/p0-school-target-130.csv`
+- source_csv: `/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/p0-school-target-130.csv`
 - expected_school_count: 130
 - generated_links: 130
 - unique_schools: 130
@@ -36,7 +36,7 @@
 
 ## Output
 
-- CSV pack: `/Users/aliye/Documents/New project/TeacheraBurslulukSMSotp-cc0439a-local-20260324-083634/guidelines/p0-school-link-distribution-pack-latest.csv`
-- JSON artifact: `/Users/aliye/Documents/New project/TeacheraBurslulukSMSotp-cc0439a-local-20260324-083634/guidelines/p0-school-link-distribution-pack-latest.json`
-- Markdown summary: `/Users/aliye/Documents/New project/TeacheraBurslulukSMSotp-cc0439a-local-20260324-083634/guidelines/p0-school-link-distribution-pack-latest.md`
+- CSV pack: `/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/p0-school-link-distribution-pack-latest.csv`
+- JSON artifact: `/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/p0-school-link-distribution-pack-latest.json`
+- Markdown summary: `/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/p0-school-link-distribution-pack-latest.md`
 

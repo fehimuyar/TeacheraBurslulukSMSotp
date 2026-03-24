@@ -9,8 +9,9 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { startExamSession } from '../api/examApi';
+import { getAttributionSubmissionPayload } from '../lib/analytics';
 import { useLiteMode } from '../lib/useLiteMode';
 import {
   deriveAgeRangeFromGrade,
@@ -341,6 +342,7 @@ export default function Bursluluk2026Page() {
   const [hasActivatedVideo, setHasActivatedVideo] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isVideoReady, setIsVideoReady] = useState(false);
   const [videoDuration, setVideoDuration] = useState(0);
   const [currentVideoTime, setCurrentVideoTime] = useState(0);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -458,6 +460,10 @@ export default function Bursluluk2026Page() {
     setVideoDuration(Number.isFinite(video.duration) ? video.duration : 0);
   };
 
+  const markVideoReady = () => {
+    setIsVideoReady(true);
+  };
+
   const handleVideoTimeUpdate = () => {
     const video = videoRef.current;
     if (!video) return;
@@ -565,19 +571,25 @@ export default function Bursluluk2026Page() {
       const ageRange = deriveAgeRangeFromGrade(normalizedGrade);
       const parentPhoneE164 = toE164FromTrMobile(normalizedPhone);
       const examOpenAt = selectedSession?.examOpenAt || resolveDefaultExamOpenAt();
+      const attribution = getAttributionSubmissionPayload();
 
       const response = await startExamSession({
         studentFullName: form.studentFullName.trim(),
         parentFullName: form.parentFullName.trim(),
+        identityNo: form.tckn,
+        birthYear: Number(form.birthYear),
         parentPhoneE164,
         parentEmail: form.parentEmail.trim() || undefined,
         schoolName: form.schoolName.trim(),
         grade: normalizedGrade,
+        section: form.branch.trim(),
+        selectedExamAt: selectedSession?.examOpenAt || undefined,
         ageRange,
         language: APPLICATION_LANGUAGE,
         source: 'bursluluk_2026_landing_form',
         campaignCode: CAMPAIGN_CODE,
         questionCount: QUESTION_COUNT,
+        attribution: attribution,
         consent: {
           kvkkApproved: true,
           contactConsent: false,
@@ -1008,10 +1020,16 @@ export default function Bursluluk2026Page() {
                 ))}
               </div>
 
-              <div className="mt-8 hidden lg:block">
+              <div className="mt-8 hidden lg:flex lg:items-center lg:gap-3">
                 <button type="button" onClick={openApplicationForm} className={`${primaryCtaClass} w-auto`}>
                   Hemen Başvur
                 </button>
+                <Link
+                  to="/bursluluk/giris"
+                  className="inline-flex min-h-[54px] items-center justify-center rounded-full border border-[#D6CABC] bg-white px-6 py-3.5 font-['Neutraface_2_Text:Demi',sans-serif] text-[12px] uppercase tracking-[0.16em] text-[#68232E] transition-colors duration-200 hover:bg-[#F8F2EA]"
+                >
+                  Giriş Yap
+                </Link>
               </div>
             </motion.div>
 
@@ -1020,16 +1038,27 @@ export default function Bursluluk2026Page() {
                 <div className="rounded-[22px] border border-[#E2D8CC] bg-[linear-gradient(180deg,#FBF7F2_0%,#F3ECE3_100%)] p-2.5 sm:rounded-[28px] sm:p-3">
                   <div className="relative overflow-hidden rounded-[18px] border border-[#D8CDC0] bg-[#E5DBCE] sm:rounded-[24px]">
                     <div className="aspect-[5/4]">
+                      {isVideoReady ? null : (
+                        <div className="pointer-events-none absolute inset-0 z-[1] flex flex-col items-center justify-center gap-3 bg-[linear-gradient(180deg,#E9DFD2_0%,#DDD2C3_100%)] px-6 text-center">
+                          <img src="/teachera-logo.svg" alt="Teachera" className="h-auto w-[62%] max-w-[270px]" />
+                          <p className="text-[11px] uppercase tracking-[0.16em] text-[#5B4F45] sm:text-[12px]">
+                            Video yukleniyor...
+                          </p>
+                        </div>
+                      )}
                       <video
                         ref={videoRef}
                         className="h-full w-full object-cover object-center"
                         src="/media/bursluluk-2026-hero.mp4"
+                        poster="/media/bursluluk-2026-hero-poster.jpg"
                         autoPlay={false}
                         loop={!hasActivatedVideo}
                         muted={isMuted}
                         playsInline
                         preload="metadata"
                         onLoadedMetadata={handleVideoMetadata}
+                        onLoadedData={markVideoReady}
+                        onCanPlay={markVideoReady}
                         onPause={() => setIsPlaying(false)}
                         onPlay={() => setIsPlaying(true)}
                         onEnded={() => setIsPlaying(false)}

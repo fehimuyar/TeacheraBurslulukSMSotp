@@ -38,6 +38,10 @@ function normalizeTckn(value) {
   return safeTrim(value).replace(/\D+/g, '').slice(0, 11);
 }
 
+function normalizeOtpCode(value) {
+  return safeTrim(value).replace(/\D+/g, '').slice(0, 6);
+}
+
 function readBoundedIntEnv(name, fallback, min, max) {
   const parsed = Number.parseInt(safeTrim(process.env[name] || ''), 10);
   if (!Number.isFinite(parsed)) return fallback;
@@ -141,11 +145,12 @@ async function clearLoginFailureState(ipAddress, identity) {
   });
 }
 
-async function readPanelUserByEmail(client, email) {
+async function readPanelUserByIdentifier(client, { tckn, email }) {
   const result = await client.query(
     `
       SELECT
         u.id,
+        u.tckn,
         u.email,
         u.full_name,
         u.password_hash,
@@ -159,15 +164,19 @@ async function readPanelUserByEmail(client, email) {
       FROM admin_users u
       LEFT JOIN admin_user_roles ur ON ur.admin_user_id = u.id
       LEFT JOIN roles r ON r.id = ur.role_id
-      WHERE lower(u.email) = lower($1)
+      WHERE (
+        ($1 <> '' AND regexp_replace(COALESCE(u.tckn, ''), '\\D', '', 'g') = $1)
+        OR ($2 <> '' AND lower(u.email) = lower($2))
+      )
       GROUP BY u.id
+      ORDER BY CASE WHEN $1 <> '' AND regexp_replace(COALESCE(u.tckn, ''), '\\D', '', 'g') = $1 THEN 0 ELSE 1 END
       LIMIT 1
     `,
-    [email],
+    [tckn, email],
   );
 
   if (result.rowCount === 0) {
-    throw new HttpError(401, 'Invalid email or password.', 'invalid_credentials');
+    throw new HttpError(401, 'Invalid credentials.', 'invalid_credentials');
   }
 
   return result.rows[0];
@@ -180,7 +189,7 @@ async function validateUserCredentials(client, user, password) {
 
   const passwordOk = await verifyPassword(client, password, user.password_hash);
   if (!passwordOk) {
-    throw new HttpError(401, 'Invalid email or password.', 'invalid_credentials');
+    throw new HttpError(401, 'Invalid credentials.', 'invalid_credentials');
   }
 }
 
@@ -282,6 +291,7 @@ async function createSessionForUser(client, {
     passwordResetRequired,
     user: {
       id: user.id,
+      tckn: normalizeTckn(user.tckn),
       email: normalizeEmail(user.email),
       fullName: safeTrim(user.full_name),
     },
@@ -370,6 +380,7 @@ async function createOtpChallenge(client, {
       ipAddress,
       userAgent,
       JSON.stringify({
+        tckn: normalizeTckn(user.tckn),
         email: normalizeEmail(user.email),
         role,
       }),
@@ -492,12 +503,20 @@ export default async function handler(req, res) {
     const tckn = normalizeTckn(body.tckn || body.username || body.tcKimlikNo);
     const email = normalizeEmail(body.email);
     const password = safeTrim(body.password);
-    const otpCode = safeTrim(body.otpCode || body.mfaCode || body.totpCode)
-      .replace(/\D+/g, '')
-      .slice(0, 6);
+    const mfaCode = normalizeOtpCode(body.mfaCode || body.totpCode);
+    const otpCode = normalizeOtpCode(body.otpCode || body.otp_code);
+    const challengeId = safeTrim(body.challengeId || body.challenge_id);
+    const challengeToken = safeTrim(body.challengeToken || body.challenge_token);
+    const usingOtpVerifyFlow = Boolean(otpCode && challengeId && challengeToken);
 
     if ((!tckn && !email) || !password) {
       throw new HttpError(400, 'tckn (or email) and password are required.', 'missing_login_fields');
+    }
+    if (mfaCode && !otpCode) {
+      throw new HttpError(400, 'TOTP is removed. Please login with SMS OTP.', 'panel_totp_removed');
+    }
+    if (otpCode && (!challengeId || !challengeToken)) {
+      throw new HttpError(400, 'challengeId and challengeToken are required for otpCode verification.', 'missing_otp_challenge_fields');
     }
 
     const ttlMinutes = readPanelSessionTtlMinutes();
@@ -559,63 +578,9 @@ export default async function handler(req, res) {
     }
 
     try {
-      session = await withTransaction(async (client) => {
-        const userResult = await client.query(
-          `
-          SELECT
-            u.id,
-            u.tckn,
-            u.email,
-            u.full_name,
-            u.password_hash,
-            COALESCE((to_jsonb(u)->>'password_reset_required')::boolean, FALSE) AS password_reset_required,
-            u.status,
-            u.mfa_enabled,
-            u.mfa_totp_secret,
-            COALESCE(
-              array_agg(r.code) FILTER (WHERE r.code IS NOT NULL),
-              ARRAY[]::text[]
-            ) AS role_codes
-          FROM admin_users u
-          LEFT JOIN admin_user_roles ur ON ur.admin_user_id = u.id
-          LEFT JOIN roles r ON r.id = ur.role_id
-          WHERE (
-            ($1 <> '' AND regexp_replace(COALESCE(u.tckn, ''), '\\D', '', 'g') = $1)
-            OR ($2 <> '' AND lower(u.email) = lower($2))
-          )
-          GROUP BY u.id
-          ORDER BY CASE WHEN $1 <> '' AND regexp_replace(COALESCE(u.tckn, ''), '\\D', '', 'g') = $1 THEN 0 ELSE 1 END
-          LIMIT 1
-        `,
-          [tckn, email],
-        );
-
-        if (userResult.rowCount === 0) {
-          throw new HttpError(401, 'Invalid credentials.', 'invalid_credentials');
-        }
-
-        const user = userResult.rows[0];
-        if (safeTrim(user.status).toUpperCase() !== 'ACTIVE') {
-          throw new HttpError(403, 'Panel user is disabled.', 'panel_user_disabled');
-        }
-
-        const passwordOk = await verifyPassword(client, password, user.password_hash);
-        if (!passwordOk) {
-          throw new HttpError(401, 'Invalid credentials.', 'invalid_credentials');
-        }
-
-        let otpVerified = false;
-        if (otpCode) {
-          if (!user.mfa_enabled) {
-            throw new HttpError(403, 'OTP is not enabled for this panel user.', 'panel_mfa_not_enabled');
-          }
-
-          const otpSecret = safeTrim(user.mfa_totp_secret);
-          if (!otpSecret || !verifyTotpCode(otpSecret, otpCode)) {
-            throw new HttpError(401, 'Invalid OTP code.', 'invalid_otp_code');
-          }
-          otpVerified = true;
-        }
+      const outcome = await withTransaction(async (client) => {
+        const user = await readPanelUserByIdentifier(client, { tckn, email });
+        await validateUserCredentials(client, user, password);
 
         const roleCodes = normalizeRoleCodes(user.role_codes);
         const role = pickPrimaryRole(roleCodes);
@@ -631,49 +596,8 @@ export default async function handler(req, res) {
             adminUserId: user.id,
           });
 
-        const sessionId = randomUUID();
-        const tokenPayload = createPanelSessionToken({
-          userId: user.id,
-          sessionId,
-          role,
-          email: user.email,
-          mfaVerified: otpVerified,
-          ttlMinutes,
-        });
-        const tokenHash = hashPanelSessionToken(tokenPayload.token);
-
-        await client.query(
-          `
-          INSERT INTO admin_sessions (
-            id,
-            admin_user_id,
-            role_code,
-            token_hash,
-            mfa_verified_at,
-            issued_at,
-            expires_at,
-            ip_address,
-            user_agent,
-            last_seen_at,
-            updated_at
-          )
-          VALUES (
-            $1::uuid,
-            $2::uuid,
-            $3,
-            $4,
-            NOW(),
-            NOW(),
-            $5::timestamptz,
-            $6,
-            $7,
-            NOW(),
-            NOW()
-          )
-        `,
-          [
-            sessionId,
-            user.id,
+          const session = await createSessionForUser(client, {
+            user,
             role,
             ipAddress,
             userAgent,
@@ -698,10 +622,6 @@ export default async function handler(req, res) {
         return {
           kind: 'otp_challenge',
           role,
-          expiresAt: tokenPayload.expiresAt,
-          sessionId,
-          passwordResetRequired,
-          otpVerified,
           user: {
             id: user.id,
             tckn: normalizeTckn(user.tckn),
@@ -726,7 +646,8 @@ export default async function handler(req, res) {
               purpose: 'panel_login',
               otp_code: outcome.challenge.otpCode,
               expires_in_seconds: outcome.challenge.ttlSeconds,
-              email: outcome.user.email,
+              tckn: outcome.user.tckn || null,
+              email: outcome.user.email || null,
               full_name: outcome.user.fullName || null,
             },
           });
@@ -745,7 +666,7 @@ export default async function handler(req, res) {
           throw new HttpError(503, 'SMS doğrulama kodu gönderilemedi. Lütfen tekrar deneyin.', 'panel_otp_dispatch_failed');
         }
 
-        await clearLoginFailureState(ipAddress, email);
+        await clearLoginFailureState(ipAddress, loginIdentity);
         ok(res, {
           next_step: 'otp_verify',
           otp_required: true,
@@ -757,6 +678,7 @@ export default async function handler(req, res) {
           },
           user: {
             id: outcome.user.id,
+            tckn: outcome.user.tckn,
             email: outcome.user.email,
             full_name: outcome.user.fullName,
             role: outcome.role,
@@ -779,7 +701,8 @@ export default async function handler(req, res) {
               authMethod: 'SMS_OTP',
               masked_phone: outcome.challenge.maskedPhone,
               expires_in_seconds: outcome.challenge.ttlSeconds,
-              email: outcome.user.email,
+              tckn: outcome.user.tckn || null,
+              email: outcome.user.email || null,
             },
           });
         } catch (auditError) {
@@ -789,7 +712,7 @@ export default async function handler(req, res) {
       }
 
       const session = outcome.session;
-      await clearLoginFailureState(ipAddress, email);
+      await clearLoginFailureState(ipAddress, loginIdentity);
 
       const ttlSeconds = ttlMinutes * 60;
       res.setHeader('Set-Cookie', buildPanelSessionCookie(session.token, req, ttlSeconds));
@@ -803,10 +726,12 @@ export default async function handler(req, res) {
         },
         user: {
           id: session.user.id,
+          tckn: session.user.tckn,
           email: session.user.email,
           full_name: session.user.fullName,
           role: session.role,
           mfa_verified: true,
+          otp_verified: true,
           auth_method: outcome.authMethod,
           password_reset_required: session.passwordResetRequired,
         },
@@ -824,7 +749,8 @@ export default async function handler(req, res) {
           ipAddress: requestContext.ipAddress || ipAddress,
           userAgent: requestContext.userAgent || userAgent,
           metadata: {
-            email: session.user.email,
+            tckn: session.user.tckn || null,
+            email: session.user.email || null,
             mfaVerified: true,
             authMethod: outcome.authMethod,
             expiresAt: session.expiresAt,
@@ -839,6 +765,10 @@ export default async function handler(req, res) {
         const isBruteForceCandidate = [
           'invalid_credentials',
           'invalid_otp_code',
+          'invalid_otp_challenge',
+          'otp_challenge_expired',
+          'otp_challenge_consumed',
+          'otp_challenge_locked',
           'panel_user_disabled',
           'panel_role_missing',
           'panel_totp_removed',
@@ -869,52 +799,6 @@ export default async function handler(req, res) {
       }
 
       throw error;
-    }
-
-    await clearLoginFailureState(ipAddress, loginIdentity);
-
-    const ttlSeconds = ttlMinutes * 60;
-    res.setHeader('Set-Cookie', buildPanelSessionCookie(session.token, req, ttlSeconds));
-    ok(res, {
-      next_step: session.passwordResetRequired ? 'password_reset' : null,
-      session: {
-        token: session.token,
-        expires_at: session.expiresAt,
-        session_id: session.sessionId,
-        password_reset_required: session.passwordResetRequired,
-      },
-      user: {
-        id: session.user.id,
-        tckn: session.user.tckn,
-        email: session.user.email,
-        full_name: session.user.fullName,
-        role: session.role,
-        mfa_verified: session.otpVerified,
-        otp_verified: session.otpVerified,
-        password_reset_required: session.passwordResetRequired,
-      },
-    });
-
-    try {
-      await appendAuditLog({
-        actorType: 'PANEL_USER',
-        actorId: session.user.id,
-        actorRole: session.role,
-        action: 'PANEL_LOGIN_SUCCESS',
-        targetType: 'ADMIN_SESSION',
-        targetId: session.sessionId,
-        requestId: requestContext.requestId,
-        ipAddress: requestContext.ipAddress || ipAddress,
-        userAgent: requestContext.userAgent || userAgent,
-        metadata: {
-          tckn: session.user.tckn || null,
-          email: session.user.email,
-          otpVerified: session.otpVerified,
-          expiresAt: session.expiresAt,
-        },
-      });
-    } catch (auditError) {
-      console.error('[panel_login_success_audit_error]', auditError);
     }
   });
 }

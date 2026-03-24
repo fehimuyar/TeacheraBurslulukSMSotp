@@ -3,14 +3,9 @@ school_name,district,city,channel_group,utm_source,missing_in_campaign,missing_i
 15 Temmuz Şehitleri İlkokulu,MERAM,Konya,social_paid,instagram,YES,YES
 24 Kasım İlkokulu,MERAM,Konya,social_paid,facebook,YES,YES
 Abdussamet Fazilet Kuzucu İlkokulu,MERAM,Konya,social_paid,youtube,YES,YES
-Abdülhamid Han Ortaokulu,KARATAY,Konya,outdoor_qr,konya_outdoor,NO,YES
 Ahmet Azmi-Makbule Elberk İlkokulu,MERAM,Konya,outdoor_qr,konya_outdoor,YES,YES
 Ahmet Naci Gücüyener İlkokulu,MERAM,Konya,mall_screen,konya_avm,YES,YES
 Ahmet Tevfik İleri İmam Hatip Ortaokulu,MERAM,Konya,social_paid,instagram,YES,YES
-Akabe İlkokulu,KARATAY,Konya,mall_screen,konya_avm,NO,YES
-Akabe İmam Hatip Ortaokulu,KARATAY,Konya,social_paid,instagram,NO,YES
-Akçesme İlkokulu,KARATAY,Konya,social_paid,facebook,NO,YES
-Akif Paşa İlkokulu,KARATAY,Konya,social_paid,youtube,NO,YES
 Alaeddin Keykubad İmam Hatip Ortaokulu,KARATAY,Konya,outdoor_qr,konya_outdoor,YES,YES
 Alakova İlkokulu,MERAM,Konya,social_paid,facebook,YES,YES
 Alakova Ortaokulu,MERAM,Konya,social_paid,youtube,YES,YES
@@ -29,7 +24,6 @@ Bozkırlılar Vakfı İmam Hatip Ortaokulu,KARATAY,Konya,social_paid,instagram,Y
 Bozkırlılar Vakfı Kız Anadolu İmam Hatip Lisesi,KARATAY,Konya,social_paid,facebook,YES,YES
 Büyük Sinan Mehmet Fatma Dalan İlkokulu,KARATAY,Konya,social_paid,youtube,YES,YES
 Celaleddin Karatay Tarım Mesleki ve Teknik Anadolu Lisesi,KARATAY,Konya,social_paid,facebook,YES,YES
-Cemil Keleşoğlu Anadolu Lisesi,KARATAY,Konya,social_paid,youtube,NO,YES
 Cengiz Topel İlkokulu,KARATAY,Konya,outdoor_qr,konya_outdoor,YES,YES
 Çatalhüyük Anadolu Lisesi,KARATAY,Konya,outdoor_qr,konya_outdoor,YES,YES
 Çatalhüyük Melikşah İlkokulu,KARATAY,Konya,mall_screen,konya_avm,YES,YES

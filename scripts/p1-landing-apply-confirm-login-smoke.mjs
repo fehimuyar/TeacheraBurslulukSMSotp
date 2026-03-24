@@ -16,6 +16,10 @@ function has(text, token) {
   return text.includes(token);
 }
 
+function hasAny(text, tokens) {
+  return tokens.some((token) => has(text, token));
+}
+
 function toMarkdown(summary) {
   return [
     '# P1 Landing/Apply/Confirm/Login Smoke',
@@ -64,6 +68,11 @@ async function main() {
     readUtf8(sessionPath),
   ]);
 
+  const loginHasResumeButton = has(giris, 'handleResumeSession') && has(giris, 'Mevcut Oturuma Devam Et');
+  const loginHasSessionPrefill = has(giris, 'const existingSession = useMemo(() => readCandidateSession(), [])')
+    && has(giris, "existingSession?.applicationNo || ''")
+    && has(giris, "existingSession?.parentPhoneE164 || ''");
+
   const checks = {
     routes_bursluluk_redirects_to_landing: has(routes, "path: 'bursluluk', loader: () => redirect('/bursluluk-2026')"),
     routes_exam_result_ascii_canonical: has(routes, "path: 'bursluluk/sinav'") && has(routes, "path: 'bursluluk/sonuc'"),
@@ -73,10 +82,10 @@ async function main() {
       && has(legacyRoutes, "path: 'bursluluk/sınav', loader: () => redirect('/bursluluk/sinav')")
       && has(legacyRoutes, "path: 'bursluluk/sonuç', loader: () => redirect('/bursluluk/sonuc')"),
     landing_cta_to_giris: has(landing, 'to="/bursluluk/giris"'),
-    apply_submit_starts_session_and_navigates_confirm: has(giris, 'startExamSession({') && has(giris, "navigate('/bursluluk/onay')"),
+    apply_submit_starts_session_and_navigates_confirm: has(landing, 'startExamSession({') && has(landing, "navigate('/bursluluk/onay')"),
     login_submit_calls_candidate_login_and_navigates_waiting: has(giris, 'candidateLogin({') && has(giris, "navigate('/bursluluk/bekleme')"),
-    login_reset_flow_present: has(giris, 'candidatePasswordReset({') && has(giris, 'Sifremi Yenile'),
-    login_resume_existing_session_present: has(giris, 'readCandidateSession') && has(giris, 'handleResumeSession') && has(giris, 'Mevcut Oturuma Devam Et'),
+    login_reset_flow_present: hasAny(giris, ['candidatePasswordReset({', 'renewCandidateCredentials(']) && hasAny(giris, ['Sifremi Yenile', 'Şifremi Yenile']),
+    login_resume_existing_session_present: has(giris, 'readCandidateSession') && (loginHasResumeButton || loginHasSessionPrefill),
     confirm_to_waiting_navigation_present: has(onay, "navigate('/bursluluk/bekleme')"),
     waiting_to_exam_navigation_ascii_canonical: has(bekleme, "navigate('/bursluluk/sinav')"),
     flow_session_expires_at_guard_present: has(flowSession, 'const expiresAtMs = Number(new Date(parsed.expiresAt || \'\'))')

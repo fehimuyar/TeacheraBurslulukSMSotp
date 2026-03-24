@@ -1,57 +1,50 @@
 {
-  "timestamp": "2026-03-24T07:03:49.589Z",
+  "timestamp": "2026-03-24T08:21:44.763Z",
   "input": {
-    "target_csv": "/Users/aliye/Documents/New project/TeacheraBurslulukSMSotp-cc0439a-local-20260324-083634/guidelines/p0-school-target-130.csv",
-    "missing_csv": "/Users/aliye/Documents/New project/TeacheraBurslulukSMSotp-cc0439a-local-20260324-083634/guidelines/p0-school-coverage-missing-schools-latest.csv"
+    "target_csv": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/p0-school-target-130.csv",
+    "missing_csv": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/p0-school-coverage-missing-schools-latest.csv"
   },
   "summary": {
     "expected_target_schools": 130,
-    "missing_schools": 130,
+    "missing_schools": 124,
     "by_channel_group": [
       {
         "channel_group": "social_paid",
-        "count": 78
+        "count": 74
       },
       {
         "channel_group": "mall_screen",
-        "count": 26
+        "count": 25
       },
       {
         "channel_group": "outdoor_qr",
-        "count": 26
+        "count": 25
       }
     ],
     "by_utm_source": [
       {
         "utm_source": "facebook",
-        "count": 26
+        "count": 25
       },
       {
         "utm_source": "instagram",
-        "count": 26
+        "count": 25
       },
       {
         "utm_source": "konya_avm",
-        "count": 26
+        "count": 25
       },
       {
         "utm_source": "konya_outdoor",
-        "count": 26
+        "count": 25
       },
       {
         "utm_source": "youtube",
-        "count": 26
+        "count": 24
       }
     ]
   },
   "preview": [
-    {
-      "school_name": "Akabe İlkokulu",
-      "district": "KARATAY",
-      "channel_group": "mall_screen",
-      "utm_source": "konya_avm",
-      "apply_url": "https://teachera.com.tr/bursluluk-2026?utm_source=konya_avm&utm_medium=screen&utm_campaign=bursluluk_2026_school_coverage&utm_content=karatay-akabe-ilkokulu&utm_term=karatay"
-    },
     {
       "school_name": "Aliye-Hüseyin Tekbaş İlkokulu",
       "district": "KARATAY",
@@ -149,6 +142,13 @@
       "channel_group": "mall_screen",
       "utm_source": "konya_avm",
       "apply_url": "https://teachera.com.tr/bursluluk-2026?utm_source=konya_avm&utm_medium=screen&utm_campaign=bursluluk_2026_school_coverage&utm_content=karatay-konya-turk-telekom-sosyal-bilimler-lisesi&utm_term=karatay"
+    },
+    {
+      "school_name": "Mehmet-Hanife Yapıcı Anadolu Lisesi",
+      "district": "KARATAY",
+      "channel_group": "mall_screen",
+      "utm_source": "konya_avm",
+      "apply_url": "https://teachera.com.tr/bursluluk-2026?utm_source=konya_avm&utm_medium=screen&utm_campaign=bursluluk_2026_school_coverage&utm_content=karatay-mehmet-hanife-yapici-anadolu-lisesi&utm_term=karatay"
     }
   ]
 }

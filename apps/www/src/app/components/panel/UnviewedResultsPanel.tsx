@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { panelFetch } from '../../api/panelApi';
-import { canOperatePanelActions, isReadOnlyPanelRole } from './panelRoleAccess';
+import { canOperateUnviewed, isReadOnlyPanelRole } from './panelRoleAccess';
 import {
   PanelFeedbackMessage,
   PanelLoadingMessage,

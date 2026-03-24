@@ -1,29 +1,34 @@
 {
-  "timestamp": "2026-03-24T07:04:14.613Z",
-  "input_csv": "/Users/aliye/Documents/New project/TeacheraBurslulukSMSotp-cc0439a-local-20260324-083634/guidelines/p0-school-send-priority-urgent-latest.csv",
-  "total_rows": 130,
-  "batch_size": 33,
-  "batch_count": 4,
+  "timestamp": "2026-03-24T08:21:44.863Z",
+  "input_csv": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/p0-school-send-priority-urgent-latest.csv",
+  "total_rows": 124,
+  "batch_size": 30,
+  "batch_count": 5,
   "batches": [
     {
       "batch_id": "01",
-      "row_count": 33,
-      "file": "/Users/aliye/Documents/New project/TeacheraBurslulukSMSotp-cc0439a-local-20260324-083634/guidelines/p0-school-send-priority-batch-01.csv"
+      "row_count": 30,
+      "file": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/p0-school-send-priority-batch-01.csv"
     },
     {
       "batch_id": "02",
-      "row_count": 33,
-      "file": "/Users/aliye/Documents/New project/TeacheraBurslulukSMSotp-cc0439a-local-20260324-083634/guidelines/p0-school-send-priority-batch-02.csv"
+      "row_count": 30,
+      "file": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/p0-school-send-priority-batch-02.csv"
     },
     {
       "batch_id": "03",
-      "row_count": 33,
-      "file": "/Users/aliye/Documents/New project/TeacheraBurslulukSMSotp-cc0439a-local-20260324-083634/guidelines/p0-school-send-priority-batch-03.csv"
+      "row_count": 30,
+      "file": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/p0-school-send-priority-batch-03.csv"
     },
     {
       "batch_id": "04",
-      "row_count": 31,
-      "file": "/Users/aliye/Documents/New project/TeacheraBurslulukSMSotp-cc0439a-local-20260324-083634/guidelines/p0-school-send-priority-batch-04.csv"
+      "row_count": 30,
+      "file": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/p0-school-send-priority-batch-04.csv"
+    },
+    {
+      "batch_id": "05",
+      "row_count": 4,
+      "file": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/p0-school-send-priority-batch-05.csv"
     }
   ]
 }

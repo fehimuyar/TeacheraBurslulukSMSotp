@@ -1,9 +1,9 @@
 # P0 School Send Ops Tracker
 
-- Timestamp: 2026-03-24T07:03:31.798Z
-- Input CSV: `/Users/aliye/Documents/New project/TeacheraBurslulukSMSotp-cc0439a-local-20260324-083634/guidelines/p0-school-link-distribution-pack-latest.csv`
-- Tracker CSV: `/Users/aliye/Documents/New project/TeacheraBurslulukSMSotp-cc0439a-local-20260324-083634/guidelines/p0-school-send-ops-tracker-latest.csv`
-- Ready CSV: `/Users/aliye/Documents/New project/TeacheraBurslulukSMSotp-cc0439a-local-20260324-083634/guidelines/p0-school-send-ops-ready-latest.csv`
+- Timestamp: 2026-03-24T08:21:44.955Z
+- Input CSV: `/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/p0-school-link-distribution-pack-latest.csv`
+- Tracker CSV: `/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/p0-school-send-ops-tracker-latest.csv`
+- Ready CSV: `/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/p0-school-send-ops-ready-latest.csv`
 - Total schools: 130
 
 ## Required Fill Columns

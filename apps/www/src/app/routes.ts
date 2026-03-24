@@ -5,9 +5,39 @@ import { REDIRECT_ROUTE_MAP, SEO_LANDING_ROUTE_PATHS } from './routeManifest';
 
 type ComponentModule = { default: ComponentType<any> };
 
+const CHUNK_RELOAD_STORAGE_KEY = "__teachera_chunk_reload_once__";
+
+function isDynamicImportChunkError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || "");
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("failed to fetch dynamically imported module")
+    || normalized.includes("importing a module script failed")
+    || normalized.includes("chunkloaderror")
+  );
+}
+
 const lazyComponent = (importer: () => Promise<ComponentModule>) => async () => {
-  const module = await importer();
-  return { Component: module.default };
+  try {
+    const module = await importer();
+    if (typeof window !== "undefined") {
+      window.sessionStorage.removeItem(CHUNK_RELOAD_STORAGE_KEY);
+    }
+    return { Component: module.default };
+  } catch (error) {
+    if (typeof window !== "undefined" && isDynamicImportChunkError(error)) {
+      // Recover stale hashed chunk references by forcing one hard reload per route.
+      const routeCacheKey = window.location.pathname + window.location.search;
+      const alreadyRetried = window.sessionStorage.getItem(CHUNK_RELOAD_STORAGE_KEY);
+      if (alreadyRetried !== routeCacheKey) {
+        window.sessionStorage.setItem(CHUNK_RELOAD_STORAGE_KEY, routeCacheKey);
+        window.location.reload();
+        return { Component: () => null };
+      }
+      window.sessionStorage.removeItem(CHUNK_RELOAD_STORAGE_KEY);
+    }
+    throw error;
+  }
 };
 
 export const router = createBrowserRouter([
@@ -32,10 +62,10 @@ export const router = createBrowserRouter([
       { path: 'bursluluk/giris', lazy: lazyComponent(() => import('./components/BurslulukGirisPage')) },
       { path: 'bursluluk/onay', lazy: lazyComponent(() => import('./components/BurslulukOnayPage')) },
       { path: 'bursluluk/bekleme', lazy: lazyComponent(() => import('./components/BurslulukBeklemePage')) },
-      { path: 'bursluluk/sinav', loader: () => redirect('/bursluluk/sınav') },
-      { path: 'bursluluk/sınav', lazy: lazyComponent(() => import('./components/BurslulukSinavPage')) },
-      { path: 'bursluluk/sonuc', loader: () => redirect('/bursluluk/sonuç') },
-      { path: 'bursluluk/sonuç', lazy: lazyComponent(() => import('./components/BurslulukSonucPage')) },
+      { path: 'bursluluk/sinav', lazy: lazyComponent(() => import('./components/BurslulukSinavPage')) },
+      { path: 'bursluluk/sınav', loader: () => redirect('/bursluluk/sinav') },
+      { path: 'bursluluk/sonuc', lazy: lazyComponent(() => import('./components/BurslulukSonucPage')) },
+      { path: 'bursluluk/sonuç', loader: () => redirect('/bursluluk/sonuc') },
       { path: 'bursluluk/randevu', lazy: lazyComponent(() => import('./components/BurslulukRandevuPage')) },
       { path: 'panel', loader: () => redirect('/panel/dashboard?view=home') },
       { path: 'panel/login', lazy: lazyComponent(() => import('./components/panel/PanelLoginPage')) },

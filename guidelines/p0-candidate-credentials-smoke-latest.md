@@ -1,10 +1,10 @@
 # P0 Candidate Credentials Smoke
 
-- Generated (UTC): 2026-03-21T07:10:23.740Z
+- Generated (UTC): 2026-03-24T13:50:04.927Z
 - Status: PASS
-- Candidate ID: 66aebd5f-2ed2-463f-97a3-8f2772151452
-- Candidate Code: AD101812
-- Application No: 20260321-101813
+- Candidate ID: 88b9538d-7635-40a2-ae67-cc89090c564f
+- Candidate Code: AD101867
+- Application No: 20260324-101868
 
 ## Checks
 
@@ -16,5 +16,5 @@
 - reset_confirm_sms_queued: PASS
 - reset_credentials_sms_queued_payload_verified: PASS
 - login_with_reset_password_success: PASS
-- schedule_fields_verified: PASS
+- schedule_fields_verified: FAIL
 

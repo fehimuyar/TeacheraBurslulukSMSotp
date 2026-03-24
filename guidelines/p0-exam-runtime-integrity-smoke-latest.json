@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-03-24T06:54:53.297Z",
+  "timestamp": "2026-03-24T13:53:52.632Z",
   "exam_api_base": "https://exam-api.teachera.com.tr",
   "campaign_code": "2026_BURSLULUK",
   "config": {
@@ -8,15 +8,15 @@
     "timeout_status_retry_interval_ms": 3000,
     "require_timeout_block": false,
     "allow_db_timeout_mutation": true,
-    "has_database_url": false,
-    "has_load_test_bypass_key": false
+    "has_database_url": true,
+    "has_load_test_bypass_key": true
   },
-  "attempt_id": "538b58bb-d46f-43fb-b845-561a09f41702",
+  "attempt_id": "a7c0bc1a-dbce-4a62-8662-bcb65fbfb12c",
   "totals": {
-    "pass": 5,
+    "pass": 8,
     "fail": 0,
     "warn": 0,
-    "skip": 3
+    "skip": 0
   },
   "overall_pass": true,
   "checks": [
@@ -26,7 +26,7 @@
       "detail": "HTTP 200",
       "evidence": {
         "status": 200,
-        "attempt_id": "538b58bb-d46f-43fb-b845-561a09f41702",
+        "attempt_id": "a7c0bc1a-dbce-4a62-8662-bcb65fbfb12c",
         "has_session_token": true,
         "error": null,
         "message": null
@@ -43,15 +43,15 @@
     {
       "id": "status_runtime_contract",
       "status": "PASS",
-      "detail": "duration=2400 remaining=2396",
+      "detail": "duration=2400 remaining=2398",
       "evidence": {
         "runtime": {
           "duration_seconds": 2400,
-          "started_at": "2026-03-24T06:54:12.658Z",
-          "deadline_at": "2026-03-24T07:34:12.658Z",
-          "server_time_utc": "2026-03-24T06:54:17.069Z",
-          "elapsed_seconds": 4,
-          "remaining_seconds": 2396,
+          "started_at": "2026-03-24T13:53:43.046Z",
+          "deadline_at": "2026-03-24T14:33:43.046Z",
+          "server_time_utc": "2026-03-24T13:53:45.989Z",
+          "elapsed_seconds": 2,
+          "remaining_seconds": 2398,
           "timed_out": false,
           "source": "started_at_plus_duration"
         }
@@ -65,17 +65,17 @@
         "status": 200,
         "expected_event_type": "WINDOW_BLUR",
         "actual_event_type": "WINDOW_BLUR",
-        "event_id": "74c1c23a-2ce1-456b-b004-e6db59f0157e"
+        "event_id": "de7e35f4-93f9-40ad-b0d0-a03e0d4f2cf8"
       }
     },
     {
       "id": "prepare_timeout_via_db",
-      "status": "SKIP",
-      "detail": "missing_database_url",
+      "status": "PASS",
+      "detail": "db_timeout_forced",
       "evidence": {
-        "has_database_url": false,
-        "applied": false,
-        "shift_seconds": null
+        "has_database_url": true,
+        "applied": true,
+        "shift_seconds": 2580
       }
     },
     {
@@ -88,26 +88,29 @@
     },
     {
       "id": "status_runtime_timed_out",
-      "status": "SKIP",
-      "detail": "runtime.timed_out=false (db_mutation)",
+      "status": "PASS",
+      "detail": "runtime.timed_out=true",
       "evidence": {
-        "timed_out": false,
+        "timed_out": true,
         "timeout_preparation": {
           "method": "db_mutation",
-          "detail": "missing_database_url",
-          "applied": false,
-          "reason": "missing_database_url"
+          "detail": "db_timeout_forced",
+          "applied": true,
+          "reason": "db_timeout_forced",
+          "shift_seconds": 2580
         },
-        "timeout_status_retry_attempts": 9,
-        "remaining_seconds": 2360
+        "timeout_status_retry_attempts": 0,
+        "remaining_seconds": 0
       }
     },
     {
       "id": "timeout_answer_block",
-      "status": "SKIP",
-      "detail": "timed_out state could not be produced in this run.",
+      "status": "PASS",
+      "detail": "HTTP 409 error=attempt_time_limit_reached",
       "evidence": {
-        "hint": "Provide SMOKE_DB_URL or set SMOKE_REQUIRE_TIMEOUT_BLOCK=1 to force hard failure."
+        "status": 409,
+        "error": "attempt_time_limit_reached",
+        "message": "Exam time limit has been reached."
       }
     }
   ]

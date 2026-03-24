@@ -14,7 +14,6 @@ import {
   resolveDefaultExamOpenAt,
   saveCandidateSession,
 } from './bursluluk/burslulukFlowSession';
-import { KONYA_SCHOOL_CATALOG } from './bursluluk/konyaSchoolCatalog';
 
 const CAMPAIGN_CODE = String(import.meta.env.VITE_BURSLULUK_CAMPAIGN_CODE || '2026_BURSLULUK').trim();
 const QUESTION_COUNT = Number(import.meta.env.VITE_BURSLULUK_QUESTION_COUNT || 40) || 40;
@@ -70,49 +69,6 @@ export default function BurslulukGirisPage() {
     getCredentialsResendRemainingSeconds(existingSession?.applicationNo || ''),
   );
 
-  const availableExamSlots = useMemo(() => readExamSlotsByGrade(grade), [grade]);
-  const availableExamDays = useMemo(
-    () => Array.from(new Set(availableExamSlots.map((slot) => slot.day))),
-    [availableExamSlots],
-  );
-  const availableSlotsForSelectedDay = useMemo(
-    () => availableExamSlots.filter((slot) => slot.day === selectedExamDay),
-    [availableExamSlots, selectedExamDay],
-  );
-  const canResumeSession = Boolean(savedSession?.attemptId && savedSession?.sessionToken);
-
-  useEffect(() => {
-    if (availableExamDays.length === 0) {
-      setSelectedExamDay('');
-      setSelectedExamAt('');
-      return;
-    }
-    setSelectedExamDay((current) => (current && availableExamDays.includes(current) ? current : availableExamDays[0]));
-  }, [availableExamDays]);
-
-  useEffect(() => {
-    if (!selectedExamDay) {
-      setSelectedExamAt('');
-      return;
-    }
-    const slotValues = availableSlotsForSelectedDay.map((slot) => slot.value);
-    if (slotValues.length === 0) {
-      setSelectedExamAt('');
-      return;
-    }
-    setSelectedExamAt((current) => (current && slotValues.includes(current) ? current : slotValues[0]));
-  }, [availableSlotsForSelectedDay, selectedExamDay]);
-
-  useEffect(() => {
-    setErrorMessage('');
-    if (mode === 'apply') {
-      setResetLookup(null);
-      setResetMessage('');
-      setResetIdentityNo('');
-      setResetBirthYear('');
-    }
-  }, [mode]);
-
   useEffect(() => {
     const applicationNo = renewApplicationNo.trim().toUpperCase();
     if (!applicationNo) {
@@ -146,8 +102,8 @@ export default function BurslulukGirisPage() {
       }
 
       const response = await candidateLogin({
-        username: normalizedCandidateCode,
-        password: normalizedPassword,
+        username: loginApplicationNo.trim(),
+        password: loginPassword.trim(),
         campaignCode: CAMPAIGN_CODE,
       });
 
@@ -157,7 +113,6 @@ export default function BurslulukGirisPage() {
 
       saveCandidateSession({
         applicationNo: session.applicationNo,
-        candidateCode: session.candidateCode || session.applicationNo,
         attemptId: session.attemptId,
         sessionToken: session.sessionToken,
         candidateId: session.candidateId,
