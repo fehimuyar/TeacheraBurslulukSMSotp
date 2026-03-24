@@ -97,7 +97,8 @@
     "p1:landing-flow:smoke": "node scripts/p1-landing-apply-confirm-login-smoke.mjs",
     "p2:campaign-season:smoke": "node scripts/p2-campaign-season-automation-smoke.mjs",
     "p2:hybrid-result:smoke": "node scripts/p2-hybrid-result-screen-smoke.mjs",
-    "p2:menu-footer:smoke": "node scripts/p2-menu-footer-polish-smoke.mjs"
+    "p2:menu-footer:smoke": "node scripts/p2-menu-footer-polish-smoke.mjs",
+    "env:sync:root:prod": "node scripts/vercel-env-sync-root.mjs --environment=production"
   },
   "dependencies": {
     "@aws-sdk/client-cloudwatch": "^3.1007.0",
