@@ -168,8 +168,52 @@ function normalizeRecipientForMobikob(recipient) {
   return digits;
 }
 
-function joinMessageParts(parts) {
-  return parts
+function normalizeDigits(value) {
+  return String(value || '').replace(/\D+/g, '');
+}
+
+function readSyntheticSmsPrefixes() {
+  const raw = safeTrim(process.env.NOTIFICATION_TEST_SMS_PREFIXES || process.env.SMS_TEST_PREFIXES);
+  if (!raw) return [];
+
+  return raw
+    .split(',')
+    .map((item) => item.replace(/\D+/g, ''))
+    .filter(Boolean);
+}
+
+function resolveSyntheticSmsBehavior(job) {
+  if (String(job?.channel || '').toUpperCase() !== 'SMS') {
+    return null;
+  }
+
+  const recipient = safeTrim(job?.recipient);
+  const loweredRecipient = recipient.toLowerCase();
+  const normalizedRecipient = normalizeDigits(recipient);
+
+  if (loweredRecipient.startsWith('lt:')) {
+    return {
+      providerMessageId: `synthetic-test:${safeTrim(job?.id)}` ,
+      syntheticTest: true,
+      syntheticReason: 'load_test_recipient',
+      normalizedRecipient: normalizedRecipient || null,
+    };
+  }
+
+  const matchedPrefix = readSyntheticSmsPrefixes().find((prefix) => normalizedRecipient.startsWith(prefix));
+  if (!matchedPrefix) {
+    return null;
+  }
+
+  return {
+    providerMessageId: `synthetic-test:${safeTrim(job?.id)}` ,
+    syntheticTest: true,
+    syntheticReason: `test_sms_prefix_${matchedPrefix}`,
+    normalizedRecipient: normalizedRecipient || null,
+  };
+}
+
+function joinMessageParts(parts) {  return parts
     .map((value) => safeTrim(value))
     .filter(Boolean)
     .join(' ')
@@ -477,6 +521,11 @@ async function sendJobToProvider(job) {
     return faultBehavior;
   }
 
+  const syntheticBehavior = resolveSyntheticSmsBehavior(job);
+  if (syntheticBehavior) {
+    return syntheticBehavior;
+  }
+
   const config = resolveProviderConfig(job.channel);
   if (job.channel === 'SMS' && resolveSmsProviderAdapter(config) === 'mobikob') {
     return sendJobToMobikob(job, config);
@@ -603,34 +652,45 @@ export default async function handler(req, res) {
         delivered: 0,
         failed: 0,
         dlq: 0,
+        synthetic_skipped: 0,
       };
 
       for (const job of jobs) {
         try {
           const sent = await sendJobToProvider(job);
+          const eventPayload = {
+            worker: 'notification_worker',
+            ...(sent.syntheticTest
+              ? {
+                  synthetic_test: true,
+                  synthetic_reason: sent.syntheticReason || null,
+                  synthetic_normalized_recipient: sent.normalizedRecipient || null,
+                }
+              : {}),
+          };
+
           await markNotificationSent(job.id, sent.providerMessageId || null);
 
           await updateNotificationEvent({
             jobId: job.id,
             providerMessageId: sent.providerMessageId || null,
             eventType: 'SENT',
-            eventPayload: {
-              worker: 'notification_worker',
-            },
+            eventPayload,
           });
 
           summary.sent += 1;
-          if (assumeDelivered) {
+          if (assumeDelivered || sent.syntheticTest) {
             await markNotificationDelivered(job.id);
             await updateNotificationEvent({
               jobId: job.id,
               providerMessageId: sent.providerMessageId || null,
               eventType: 'DELIVERED',
-              eventPayload: {
-                worker: 'notification_worker',
-              },
+              eventPayload,
             });
             summary.delivered += 1;
+            if (sent.syntheticTest) {
+              summary.synthetic_skipped += 1;
+            }
           }
         } catch (error) {
           const errorCode = error instanceof Error ? safeTrim(error.message).slice(0, 120) : 'provider_failed';

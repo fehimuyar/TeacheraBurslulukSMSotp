@@ -36,6 +36,59 @@ const SORT_COLUMN_MAP = {
   error_code: 'error_code',
 };
 
+function parseBooleanLike(value) {
+  const normalized = safeTrim(value).toLowerCase();
+  if (!normalized) return false;
+  return ['1', 'true', 'yes', 'on'].includes(normalized);
+}
+
+function normalizeDigits(value) {
+  return String(value || '').replace(/\D+/g, '');
+}
+
+function readSyntheticSmsPrefixes() {
+  const raw = safeTrim(process.env.NOTIFICATION_TEST_SMS_PREFIXES || process.env.SMS_TEST_PREFIXES);
+  if (!raw) return [];
+
+  return raw
+    .split(',')
+    .map((item) => item.replace(/\D+/g, ''))
+    .filter(Boolean);
+}
+
+function buildSyntheticNotificationClause(params) {
+  const clauses = ["(channel = 'SMS' AND LOWER(COALESCE(recipient, '')) LIKE 'lt:%')"];
+  for (const prefix of readSyntheticSmsPrefixes()) {
+    params.push(`${prefix}%`);
+    clauses.push(`(channel = 'SMS' AND REGEXP_REPLACE(COALESCE(recipient, ''), '[^0-9]', '', 'g') LIKE $${params.length})`);
+  }
+  return clauses.join(' OR ');
+}
+
+function resolveSyntheticNotificationMeta(row) {
+  if (String(row?.channel || '').toUpperCase() !== 'SMS') {
+    return {
+      syntheticTest: false,
+      syntheticReason: null,
+    };
+  }
+
+  const recipient = safeTrim(row?.recipient).toLowerCase();
+  const normalizedRecipient = normalizeDigits(row?.recipient);
+  if (recipient.startsWith('lt:')) {
+    return {
+      syntheticTest: true,
+      syntheticReason: 'load_test_recipient',
+    };
+  }
+
+  const matchedPrefix = readSyntheticSmsPrefixes().find((prefix) => normalizedRecipient.startsWith(prefix));
+  return {
+    syntheticTest: Boolean(matchedPrefix),
+    syntheticReason: matchedPrefix ? `test_sms_prefix_${matchedPrefix}` : null,
+  };
+}
+
 function buildFilters(listQuery) {
   const { q, filters } = listQuery;
   const clauses = [];
@@ -66,6 +119,14 @@ function buildFilters(listQuery) {
     clauses.push(`status = ANY($${params.length})`);
   }
 
+  const includeSynthetic = parseBooleanLike(filters.include_synthetic || filters.includeSynthetic);
+  if (!includeSynthetic) {
+    const syntheticClause = buildSyntheticNotificationClause(params);
+    if (syntheticClause) {
+      clauses.push(`NOT (${syntheticClause})`);
+    }
+  }
+
   const range = parseDateRange(filters);
   if (range.from) {
     params.push(range.from);
@@ -76,7 +137,11 @@ function buildFilters(listQuery) {
     clauses.push(`created_at <= $${params.length}::timestamptz`);
   }
 
-  return { whereClause: buildWhereClause(clauses), params };
+  return {
+    whereClause: buildWhereClause(clauses),
+    params,
+    includeSynthetic,
+  };
 }
 
 export default async function handler(req, res) {
@@ -89,7 +154,7 @@ export default async function handler(req, res) {
     );
 
     const listQuery = parseListQuery(req, NOTIFICATION_GRID_COLUMNS, 'next_retry_at', 'desc');
-    const { whereClause, params } = buildFilters(listQuery);
+    const { whereClause, params, includeSynthetic } = buildFilters(listQuery);
     const sortColumn = SORT_COLUMN_MAP[listQuery.sortBy] || 'next_retry_at';
     const sortOrder = toSqlOrder(listQuery.sortOrder);
 
@@ -145,10 +210,15 @@ export default async function handler(req, res) {
     );
 
     const piiScopeFull = isPrivilegedPiiRole(identity.role);
-    const items = dataResult.rows.map((row) => ({
-      ...row,
-      recipient: piiScopeFull ? row.recipient : maskPiiPhone(row.recipient),
-    }));
+    const items = dataResult.rows.map((row) => {
+      const syntheticMeta = resolveSyntheticNotificationMeta(row);
+      return {
+        ...row,
+        recipient: piiScopeFull ? row.recipient : maskPiiPhone(row.recipient),
+        synthetic_test: syntheticMeta.syntheticTest,
+        synthetic_reason: syntheticMeta.syntheticReason,
+      };
+    });
 
     ok(
       res,
@@ -174,6 +244,7 @@ export default async function handler(req, res) {
         q: listQuery.q || null,
         filters: listQuery.filters,
         returned: items.length,
+        includeSynthetic,
         piiScope: piiScopeFull ? 'FULL' : 'MASKED',
       },
     });
