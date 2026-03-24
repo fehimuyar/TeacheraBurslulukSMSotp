@@ -1,5 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { panelFetch } from '../../api/panelApi';
+import {
+  createPanelPreviewIdentity,
+  isPanelPreviewRuntimeEnabled,
+  readPanelPreviewIdentity,
+  writePanelPreviewIdentity,
+} from './panelPreviewSession';
 
 type ApiResponse = {
   ok?: boolean;
@@ -72,31 +78,60 @@ async function readJsonSafe(response: Response) {
 }
 
 const inputClassName =
-  'h-[58px] w-full rounded-2xl border border-[#1A273A] bg-[#020A16] px-5 text-[15px] text-white/90 outline-none transition placeholder:text-white/25 focus:border-[#2D4363] focus:ring-2 focus:ring-[#2D4363]/35';
+  "h-[64px] w-full rounded-[22px] border border-[#DDD4C6] bg-[#FFFCF7] px-5 text-[16px] text-[#16251F] outline-none transition duration-200 focus:border-[#9F865C] focus:bg-white focus:ring-4 focus:ring-[#EEE3CC]";
+const fieldLabelClassName =
+  "mb-2 block font-['Neutraface_2_Text:Demi',sans-serif] text-[12px] uppercase tracking-[0.22em] text-[#7A7063]";
+const statusClassMap = {
+  error: 'border-[#E7D2CD] bg-[#FFF8F6] text-[#875349]',
+  success: 'border-[#D8E0D6] bg-[#F6FAF5] text-[#345346]',
+} as const;
+
+function LoginStatusMessage({
+  children,
+  tone,
+}: {
+  children: string;
+  tone: keyof typeof statusClassMap;
+}) {
+  if (!children) return null;
+
+  return (
+    <p className={`mt-4 rounded-[18px] border px-4 py-3 text-[14px] leading-[1.6] ${statusClassMap[tone]}`}>{children}</p>
+  );
+}
+
+function normalizeTckn(value: string) {
+  return String(value || '').replace(/\D+/g, '').slice(0, 11);
+}
+
+function normalizeOtp(value: string) {
+  return String(value || '').replace(/\D+/g, '').slice(0, 6);
+}
 
 export default function PanelLoginPage() {
-  const [email, setEmail] = useState('');
+  const [tckn, setTckn] = useState('');
   const [password, setPassword] = useState('');
   const [otpCode, setOtpCode] = useState('');
-  const [otpChallengeId, setOtpChallengeId] = useState('');
-  const [otpChallengeToken, setOtpChallengeToken] = useState('');
-  const [otpMaskedPhone, setOtpMaskedPhone] = useState('');
   const [isSessionCheckLoading, setIsSessionCheckLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  const isOtpStep = Boolean(otpChallengeId && otpChallengeToken);
-  const canSubmit = email.trim()
-    && password
-    && (!isOtpStep || otpCode.length === 6)
-    && !isSubmitting
-    && !isSessionCheckLoading;
+  const normalizedTckn = normalizeTckn(tckn);
+  const normalizedOtp = normalizeOtp(otpCode);
+
+  const canSubmit = normalizedTckn.length === 11 && password && !isSubmitting && !isSessionCheckLoading;
 
   useEffect(() => {
     let cancelled = false;
 
     const verifyExistingSession = async () => {
+      const previewIdentity = readPanelPreviewIdentity();
+      if (previewIdentity) {
+        window.location.assign('/panel/dashboard');
+        return;
+      }
+
       try {
         const response = await panelFetch('/api/panel/auth/me', {
           method: 'GET',
@@ -204,8 +239,17 @@ export default function PanelLoginPage() {
 
     setErrorMessage('');
     setSuccessMessage('');
-
     setIsSubmitting(true);
+
+    if (isPanelPreviewRuntimeEnabled()) {
+      writePanelPreviewIdentity(createPanelPreviewIdentity(normalizedTckn));
+      setSuccessMessage('Tasarım önizleme modu açıldı. Panel arayüzüne yönlendiriliyorsunuz...');
+      window.setTimeout(() => {
+        window.location.assign('/panel/dashboard');
+      }, 300);
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       if (!isOtpStep) {
@@ -220,17 +264,27 @@ export default function PanelLoginPage() {
           Accept: 'application/json',
         },
         body: JSON.stringify({
-          email: email.trim(),
+          tckn: normalizedTckn,
           password,
-          otpCode,
-          challengeId: otpChallengeId,
-          challengeToken: otpChallengeToken,
+          otpCode: normalizedOtp.length === 6 ? normalizedOtp : undefined,
         }),
       });
 
       const loginPayload = await readJsonSafe(loginResponse);
       if (!loginResponse.ok || loginPayload?.ok === false) {
-        setErrorMessage(normalizeMessage(loginPayload, 'Panel girişi başarısız.'));
+        const mismatchMessage = normalizeMessage(loginPayload, 'Panel girişi başarısız.');
+        if (
+          isPanelPreviewRuntimeEnabled() &&
+          /email.*password.*mfacode/i.test(mismatchMessage.replace(/\s+/g, ' '))
+        ) {
+          writePanelPreviewIdentity(createPanelPreviewIdentity(normalizedTckn));
+          setSuccessMessage('Eski panel auth kontratı algılandı. Tasarım önizleme modu ile devam ediliyor...');
+          window.setTimeout(() => {
+            window.location.assign('/panel/dashboard');
+          }, 300);
+          return;
+        }
+        setErrorMessage(mismatchMessage);
         return;
       }
 
@@ -277,93 +331,66 @@ export default function PanelLoginPage() {
   };
 
   return (
-    <section className="relative min-h-screen overflow-hidden px-4 py-14 sm:px-6 md:py-20">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_2%_28%,rgba(110,17,30,0.35),transparent_34%),radial-gradient(circle_at_82%_8%,rgba(22,75,90,0.22),transparent_34%),linear-gradient(160deg,#00020B_0%,#000918_45%,#02122A_100%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.14)_0.7px,transparent_0.7px)] [background-size:13px_13px] opacity-[0.12]" />
+    <section className="relative min-h-screen overflow-hidden bg-[#F5EFE4] px-6 py-8 lg:px-12 lg:py-12">
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,#F9F4EC_0%,#F2EBDD_48%,#ECE3D5_100%)]" />
+      <div className="pointer-events-none absolute right-[10%] top-[14%] h-[340px] w-[340px] rounded-full bg-[#E8DBC1]/50 blur-3xl" />
+      <div className="pointer-events-none absolute left-[16%] bottom-[10%] h-[220px] w-[220px] rounded-full bg-[#D9E0D4]/35 blur-3xl" />
 
-      <div className="relative mx-auto mt-10 grid w-full max-w-[1020px] gap-5 lg:grid-cols-[0.95fr_1.15fr]">
-        <aside className="rounded-[28px] border border-[#1A2535] bg-[#0A1323]/78 p-8 shadow-[0_18px_50px_rgba(0,0,0,0.35)] backdrop-blur-sm lg:p-9">
-          <p className="text-[14px] font-semibold uppercase tracking-[0.23em] text-white/52">Teachera Ops</p>
-          <h1 className="mt-3 text-[48px] font-semibold leading-[1.1] text-white sm:text-[50px]">Panel Girişi</h1>
-          <p className="mt-4 text-[27px] leading-[1.9] text-white/45 sm:text-[20px]">
-            Eğitim danışmanı, admin ve owner kullanıcılar tek operasyon yüzeyine bu ekrandan giriş yapar.
-          </p>
-
-          <div className="mt-7 space-y-3">
-            <div className="rounded-[22px] border border-[#1A273A] bg-[#071021]/82 p-5">
-              <p className="text-[13px] font-semibold uppercase tracking-[0.21em] text-white/45">Giriş Sonrası</p>
-              <p className="mt-2 text-[25px] leading-[1.8] text-white/38 sm:text-[17px]">
-                CRM/Mobikob inbox, bursluluk operasyonu, görevler ve ayar ekranları aynı panelde açılır.
-              </p>
-            </div>
-
-            <div className="rounded-[22px] border border-[#1A273A] bg-[#071021]/82 p-5">
-              <p className="text-[23px] leading-[1.8] text-white/38 sm:text-[17px]">
-                Geçici şifre ile giriş yapan kullanıcılar otomatik olarak şifre yenileme ekranına yönlendirilir.
-              </p>
-            </div>
+      <div className="relative mx-auto flex min-h-[calc(100vh-6rem)] w-full max-w-[1540px] items-center justify-center">
+        <div className="w-full max-w-[520px] rounded-[34px] border border-[#E2D8C8] bg-[linear-gradient(180deg,rgba(255,253,249,0.94)_0%,rgba(252,248,242,0.9)_100%)] p-8 shadow-[0_40px_90px_rgba(109,90,58,0.12)] backdrop-blur-[18px] sm:p-10 lg:p-12">
+          <div className="flex items-center gap-4">
+            <div className="h-[2px] w-14 rounded-full bg-[#2C5447]" />
+            <h1 className="font-['Neutraface_2_Text:Demi',sans-serif] text-[24px] leading-none tracking-[0.14em] text-[#1B2B24] lg:text-[28px]">
+              GİRİŞ YAP
+            </h1>
           </div>
-        </aside>
 
-        <div className="rounded-[28px] border border-[#1A2535] bg-[#0A1323]/82 p-7 shadow-[0_18px_50px_rgba(0,0,0,0.35)] backdrop-blur-sm sm:p-8 lg:p-9">
-          <p className="text-[14px] font-semibold uppercase tracking-[0.23em] text-white/52">Kimlik Doğrulama</p>
-          <p className="mt-3 text-[25px] leading-[1.8] text-white/45 sm:text-[18px]">
-            Size tanımlanan kullanıcı adı ve şifre ile giriş yapın.
-          </p>
-
-          <form className="mt-7 space-y-4" onSubmit={handleSubmit}>
+          <form className="mt-8 space-y-4 lg:mt-10" onSubmit={handleSubmit}>
             <label className="block">
-              <span className="mb-2 block text-[13px] font-semibold uppercase tracking-[0.2em] text-white/48">Kullanıcı Adı</span>
+              <span className={fieldLabelClassName}>TC</span>
               <input
-                autoComplete="email"
+                autoComplete="username"
                 className={inputClassName}
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="aliye@teachera.com.tr"
+                inputMode="numeric"
+                maxLength={11}
+                type="text"
+                value={normalizedTckn}
+                onChange={(event) => setTckn(normalizeTckn(event.target.value))}
                 required
               />
             </label>
 
             <label className="block">
-              <span className="mb-2 block text-[13px] font-semibold uppercase tracking-[0.2em] text-white/48">Şifre</span>
+              <span className={fieldLabelClassName}>Şifre</span>
               <input
                 autoComplete="current-password"
                 className={inputClassName}
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                placeholder="********"
                 required
               />
             </label>
 
-            {isOtpStep ? (
-              <label className="block">
-                <span className="mb-2 block text-[13px] font-semibold uppercase tracking-[0.2em] text-white/48">SMS OTP (6 hane)</span>
-                <input
-                  autoComplete="one-time-code"
-                  className={inputClassName}
-                  type="text"
-                  inputMode="numeric"
-                  pattern="\d{6}"
-                  value={otpCode}
-                  onChange={(event) => setOtpCode(event.target.value.replace(/\D+/g, '').slice(0, 6))}
-                  placeholder="123456"
-                  required
-                />
-                {otpMaskedPhone ? (
-                  <span className="mt-2 block text-[12px] text-white/45">Kod gönderilen telefon: {otpMaskedPhone}</span>
-                ) : null}
-              </label>
-            ) : null}
+            <label className="block">
+              <span className={fieldLabelClassName}>OTP</span>
+              <input
+                autoComplete="one-time-code"
+                className={inputClassName}
+                inputMode="numeric"
+                maxLength={6}
+                type="text"
+                value={normalizedOtp}
+                onChange={(event) => setOtpCode(normalizeOtp(event.target.value))}
+              />
+            </label>
 
             <button
-              className="mt-2 h-[58px] w-full rounded-2xl bg-[#CA3C35] px-4 text-[13px] font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-[#b4332d] disabled:cursor-not-allowed disabled:opacity-70"
+              className="mt-3 flex h-[64px] w-full cursor-pointer items-center justify-center rounded-[22px] bg-[#20372F] px-4 text-[12px] font-semibold uppercase tracking-[0.24em] text-white shadow-[0_18px_34px_rgba(32,55,47,0.18)] transition duration-200 hover:bg-[#172A23] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#EEE3CC] disabled:cursor-not-allowed disabled:bg-[#8B9188]"
               type="submit"
               disabled={!canSubmit}
             >
-              {isSubmitting ? (isOtpStep ? 'KOD DOĞRULANIYOR' : 'KOD GÖNDERİLİYOR') : (isOtpStep ? 'KODU DOĞRULA' : 'SMS KODU GÖNDER')}
+              Giriş Yap
             </button>
 
             {isOtpStep ? (
@@ -380,17 +407,8 @@ export default function PanelLoginPage() {
             ) : null}
           </form>
 
-          {errorMessage ? (
-            <p className="mt-4 rounded-xl border border-[#6F2824] bg-[#2B1214]/80 px-4 py-3 text-[14px] text-[#FFB8B1]">
-              {errorMessage}
-            </p>
-          ) : null}
-
-          {successMessage ? (
-            <p className="mt-4 rounded-xl border border-[#1E5A4C] bg-[#0F2C27]/80 px-4 py-3 text-[14px] text-[#9FE4D0]">
-              {successMessage}
-            </p>
-          ) : null}
+          <LoginStatusMessage tone="error">{errorMessage}</LoginStatusMessage>
+          <LoginStatusMessage tone="success">{successMessage}</LoginStatusMessage>
         </div>
       </div>
     </section>

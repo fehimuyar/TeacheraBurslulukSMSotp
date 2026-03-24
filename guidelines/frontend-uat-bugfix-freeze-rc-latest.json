@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-03-21T07:11:01.398Z",
-  "started_at": "2026-03-21T07:10:51.147Z",
+  "timestamp": "2026-03-18T04:54:31.474Z",
+  "started_at": "2026-03-18T04:54:17.636Z",
   "mode": {
     "http": true,
     "panel_full_auth": false,
@@ -18,8 +18,8 @@
   "blocking_failure_count": 0,
   "overall_ready_for_release_candidate": true,
   "release_candidate": {
-    "id": "rc-frontend-uat-20260321071101",
-    "freeze_started_at": "2026-03-21T07:11:01.398Z",
+    "id": "rc-frontend-uat-20260318045431",
+    "freeze_started_at": "2026-03-18T04:54:31.474Z",
     "notes": "No blocking frontend/API contract regressions detected in this run."
   },
   "checks": [
@@ -207,21 +207,20 @@
       "detail": "HTTP 200",
       "evidence": {
         "status": 200,
-        "attemptId": "9fc4eddb-8ccd-423b-b169-78531991f4fe",
-        "applicationNo": "20260321-101818",
+        "attemptId": "812888c3-ba7d-4802-b640-166a0ad44f91",
+        "applicationNo": "20260318-101703",
         "hasSessionToken": true,
         "loadTestModeUsed": true,
         "body": {
           "ok": true,
           "session": {
-            "candidateId": "1c62e197-8ae0-4cde-be40-0d1fb163b40e",
-            "applicationNo": "20260321-101818",
-            "candidateCode": "AD101817",
+            "candidateId": "e65c874b-b988-4dc4-8cf1-e3a1b0b6f682",
+            "applicationNo": "20260318-101703",
             "applicationStatus": "APPLIED",
-            "attemptId": "9fc4eddb-8ccd-423b-b169-78531991f4fe",
+            "attemptId": "812888c3-ba7d-4802-b640-166a0ad44f91",
             "sessionToken": "[REDACTED]",
-            "expiresAt": "2026-03-21T10:10:55.204Z",
-            "startedAt": "2026-03-21T07:10:54.783Z",
+            "expiresAt": "2026-03-18T07:54:22.413Z",
+            "startedAt": "2026-03-18T04:54:21.807Z",
             "credentialsSmsStatus": "NOT_QUEUED",
             "consentVersion": "KVKK_v1_2026-03-13",
             "section": "LOADTEST",
@@ -240,12 +239,11 @@
         "body": {
           "ok": true,
           "session": {
-            "applicationNo": "20260321-101818",
-            "candidateCode": "AD101817",
-            "attemptId": "9fc4eddb-8ccd-423b-b169-78531991f4fe",
-            "candidateId": "1c62e197-8ae0-4cde-be40-0d1fb163b40e",
+            "applicationNo": "20260318-101703",
+            "attemptId": "812888c3-ba7d-4802-b640-166a0ad44f91",
+            "candidateId": "e65c874b-b988-4dc4-8cf1-e3a1b0b6f682",
             "sessionToken": "[REDACTED]",
-            "expiresAt": "2026-03-21T10:10:55.204Z",
+            "expiresAt": "2026-03-18T07:54:22.413Z",
             "examStatus": "STARTED",
             "examLanguage": "EN",
             "examAgeRange": "13-14",
@@ -262,9 +260,8 @@
           },
           "gate": {
             "exam_open": true,
-            "exam_open_at": "2026-03-21T07:10:54.736Z",
-            "exam_force_open": false,
-            "server_time_utc": "2026-03-21T07:10:56.820Z",
+            "exam_open_at": null,
+            "server_time_utc": "2026-03-18T04:54:24.623Z",
             "remaining_seconds": 0,
             "source": "default:open",
             "candidate_exam_open": true,
@@ -282,9 +279,8 @@
         "status": 200,
         "gate": {
           "exam_open": true,
-          "exam_open_at": "2026-03-21T07:10:54.736Z",
-          "exam_force_open": false,
-          "server_time_utc": "2026-03-21T07:10:57.840Z",
+          "exam_open_at": null,
+          "server_time_utc": "2026-03-18T04:54:26.258Z",
           "remaining_seconds": 0,
           "source": "default:open",
           "candidate_exam_open": true,
@@ -301,7 +297,7 @@
         "status": 200,
         "body": {
           "ok": true,
-          "attempt_id": "9fc4eddb-8ccd-423b-b169-78531991f4fe",
+          "attempt_id": "812888c3-ba7d-4802-b640-166a0ad44f91",
           "answered_count": 2
         }
       }
@@ -312,18 +308,18 @@
       "detail": "HTTP 200",
       "evidence": {
         "status": 200,
-        "resultId": "008c408b-4cc5-4b7a-8459-e6aec38522bc",
+        "resultId": "a52d9ae3-ce7c-49cb-aa59-186adf6978d1",
         "body": {
           "ok": true,
           "result": {
-            "attempt_id": "9fc4eddb-8ccd-423b-b169-78531991f4fe",
-            "result_id": "008c408b-4cc5-4b7a-8459-e6aec38522bc",
+            "attempt_id": "812888c3-ba7d-4802-b640-166a0ad44f91",
+            "result_id": "a52d9ae3-ce7c-49cb-aa59-186adf6978d1",
             "status": "PUBLISHED",
             "score": 1,
             "percentage": 20,
             "placement_label": null,
             "cefr_band": null,
-            "published_at": "2026-03-21T07:10:59.088Z",
+            "published_at": "2026-03-18T04:54:28.820Z",
             "viewed_at": null
           },
           "notifications_enqueued": false
@@ -340,9 +336,9 @@
         "body": {
           "ok": true,
           "result": {
-            "result_id": "008c408b-4cc5-4b7a-8459-e6aec38522bc",
-            "attempt_id": "9fc4eddb-8ccd-423b-b169-78531991f4fe",
-            "candidate_id": "1c62e197-8ae0-4cde-be40-0d1fb163b40e",
+            "result_id": "a52d9ae3-ce7c-49cb-aa59-186adf6978d1",
+            "attempt_id": "812888c3-ba7d-4802-b640-166a0ad44f91",
+            "candidate_id": "e65c874b-b988-4dc4-8cf1-e3a1b0b6f682",
             "student_full_name": null,
             "parent_full_name": null,
             "parent_phone_e164": null,
@@ -362,9 +358,9 @@
             "placement_label": null,
             "cefr_band": null,
             "status": "PUBLISHED",
-            "started_at": "2026-03-21T07:10:54.783Z",
-            "submitted_at": "2026-03-21T07:10:59.088Z",
-            "published_at": "2026-03-21T07:10:59.088Z",
+            "started_at": "2026-03-18T04:54:21.807Z",
+            "submitted_at": "2026-03-18T04:54:28.820Z",
+            "published_at": "2026-03-18T04:54:28.820Z",
             "viewed_at": null,
             "pii_included": false
           }

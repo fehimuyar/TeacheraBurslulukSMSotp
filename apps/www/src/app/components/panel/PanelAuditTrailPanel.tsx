@@ -1,6 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { panelFetch, resolvePanelEndpoint } from '../../api/panelApi';
-import { canExportAudit, canReadAudit } from './panelRoleAccess';
+import {
+  PanelFeedbackMessage,
+  panelDescriptionClassName,
+  panelEyebrowClassName,
+  panelEmptyRowClassName,
+  panelInputClassName,
+  panelPrimaryButtonClassName,
+  panelSecondaryButtonClassName,
+  panelSmallButtonClassName,
+  panelStatCardClassName,
+  panelTitleClassName,
+  panelSurfaceClassName,
+} from './panelUi';
 
 type AuditItem = {
   id: string;
@@ -256,10 +268,10 @@ export default function PanelAuditTrailPanel({
   };
 
   return (
-    <section className="rounded-[22px] border border-[#1A273A] bg-[#071021]/82 p-5 shadow-[0_14px_38px_rgba(0,0,0,0.28)]">
-      <p className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white/54">Audit & Uyum</p>
-      <h2 className="mt-2 text-[24px] font-semibold text-white">Değiştirilemez İşlem Günlüğü</h2>
-      <p className="mt-2 text-[13px] leading-[1.7] text-white/64">
+    <section className={panelSurfaceClassName}>
+      <p className={panelEyebrowClassName}>Audit & Uyum</p>
+      <h2 className={panelTitleClassName}>Değiştirilemez İşlem Günlüğü</h2>
+      <p className={panelDescriptionClassName}>
         Panel işlemlerinin actor-bound kayıtları hash-chain ile izlenir. Bu ekran operasyon ve uyum incelemesi için tek doğrulama yüzeyidir.
       </p>
 
@@ -273,17 +285,17 @@ export default function PanelAuditTrailPanel({
         <>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
-          <p className="text-[12px] text-white/52">Toplam Kayıt</p>
-          <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary?.total_entries)}</p>
+        <div className={panelStatCardClassName}>
+          <p className="text-[12px] font-['Neutraface_2_Text:Book',sans-serif] text-[#7A7063]">Toplam Kayıt</p>
+          <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[22px] text-[#1B2B24]">{formatNumber(summary?.total_entries)}</p>
         </div>
-        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
-          <p className="text-[12px] text-white/52">Admin Event</p>
-          <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary?.admin_events)}</p>
+        <div className={panelStatCardClassName}>
+          <p className="text-[12px] font-['Neutraface_2_Text:Book',sans-serif] text-[#7A7063]">Admin Event</p>
+          <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[22px] text-[#1B2B24]">{formatNumber(summary?.admin_events)}</p>
         </div>
-        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
-          <p className="text-[12px] text-white/52">Panel Action</p>
-          <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary?.panel_actions)}</p>
+        <div className={panelStatCardClassName}>
+          <p className="text-[12px] font-['Neutraface_2_Text:Book',sans-serif] text-[#7A7063]">Panel Action</p>
+          <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[22px] text-[#1B2B24]">{formatNumber(summary?.panel_actions)}</p>
         </div>
       </div>
 
@@ -292,12 +304,12 @@ export default function PanelAuditTrailPanel({
           value={q}
           onChange={(event) => setQ(event.target.value)}
           placeholder="Actor / action / target / request id ara"
-          className="h-[40px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[12px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         />
         <select
           value={actorType}
           onChange={(event) => setActorType(event.target.value)}
-          className="h-[40px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[12px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         >
           <option value="">Actor Type</option>
           {ACTOR_TYPE_OPTIONS.map((option) => (
@@ -310,43 +322,43 @@ export default function PanelAuditTrailPanel({
           value={action}
           onChange={(event) => setAction(event.target.value)}
           placeholder="Action (örn: PANEL_...)"
-          className="h-[40px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[12px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         />
         <input
           value={targetType}
           onChange={(event) => setTargetType(event.target.value)}
           placeholder="Target type"
-          className="h-[40px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[12px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         />
         <input
           type="datetime-local"
           value={fromDate}
           onChange={(event) => setFromDate(event.target.value)}
-          className="h-[40px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[12px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         />
         <input
           type="datetime-local"
           value={toDate}
           onChange={(event) => setToDate(event.target.value)}
-          className="h-[40px] rounded-xl border border-[#1A273A] bg-[#030B18] px-3 text-[12px] text-white/90 outline-none focus:border-[#2D4363]"
+          className={panelInputClassName}
         />
         <button
           type="button"
           onClick={applyFilters}
-          className="h-[40px] rounded-xl bg-[#D92E27] px-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-white transition hover:bg-[#bf251f]"
+          className={`h-[40px] ${panelPrimaryButtonClassName} px-3 text-[11px] tracking-[0.12em]`}
         >
           Uygula
         </button>
         <button
           type="button"
           onClick={clearFilters}
-          className="h-[40px] rounded-xl border border-[#1A273A] bg-[#0A192B]/90 px-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/80 transition hover:border-[#2D4363]"
+          className={`h-[40px] ${panelSecondaryButtonClassName} px-3 text-[11px] tracking-[0.12em]`}
         >
           Temizle
         </button>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#1A273A] bg-[#071021]/92 px-3 py-2 text-[12px] text-white/72">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-[18px] border border-[#DDD3C5] bg-[#FBF7F0] px-3 py-2 font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#6F675D]">
         <span>Chain Hash: {shorten(summary?.chain_last_hash, 26)}</span>
         <span>Chain Updated: {formatDateTime(summary?.chain_updated_at || null)}</span>
       </div>
@@ -355,16 +367,16 @@ export default function PanelAuditTrailPanel({
         <button
           type="button"
           onClick={() => void handleExport('csv')}
-          disabled={isExporting || !canExport}
-          className="rounded-lg border border-[#1A273A] bg-[#0A192B]/90 px-3 py-2 font-semibold uppercase tracking-[0.11em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={isExporting}
+          className={panelSecondaryButtonClassName}
         >
           {isExporting ? 'Export...' : 'CSV Export'}
         </button>
         <button
           type="button"
           onClick={() => void handleExport('xls')}
-          disabled={isExporting || !canExport}
-          className="rounded-lg border border-[#1A273A] bg-[#0A192B]/90 px-3 py-2 font-semibold uppercase tracking-[0.11em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={isExporting}
+          className={panelSecondaryButtonClassName}
         >
           {isExporting ? 'Export...' : 'XLS Export'}
         </button>
@@ -372,20 +384,18 @@ export default function PanelAuditTrailPanel({
           href={resolvePanelEndpoint('/api/panel/audit')}
           target="_blank"
           rel="noreferrer"
-          className="rounded-lg border border-[#1A273A] bg-[#071021]/82 px-3 py-2 font-semibold uppercase tracking-[0.11em] text-white/72 transition hover:border-[#2D4363]"
+          className="rounded-[14px] border border-[#DDD3C5] bg-[#FFFDF9] px-3 py-2 font-['Neutraface_2_Text:Demi',sans-serif] uppercase tracking-[0.11em] text-[#4C5A53] transition hover:border-[#BCA98F]"
         >
           Audit API
         </a>
       </div>
 
-      {errorMessage ? (
-        <p className="mt-3 rounded-lg border border-[#6F2824] bg-[#2B1214]/80 px-3 py-2 text-[12px] text-[#FFB8B1]">{errorMessage}</p>
-      ) : null}
+      {errorMessage ? <PanelFeedbackMessage className="mt-3" tone="error">{errorMessage}</PanelFeedbackMessage> : null}
 
       <div className="mt-4 overflow-x-auto">
-        <table className="min-w-[1120px] text-left text-[12px] text-white/80">
+        <table className="min-w-[1120px] text-left font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#33463E]">
           <thead>
-            <tr className="border-b border-white/12 text-white/56">
+            <tr className="border-b border-[#E6DDCF] text-[#7A7063]">
               <th className="px-2 py-2">Seq</th>
               <th className="px-2 py-2">Tarih</th>
               <th className="px-2 py-2">Actor</th>
@@ -399,21 +409,21 @@ export default function PanelAuditTrailPanel({
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={8} className="px-2 py-4 text-center text-white/60">
+                <td colSpan={8} className="px-2 py-4 text-center font-['Neutraface_2_Text:Book',sans-serif] text-[#7A7063]">
                   Audit kayıtları yükleniyor...
                 </td>
               </tr>
             ) : null}
             {!isLoading && items.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-2 py-4 text-center text-white/60">
+                <td colSpan={8} className={panelEmptyRowClassName}>
                   Kayıt bulunamadı.
                 </td>
               </tr>
             ) : null}
             {!isLoading
               ? items.map((item) => (
-                  <tr key={item.id} className="border-b border-white/6">
+                  <tr key={item.id} className="border-b border-[#F0E7DA]">
                     <td className="px-2 py-2">{formatNumber(item.seq)}</td>
                     <td className="px-2 py-2">{formatDateTime(item.created_at)}</td>
                     <td className="px-2 py-2">{item.actor_type || '-'}</td>
@@ -429,7 +439,7 @@ export default function PanelAuditTrailPanel({
         </table>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[12px] text-white/70">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#7A7063]">
         <span>
           Sayfa {page} / {pageCount} • Toplam kayıt: {formatNumber(total)}
         </span>
@@ -438,7 +448,7 @@ export default function PanelAuditTrailPanel({
             type="button"
             onClick={() => setPage((prev) => Math.max(1, prev - 1))}
             disabled={page <= 1}
-            className="rounded-lg border border-[#1A273A] bg-[#0A192B]/90 px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-55"
+            className={panelSmallButtonClassName}
           >
             Önceki
           </button>
@@ -446,7 +456,7 @@ export default function PanelAuditTrailPanel({
             type="button"
             onClick={() => setPage((prev) => Math.min(pageCount, prev + 1))}
             disabled={page >= pageCount}
-            className="rounded-lg border border-[#1A273A] bg-[#0A192B]/90 px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-55"
+            className={panelSmallButtonClassName}
           >
             Sonraki
           </button>

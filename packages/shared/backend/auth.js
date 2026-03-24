@@ -79,136 +79,9 @@ function normalizeRoleCode(role) {
   return normalized;
 }
 
-function defaultPermissionsForRole(role) {
-  const normalizedRole = normalizeRoleCode(role);
-  return normalizePermissionCodes(ROLE_PERMISSION_DEFAULTS[normalizedRole] || []);
-}
-
-function isMissingRelationError(error) {
-  const code = safeTrim(error?.code);
-  return code === '42P01' || code === '42703';
-}
-
-async function readRolePermissions(role) {
-  const normalizedRole = normalizeRoleCode(role);
-  if (!normalizedRole) return [];
-
-  try {
-    const result = await query(
-      `
-        SELECT p.code
-        FROM role_permissions rp
-        JOIN roles r ON r.id = rp.role_id
-        JOIN permissions p ON p.id = rp.permission_id
-        WHERE r.code = $1
-        ORDER BY p.code ASC
-      `,
-      [normalizedRole],
-    );
-
-    if (!Array.isArray(result.rows) || result.rows.length === 0) {
-      return defaultPermissionsForRole(normalizedRole);
-    }
-
-    return normalizePermissionCodes(result.rows.map((row) => row.code));
-  } catch (error) {
-    if (isMissingRelationError(error)) {
-      return defaultPermissionsForRole(normalizedRole);
-    }
-    throw error;
-  }
-}
-
-function normalizeIpLiteral(ip) {
-  const raw = safeTrim(ip).toLowerCase();
-  if (!raw) return '';
-
-  if (raw.startsWith('::ffff:')) {
-    return raw.slice(7);
-  }
-
-  if (raw.startsWith('[') && raw.includes(']')) {
-    return raw.slice(1, raw.indexOf(']'));
-  }
-
-  const ipv4WithPort = raw.match(/^(\d+\.\d+\.\d+\.\d+):(\d+)$/);
-  if (ipv4WithPort) {
-    return ipv4WithPort[1];
-  }
-
-  return raw;
-}
-
-function extractRequestIp(req) {
-  const forwarded = safeTrim(req?.headers?.['x-forwarded-for']);
-  if (forwarded) {
-    return normalizeIpLiteral(forwarded.split(',')[0]);
-  }
-  return normalizeIpLiteral(req?.socket?.remoteAddress || '');
-}
-
-function normalizeIpAllowlist(allowedIps) {
-  if (!Array.isArray(allowedIps)) return [];
-  const seen = new Set();
-  const values = [];
-  for (const entry of allowedIps) {
-    const normalized = normalizeIpLiteral(entry);
-    if (!normalized || seen.has(normalized)) continue;
-    seen.add(normalized);
-    values.push(normalized);
-  }
-  return values;
-}
-
-async function readRoleIpPolicy(role) {
-  const normalizedRole = normalizeRoleCode(role);
-  if (!normalizedRole) return null;
-
-  try {
-    const result = await query(
-      `
-        SELECT
-          role_code,
-          is_enabled,
-          allowed_ips
-        FROM admin_ip_policies
-        WHERE role_code = $1
-        LIMIT 1
-      `,
-      [normalizedRole],
-    );
-    return result.rows[0] || null;
-  } catch (error) {
-    if (isMissingRelationError(error)) {
-      return null;
-    }
-    throw error;
-  }
-}
-
-async function enforceRoleIpPolicy(req, role) {
-  const policy = await readRoleIpPolicy(role);
-  if (!policy || !policy.is_enabled) {
-    return;
-  }
-
-  const requestIp = extractRequestIp(req);
-  const allowedIps = normalizeIpAllowlist(policy.allowed_ips);
-  if (!requestIp || allowedIps.length === 0) {
-    throw new HttpError(403, 'This role requires an allowed IP address.', 'panel_ip_restricted');
-  }
-
-  if (!allowedIps.includes(requestIp)) {
-    throw new HttpError(403, 'Your IP is not allowed for this role.', 'panel_ip_restricted');
-  }
-}
-
-function hasRequiredPermissions(identityPermissions, requiredPermissions) {
-  const normalizedRequired = normalizePermissionCodes(requiredPermissions);
-  if (normalizedRequired.length === 0) return true;
-
-  const permissionSet = new Set(normalizePermissionCodes(identityPermissions));
-  return normalizedRequired.every((permission) => permissionSet.has(permission));
+function readRequireOtpFlag() {
+  const value = safeTrim(process.env.PANEL_REQUIRE_OTP).toLowerCase();
+  return ['1', 'true', 'yes', 'on'].includes(value);
 }
 
 function unauthenticatedIdentity() {
@@ -223,6 +96,7 @@ function unauthenticatedIdentity() {
     fullName: null,
     sessionId: null,
     mfaVerified: false,
+    otpVerified: false,
     passwordResetRequired: false,
   };
 }
@@ -267,7 +141,6 @@ function isSessionValid(row, claims) {
   if (!row) return false;
   if (safeTrim(row.user_status).toUpperCase() !== 'ACTIVE') return false;
   if (row.revoked_at) return false;
-  if (!row.mfa_verified_at) return false;
   if (!isKnownRole(row.role_code)) return false;
 
   const rowRole = normalizeRoleCode(row.role_code);
@@ -315,7 +188,7 @@ export async function getPanelIdentity(req) {
     return unauthenticatedIdentity();
   }
 
-  if (!claims.userId || !claims.sessionId || !isKnownRole(claims.role) || !claims.mfaVerified) {
+  if (!claims.userId || !claims.sessionId || !isKnownRole(claims.role)) {
     return unauthenticatedIdentity();
   }
 
@@ -332,13 +205,7 @@ export async function getPanelIdentity(req) {
 
   await touchSession(claims.sessionId);
 
-  const normalizedRole = normalizeRoleCode(claims.role);
-  let permissions;
-  try {
-    permissions = await readRolePermissions(normalizedRole);
-  } catch {
-    permissions = defaultPermissionsForRole(normalizedRole);
-  }
+  const otpVerified = Boolean(claims.mfaVerified);
 
   return {
     authenticated: true,
@@ -350,7 +217,8 @@ export async function getPanelIdentity(req) {
     email: safeTrim(row.email).toLowerCase(),
     fullName: safeTrim(row.full_name),
     sessionId: claims.sessionId,
-    mfaVerified: true,
+    mfaVerified: otpVerified,
+    otpVerified,
     passwordResetRequired: Boolean(row.password_reset_required),
   };
 }
@@ -364,8 +232,8 @@ export async function requireRole(req, allowedRoles, requiredPermissions = []) {
   if (!identity.authenticated) {
     throw new HttpError(401, 'Panel authentication is required.', 'panel_unauthorized');
   }
-  if (!identity.mfaVerified) {
-    throw new HttpError(403, 'MFA verification is required.', 'panel_mfa_required');
+  if (readRequireOtpFlag() && !identity.mfaVerified) {
+    throw new HttpError(403, 'OTP verification is required.', 'panel_otp_required');
   }
   if (identity.passwordResetRequired) {
     throw new HttpError(403, 'Password reset is required before accessing panel resources.', 'panel_password_reset_required');

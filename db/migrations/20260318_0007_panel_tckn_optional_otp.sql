@@ -14,22 +14,12 @@ ALTER TABLE admin_users
 ALTER TABLE admin_users
   DROP CONSTRAINT IF EXISTS chk_admin_users_mfa_secret;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_constraint
-    WHERE conname = 'chk_admin_users_tckn_format'
-  ) THEN
-    ALTER TABLE admin_users
-      ADD CONSTRAINT chk_admin_users_tckn_format
-      CHECK (
-        tckn IS NULL
-        OR regexp_replace(tckn, '\\D', '', 'g') ~ '^[0-9]{11}$'
-      );
-  END IF;
-END
-$$;
+ALTER TABLE admin_users
+  ADD CONSTRAINT chk_admin_users_tckn_format
+  CHECK (
+    tckn IS NULL
+    OR regexp_replace(tckn, '\\D', '', 'g') ~ '^[0-9]{11}$'
+  );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_users_tckn_unique
   ON admin_users ((regexp_replace(tckn, '\\D', '', 'g')))

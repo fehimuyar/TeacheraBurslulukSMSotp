@@ -324,93 +324,27 @@ export default function BurslulukSonucPage() {
           </div>
         ) : null}
 
-        {!isLoading && result ? <BurslulukHybridResultOffers /> : null}
-
-        {!isLoading && result ? (
-          <div className="mt-8 rounded-2xl border border-[#3B7A6B] bg-[#0C2E29]/90 p-5 sm:p-6">
-            <p className="text-[12px] uppercase tracking-[0.16em] text-[#BDE9DC]">Sonraki Adim</p>
-            <h2 className="mt-2 text-[22px] font-semibold text-[#E8FFF8] sm:text-[26px]">Randevu Al</h2>
-            <p className="mt-2 max-w-[640px] text-[14px] text-[#CDEFE5]">
-              Egitim danismani ile gorusme planlayarak burs oranini detayli degerlendirebilirsiniz.
+        {/* Randevu Al CTA */}
+        {result && result.status === 'VIEWED' && (
+          <div className="mt-8 rounded-3xl border border-[#2C5447]/30 bg-[#2C5447] p-6 text-center shadow-[0_12px_40px_rgba(44,84,71,0.3)]">
+            <p className="text-[14px] leading-[1.6] text-white/80">
+              Eğitim danışmanımızla ücretsiz görüşme randevusu alın
             </p>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => void handleAppointmentClick()}
-                disabled={isSlotsLoading}
-                className="rounded-full border border-[#8BDFC7] bg-[#35B58E] px-8 py-3 text-[12px] font-semibold uppercase tracking-[0.16em] text-[#05231A] transition hover:bg-[#46C79F] disabled:cursor-not-allowed disabled:opacity-65"
-              >
-                {isSlotsLoading ? 'Yukleniyor...' : 'Musait Saatleri Goster'}
-              </button>
-              <Link to={appointmentHref} className="rounded-full border border-[#8BDFC7]/60 px-6 py-3 text-[12px] uppercase tracking-[0.16em] text-[#D5F6EB]">
-                Iletisim Sayfasi
-              </Link>
-            </div>
-
-            {hasActiveBooking ? (
-              <p className="mt-4 rounded-xl border border-[#4E8B7B] bg-[#123A33] px-4 py-3 text-[14px] text-[#D5F6EB]">
-                Aktif randevu: {formatAppointmentDate(candidateLatestAppointment?.appointment_at)}
-              </p>
-            ) : null}
-
-            {isSlotsVisible ? (
-              <div className="mt-4 rounded-xl border border-[#295E53] bg-[#0B241F]/80 p-4">
-                {candidateSchoolSchedule?.school_name ? (
-                  <p className="mb-3 rounded-lg border border-[#2A6458] bg-[#0F2F29] px-3 py-2 text-[12px] text-[#CDEFE5]">
-                    Okul: {candidateSchoolSchedule.school_name}
-                    {candidateSchoolSchedule.school_shift_type ? ` • Vardiya: ${candidateSchoolSchedule.school_shift_type}` : ''}
-                    {(candidateSchoolSchedule.class_start_local && candidateSchoolSchedule.class_end_local)
-                      ? ` • Ders: ${candidateSchoolSchedule.class_start_local.slice(0, 5)}-${candidateSchoolSchedule.class_end_local.slice(0, 5)}`
-                      : ''}
-                  </p>
-                ) : null}
-                {slotsErrorMessage ? (
-                  <p className="rounded-lg border border-[#6F2824] bg-[#2B1214]/80 px-3 py-2 text-[13px] text-[#FFB8B1]">{slotsErrorMessage}</p>
-                ) : null}
-
-                {bookingMessage ? (
-                  <p className="mb-3 rounded-lg border border-[#4E8B7B] bg-[#123A33] px-3 py-2 text-[13px] text-[#D5F6EB]">{bookingMessage}</p>
-                ) : null}
-
-                {bookingErrorMessage ? (
-                  <p className="mb-3 rounded-lg border border-[#6F2824] bg-[#2B1214]/80 px-3 py-2 text-[13px] text-[#FFB8B1]">{bookingErrorMessage}</p>
-                ) : null}
-
-                {appointmentSlots.length === 0 ? (
-                  <p className="text-[13px] text-[#CDEFE5]">Uygun randevu saati bulunamadi. Iletisim ekibimiz sizi arayacaktir.</p>
-                ) : (
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {appointmentSlots.map((slot) => (
-                      <button
-                        key={slot.appointment_at}
-                        type="button"
-                        onClick={() => void handleBookSlot(slot)}
-                        disabled={!slot.is_available || isBookingSubmitting || hasActiveBooking}
-                        className="rounded-lg border border-[#4E8B7B] bg-[#123A33] px-3 py-3 text-left text-[#D5F6EB] transition hover:bg-[#17483E] disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        <p className="text-[13px] font-semibold">{formatAppointmentDate(slot.appointment_at)}</p>
-                        <p className="mt-1 text-[11px] text-[#A8DCCE]">Kontenjan: {slot.available}/{slot.capacity}</p>
-                        {slot.recommended ? <p className="mt-1 text-[11px] text-[#D9FFE9]">Okul saatine uygun (onerilen)</p> : null}
-                        {slot.school_friendly === false ? <p className="mt-1 text-[11px] text-[#FFD9BE]">Okul saatine yakin olabilir</p> : null}
-                        {!slot.is_available ? <p className="mt-1 text-[11px] text-[#FFC9BE]">Dolu</p> : null}
-                        {isBookingSubmitting && bookingSlotAt === slot.appointment_at ? (
-                          <p className="mt-1 text-[11px] text-[#E5FFF7]">Kaydediliyor...</p>
-                        ) : null}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : null}
+            <Link
+              to="/bursluluk/randevu"
+              className="mt-4 inline-block rounded-full bg-white px-10 py-4 text-[14px] font-semibold uppercase tracking-[0.14em] text-[#2C5447] shadow-[0_8px_24px_rgba(255,255,255,0.2)] transition hover:shadow-[0_12px_32px_rgba(255,255,255,0.3)] active:scale-[0.97]"
+            >
+              Randevu Al
+            </Link>
+            <p className="mt-3 text-[12px] text-white/50">
+              Size uygun bir tarih ve saat seçin
+            </p>
           </div>
-        ) : null}
+        )}
 
-        <div className="mt-8 flex flex-wrap gap-3">
+        <div className="mt-6 flex flex-wrap gap-3">
           <Link to="/bursluluk/giris" className="rounded-full border border-white/18 px-6 py-3 text-[12px] uppercase tracking-[0.16em] text-white/74">
             Girise Don
-          </Link>
-          <Link to={appointmentHref} className="rounded-full border border-white/18 px-6 py-3 text-[12px] uppercase tracking-[0.16em] text-white/74">
-            Iletisim Sayfasi
           </Link>
         </div>
       </div>

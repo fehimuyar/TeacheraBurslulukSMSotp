@@ -162,7 +162,7 @@ const STATIC_ROUTE_META: Record<string, SeoMeta> = {
   '/bursluluk-2026': {
     title: 'Bursluluk Sınavı Başvuru | Teachera',
     description:
-      'Teachera bursluluk sınavı başvuru formunu doldurun, sınav süreci bilgilendirmelerine ve aday giriş akışına geçin.',
+      'Teachera Online Bursluluk Sınavı ile Konya genelindeki 1-12. sınıf öğrencileri için burs yapısı, sınav takvimi, video bilgilendirmesi ve başvuru sürecini inceleyin.',
     keywords: [...CORE_KEYWORDS, 'bursluluk sınavı', 'bursluluk başvuru formu', 'online bursluluk sınavı'],
   },
   '/bursluluk': {
@@ -174,14 +174,14 @@ const STATIC_ROUTE_META: Record<string, SeoMeta> = {
   '/bursluluk/onay': {
     title: 'Bursluluk Başvuru Onayı | Teachera',
     description:
-      'Bursluluk başvurunuz alındı. Sınava katılım yöntemi ve teknik gereksinim bilgilendirmelerini bu ekrandan takip edin.',
-    keywords: [...CORE_KEYWORDS, 'bursluluk başvuru onayı', 'sınav bilgilendirme'],
+      'Bursluluk başvurunuz alındı. Başvuru numaranızı görün, girişe geçin veya şifreyi tekrar SMS olarak gönderin.',
+    keywords: [...CORE_KEYWORDS, 'bursluluk başvuru onayı', 'şifreyi tekrar gönder'],
   },
   '/bursluluk/giris': {
     title: 'Bursluluk Aday Girişi | Teachera',
     description:
-      'Bursluluk sınavına katılım için kullanıcı adı ve şifre ile aday girişinizi güvenli şekilde tamamlayın.',
-    keywords: [...CORE_KEYWORDS, 'bursluluk giriş', 'aday girişi', 'sınav kullanıcı adı şifre'],
+      'Bursluluk sınavına katılım için kullanıcı adı ve şifre ile aday girişinizi tamamlayın, gerekirse şifrenizi yeniden isteyin.',
+    keywords: [...CORE_KEYWORDS, 'bursluluk giriş', 'aday girişi', 'şifre yenileme'],
   },
   '/bursluluk/bekleme': {
     title: 'Bursluluk Sınav Bekleme Ekranı | Teachera',

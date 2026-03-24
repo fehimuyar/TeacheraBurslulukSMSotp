@@ -49,6 +49,8 @@ const menuItems: MenuItem[] = [
   { id: 'prices', label: 'Fiyatlar', href: '/fiyatlar', isRoute: true },
   { id: 'programs', label: 'Eğitim Programları', href: '/egitimlerimiz', isRoute: true },
   { id: 'academy', label: 'Teachera Academy', href: '/academy', isRoute: true, highlight: true },
+  { id: 'scholarship', label: 'Bursluluk Başvuru', href: '/bursluluk-2026', isRoute: true },
+  { id: 'scholarship-login', label: 'Bursluluk Giriş', href: '/bursluluk/giris', isRoute: true },
   { id: 'contact', label: 'İletişim', href: '/iletisim', isRoute: true },
 ];
 

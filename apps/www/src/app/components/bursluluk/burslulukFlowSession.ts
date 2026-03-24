@@ -11,9 +11,16 @@ export interface BurslulukCandidateSession {
   studentFullName: string;
   parentFullName: string;
   parentPhoneE164: string;
+  parentEmail?: string;
   schoolName: string;
-  section?: string;
+  schoolDistrict?: string;
+  schoolType?: string;
   grade: number;
+  tckn?: string;
+  birthYear?: string;
+  branch?: string;
+  selectedSessionId?: string;
+  selectedSessionLabel?: string;
   ageRange: string;
   language: string;
   questionCount: number;

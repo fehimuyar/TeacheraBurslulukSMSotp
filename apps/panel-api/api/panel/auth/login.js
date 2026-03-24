@@ -33,8 +33,8 @@ function normalizeEmail(value) {
   return safeTrim(value).toLowerCase();
 }
 
-function normalizeOtpCode(value) {
-  return safeTrim(value).replace(/\D+/g, '').slice(0, 6);
+function normalizeTckn(value) {
+  return safeTrim(value).replace(/\D+/g, '').slice(0, 11);
 }
 
 function readBoundedIntEnv(name, fallback, min, max) {
@@ -95,7 +95,7 @@ async function verifyPassword(client, password, hash) {
   return Boolean(result.rows[0]?.ok);
 }
 
-async function assertLoginNotLocked(ipAddress, email) {
+async function assertLoginNotLocked(ipAddress, identity) {
   await assertNotBruteForceLocked({
     scope: 'panel_login_ip',
     identity: ipAddress,
@@ -104,14 +104,14 @@ async function assertLoginNotLocked(ipAddress, email) {
   });
 
   await assertNotBruteForceLocked({
-    scope: 'panel_login_email',
-    identity: email,
-    errorCode: 'panel_login_email_locked',
+    scope: 'panel_login_identity',
+    identity,
+    errorCode: 'panel_login_identity_locked',
     errorMessage: 'Too many failed login attempts for this account. Please retry later.',
   });
 }
 
-async function registerLoginFailure(ipAddress, email) {
+async function registerLoginFailure(ipAddress, identity) {
   await registerBruteForceFailure({
     scope: 'panel_login_ip',
     identity: ipAddress,
@@ -121,22 +121,22 @@ async function registerLoginFailure(ipAddress, email) {
   });
 
   await registerBruteForceFailure({
-    scope: 'panel_login_email',
-    identity: email,
-    threshold: readBoundedIntEnv('BRUTE_PANEL_LOGIN_EMAIL_THRESHOLD', 8, 3, 1000),
-    failWindowSeconds: readBoundedIntEnv('BRUTE_PANEL_LOGIN_EMAIL_WINDOW_SECONDS', 15 * 60, 30, 24 * 60 * 60),
-    lockSeconds: readBoundedIntEnv('BRUTE_PANEL_LOGIN_EMAIL_LOCK_SECONDS', 30 * 60, 30, 24 * 60 * 60),
+    scope: 'panel_login_identity',
+    identity,
+    threshold: readBoundedIntEnv('BRUTE_PANEL_LOGIN_IDENTITY_THRESHOLD', 8, 3, 1000),
+    failWindowSeconds: readBoundedIntEnv('BRUTE_PANEL_LOGIN_IDENTITY_WINDOW_SECONDS', 15 * 60, 30, 24 * 60 * 60),
+    lockSeconds: readBoundedIntEnv('BRUTE_PANEL_LOGIN_IDENTITY_LOCK_SECONDS', 30 * 60, 30, 24 * 60 * 60),
   });
 }
 
-async function clearLoginFailureState(ipAddress, email) {
+async function clearLoginFailureState(ipAddress, identity) {
   await clearBruteForceState({
     scope: 'panel_login_ip',
     identity: ipAddress,
   });
   await clearBruteForceState({
-    scope: 'panel_login_email',
-    identity: email,
+    scope: 'panel_login_identity',
+    identity,
   });
 }
 
@@ -488,22 +488,15 @@ export default async function handler(req, res) {
       throw new HttpError(400, 'Request body must be valid JSON.', 'invalid_json');
     }
 
+    const tckn = normalizeTckn(body.tckn || body.username || body.tcKimlikNo);
     const email = normalizeEmail(body.email);
     const password = safeTrim(body.password);
-    const mfaCode = normalizeOtpCode(body.mfaCode || body.totpCode);
-    const otpCode = normalizeOtpCode(body.otpCode);
-    const challengeId = safeTrim(body.challengeId || body.challenge_id);
-    const challengeToken = safeTrim(body.challengeToken || body.challenge_token);
-    const usingOtpVerifyFlow = Boolean(otpCode && challengeId && challengeToken);
+    const otpCode = safeTrim(body.otpCode || body.mfaCode || body.totpCode)
+      .replace(/\D+/g, '')
+      .slice(0, 6);
 
-    if (!email || !password) {
-      throw new HttpError(400, 'email and password are required.', 'missing_login_fields');
-    }
-    if (mfaCode && !otpCode) {
-      throw new HttpError(400, 'TOTP is removed. Please login with SMS OTP.', 'panel_totp_removed');
-    }
-    if (otpCode && (!challengeId || !challengeToken)) {
-      throw new HttpError(400, 'challengeId and challengeToken are required for otpCode verification.', 'missing_otp_challenge_fields');
+    if ((!tckn && !email) || !password) {
+      throw new HttpError(400, 'tckn (or email) and password are required.', 'missing_login_fields');
     }
 
     const ttlMinutes = readPanelSessionTtlMinutes();
@@ -511,7 +504,9 @@ export default async function handler(req, res) {
     const ipAddress = getRequestIp(req) || readRequestIp(req) || 'unknown';
     const userAgent = readUserAgent(req);
     const requestContext = readRequestContext(req);
-    await assertLoginNotLocked(ipAddress, email);
+    const loginIdentity = tckn ? `tckn:${tckn}` : `email:${email}`;
+
+    await assertLoginNotLocked(ipAddress, loginIdentity);
 
     await enforceRateLimit(req, res, {
       scope: 'panel_login_ip',
@@ -526,14 +521,14 @@ export default async function handler(req, res) {
     });
 
     await enforceRateLimit(req, res, {
-      scope: 'panel_login_email',
-      identity: email,
-      limitEnv: 'RL_PANEL_LOGIN_EMAIL_LIMIT',
-      windowSecondsEnv: 'RL_PANEL_LOGIN_EMAIL_WINDOW_SECONDS',
+      scope: 'panel_login_identity',
+      identity: loginIdentity,
+      limitEnv: 'RL_PANEL_LOGIN_IDENTITY_LIMIT',
+      windowSecondsEnv: 'RL_PANEL_LOGIN_IDENTITY_WINDOW_SECONDS',
       defaultLimit: 12,
       defaultWindowSeconds: 5 * 60,
       requireRedis: true,
-      errorCode: 'panel_login_email_rate_limited',
+      errorCode: 'panel_login_identity_rate_limited',
       errorMessage: 'Too many login requests for this account. Please retry later.',
     });
 
@@ -563,9 +558,63 @@ export default async function handler(req, res) {
     }
 
     try {
-      const outcome = await withTransaction(async (client) => {
-        const user = await readPanelUserByEmail(client, email);
-        await validateUserCredentials(client, user, password);
+      session = await withTransaction(async (client) => {
+        const userResult = await client.query(
+          `
+          SELECT
+            u.id,
+            u.tckn,
+            u.email,
+            u.full_name,
+            u.password_hash,
+            COALESCE((to_jsonb(u)->>'password_reset_required')::boolean, FALSE) AS password_reset_required,
+            u.status,
+            u.mfa_enabled,
+            u.mfa_totp_secret,
+            COALESCE(
+              array_agg(r.code) FILTER (WHERE r.code IS NOT NULL),
+              ARRAY[]::text[]
+            ) AS role_codes
+          FROM admin_users u
+          LEFT JOIN admin_user_roles ur ON ur.admin_user_id = u.id
+          LEFT JOIN roles r ON r.id = ur.role_id
+          WHERE (
+            ($1 <> '' AND regexp_replace(COALESCE(u.tckn, ''), '\\D', '', 'g') = $1)
+            OR ($2 <> '' AND lower(u.email) = lower($2))
+          )
+          GROUP BY u.id
+          ORDER BY CASE WHEN $1 <> '' AND regexp_replace(COALESCE(u.tckn, ''), '\\D', '', 'g') = $1 THEN 0 ELSE 1 END
+          LIMIT 1
+        `,
+          [tckn, email],
+        );
+
+        if (userResult.rowCount === 0) {
+          throw new HttpError(401, 'Invalid credentials.', 'invalid_credentials');
+        }
+
+        const user = userResult.rows[0];
+        if (safeTrim(user.status).toUpperCase() !== 'ACTIVE') {
+          throw new HttpError(403, 'Panel user is disabled.', 'panel_user_disabled');
+        }
+
+        const passwordOk = await verifyPassword(client, password, user.password_hash);
+        if (!passwordOk) {
+          throw new HttpError(401, 'Invalid credentials.', 'invalid_credentials');
+        }
+
+        let otpVerified = false;
+        if (otpCode) {
+          if (!user.mfa_enabled) {
+            throw new HttpError(403, 'OTP is not enabled for this panel user.', 'panel_mfa_not_enabled');
+          }
+
+          const otpSecret = safeTrim(user.mfa_totp_secret);
+          if (!otpSecret || !verifyTotpCode(otpSecret, otpCode)) {
+            throw new HttpError(401, 'Invalid OTP code.', 'invalid_otp_code');
+          }
+          otpVerified = true;
+        }
 
         const roleCodes = normalizeRoleCodes(user.role_codes);
         const role = pickPrimaryRole(roleCodes);
@@ -581,8 +630,49 @@ export default async function handler(req, res) {
             adminUserId: user.id,
           });
 
-          const session = await createSessionForUser(client, {
-            user,
+        const sessionId = randomUUID();
+        const tokenPayload = createPanelSessionToken({
+          userId: user.id,
+          sessionId,
+          role,
+          email: user.email,
+          mfaVerified: otpVerified,
+          ttlMinutes,
+        });
+        const tokenHash = hashPanelSessionToken(tokenPayload.token);
+
+        await client.query(
+          `
+          INSERT INTO admin_sessions (
+            id,
+            admin_user_id,
+            role_code,
+            token_hash,
+            mfa_verified_at,
+            issued_at,
+            expires_at,
+            ip_address,
+            user_agent,
+            last_seen_at,
+            updated_at
+          )
+          VALUES (
+            $1::uuid,
+            $2::uuid,
+            $3,
+            $4,
+            NOW(),
+            NOW(),
+            $5::timestamptz,
+            $6,
+            $7,
+            NOW(),
+            NOW()
+          )
+        `,
+          [
+            sessionId,
+            user.id,
             role,
             ipAddress,
             userAgent,
@@ -607,8 +697,13 @@ export default async function handler(req, res) {
         return {
           kind: 'otp_challenge',
           role,
+          expiresAt: tokenPayload.expiresAt,
+          sessionId,
+          passwordResetRequired,
+          otpVerified,
           user: {
             id: user.id,
+            tckn: normalizeTckn(user.tckn),
             email: normalizeEmail(user.email),
             fullName: safeTrim(user.full_name),
           },
@@ -743,30 +838,28 @@ export default async function handler(req, res) {
         const isBruteForceCandidate = [
           'invalid_credentials',
           'invalid_otp_code',
-          'invalid_otp_challenge',
-          'otp_challenge_expired',
-          'otp_challenge_consumed',
-          'otp_challenge_locked',
           'panel_user_disabled',
           'panel_role_missing',
           'panel_totp_removed',
         ].includes(error.code);
         if (isBruteForceCandidate) {
-          await registerLoginFailure(ipAddress, email);
+          await registerLoginFailure(ipAddress, loginIdentity);
         }
       }
 
       try {
         await appendAuditLog({
           actorType: 'PANEL_USER',
-          actorId: email || 'unknown',
+          actorId: loginIdentity || 'unknown',
           action: 'PANEL_LOGIN_FAILED',
           targetType: 'ADMIN_SESSION',
           requestId: requestContext.requestId,
           ipAddress: requestContext.ipAddress || ipAddress,
           userAgent: requestContext.userAgent || userAgent,
           metadata: {
+            tckn: tckn || null,
             email: email || null,
+            otpProvided: Boolean(otpCode),
             reason: error instanceof HttpError ? error.code : 'unexpected_error',
           },
         });
@@ -775,6 +868,52 @@ export default async function handler(req, res) {
       }
 
       throw error;
+    }
+
+    await clearLoginFailureState(ipAddress, loginIdentity);
+
+    const ttlSeconds = ttlMinutes * 60;
+    res.setHeader('Set-Cookie', buildPanelSessionCookie(session.token, req, ttlSeconds));
+    ok(res, {
+      next_step: session.passwordResetRequired ? 'password_reset' : null,
+      session: {
+        token: session.token,
+        expires_at: session.expiresAt,
+        session_id: session.sessionId,
+        password_reset_required: session.passwordResetRequired,
+      },
+      user: {
+        id: session.user.id,
+        tckn: session.user.tckn,
+        email: session.user.email,
+        full_name: session.user.fullName,
+        role: session.role,
+        mfa_verified: session.otpVerified,
+        otp_verified: session.otpVerified,
+        password_reset_required: session.passwordResetRequired,
+      },
+    });
+
+    try {
+      await appendAuditLog({
+        actorType: 'PANEL_USER',
+        actorId: session.user.id,
+        actorRole: session.role,
+        action: 'PANEL_LOGIN_SUCCESS',
+        targetType: 'ADMIN_SESSION',
+        targetId: session.sessionId,
+        requestId: requestContext.requestId,
+        ipAddress: requestContext.ipAddress || ipAddress,
+        userAgent: requestContext.userAgent || userAgent,
+        metadata: {
+          tckn: session.user.tckn || null,
+          email: session.user.email,
+          otpVerified: session.otpVerified,
+          expiresAt: session.expiresAt,
+        },
+      });
+    } catch (auditError) {
+      console.error('[panel_login_success_audit_error]', auditError);
     }
   });
 }

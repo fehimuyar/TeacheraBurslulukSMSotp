@@ -169,7 +169,7 @@ function resolvePlacementLabel(bank: PlacementExamBank, score: number, percentag
 
 export default function BurslulukSinavPage() {
   const navigate = useNavigate();
-  const session = readCandidateSession();
+  const [session] = useState(() => readCandidateSession());
 
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -565,10 +565,10 @@ export default function BurslulukSinavPage() {
                 const isSelected = answers[currentQuestion.id] === option;
                 return (
                   <button
-                    key={option}
+                    key={`${currentQuestion.id}-${option}`}
                     type="button"
                     onClick={() => setAnswers((previous) => ({ ...previous, [currentQuestion.id]: option }))}
-                    className={`rounded-xl border px-4 py-3 text-left text-[15px] transition ${isSelected ? 'border-[#D92E27] bg-[#D92E27]/22 text-white' : 'border-white/14 bg-[#061021]/88 text-white/82 hover:border-white/28'}`}
+                    className={`select-none rounded-xl border px-4 py-3 text-left text-[15px] transition ${isSelected ? 'border-[#D92E27] bg-[#D92E27]/22 text-white' : 'border-white/14 bg-[#061021]/88 text-white/82 hover:border-white/28'}`}
                   >
                     {option}
                   </button>
