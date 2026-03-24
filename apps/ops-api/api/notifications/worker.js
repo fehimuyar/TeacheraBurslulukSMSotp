@@ -114,6 +114,284 @@ function resolveProviderConfig(channel) {
   };
 }
 
+function resolveSmsProviderAdapter(baseConfig) {
+  const explicitAdapter = safeTrim(process.env.SMS_PROVIDER_ADAPTER || process.env.SMS_PROVIDER_DRIVER).toLowerCase();
+  if (explicitAdapter === 'mobikob' || explicitAdapter === 'mobikob_sms') {
+    return 'mobikob';
+  }
+
+  const endpoint = safeTrim(
+    process.env.MOBIKOB_SMS_ENDPOINT
+      || process.env.MOBIKOB_SMS_BULK_URL
+      || baseConfig?.endpoint,
+  ).toLowerCase();
+
+  if (endpoint.includes('mobikob.com/') && endpoint.includes('/sms/')) {
+    return 'mobikob';
+  }
+
+  return 'generic';
+}
+
+function resolveMobikobSmsConfig(baseConfig) {
+  return {
+    endpoint: safeTrim(
+      process.env.MOBIKOB_SMS_ENDPOINT
+        || process.env.MOBIKOB_SMS_BULK_URL
+        || baseConfig?.endpoint,
+    ),
+    apiUser: safeTrim(
+      process.env.MOBIKOB_SMS_API_USER
+        || process.env.SMS_PROVIDER_USERNAME
+        || process.env.SMS_PROVIDER_USER,
+    ),
+    apiPass: safeTrim(
+      process.env.MOBIKOB_SMS_API_PASS
+        || process.env.MOBIKOB_SMS_PASSWORD
+        || baseConfig?.token,
+    ),
+    head: safeTrim(
+      process.env.MOBIKOB_SMS_HEAD
+        || process.env.SMS_PROVIDER_HEAD
+        || process.env.SMS_PROVIDER_SENDER,
+    ),
+  };
+}
+
+function normalizeRecipientForMobikob(recipient) {
+  const digits = String(recipient || '').replace(/\D+/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('00')) return digits.slice(2);
+  if (digits.startsWith('90')) return digits;
+  if (digits.startsWith('0') && digits.length === 11) return `90${digits.slice(1)}`;
+  if (digits.length === 10) return `90${digits}`;
+  return digits;
+}
+
+function joinMessageParts(parts) {
+  return parts
+    .map((value) => safeTrim(value))
+    .filter(Boolean)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function resolvePayload(job) {
+  return job?.payload && typeof job.payload === 'object' ? job.payload : {};
+}
+
+function resolveLoginUrl(payload) {
+  return safeTrim(payload?.loginUrl || payload?.exam_login_url || process.env.EXAM_LOGIN_URL);
+}
+
+function formatExamOpenAt(value) {
+  const raw = safeTrim(value);
+  if (!raw) return '';
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return raw;
+  return new Intl.DateTimeFormat('tr-TR', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/Istanbul',
+  }).format(parsed);
+}
+
+function buildCredentialsSmsMessage(payload) {
+  const username = safeTrim(payload?.credential?.username || payload?.candidateCode || payload?.applicationNo);
+  const password = safeTrim(payload?.credential?.password);
+  const loginUrl = resolveLoginUrl(payload);
+  if (!username || !password) {
+    throw new Error('mobikob_sms_missing_credentials_payload');
+  }
+  return joinMessageParts([
+    'Başvurunuz alındı.',
+    `Kullanıcı adı: ${username}.`,
+    `Şifre: ${password}.`,
+    loginUrl ? `Giriş: ${loginUrl}` : '',
+  ]);
+}
+
+function buildExamOpenSmsMessage(payload) {
+  const loginUrl = resolveLoginUrl(payload);
+  return joinMessageParts([
+    'Sınav ekranı açıldı.',
+    'Daha önce gönderilen kullanıcı adı/şifre ile giriş yapabilirsiniz.',
+    loginUrl ? `Giriş: ${loginUrl}` : '',
+  ]);
+}
+
+function buildExamReminderSmsMessage(payload) {
+  const loginUrl = resolveLoginUrl(payload);
+  const examOpenAt = formatExamOpenAt(payload?.examOpenAt);
+  const leadMinutes = Number.parseInt(String(payload?.reminderLeadMinutes ?? ''), 10);
+  const timingText = examOpenAt
+    ? `Sınavınız ${examOpenAt} saatinde başlayacak.`
+    : Number.isFinite(leadMinutes) && leadMinutes > 0
+      ? `Sınavınız ${leadMinutes} dakika sonra başlayacak.`
+      : 'Sınavınız yakında başlayacak.';
+
+  return joinMessageParts([
+    timingText,
+    loginUrl ? `Giriş: ${loginUrl}` : '',
+  ]);
+}
+
+function buildResultSmsMessage(payload) {
+  const resultUrl = safeTrim(payload?.resultUrl || payload?.result_url || payload?.loginUrl);
+  const score = safeTrim(payload?.score);
+  return joinMessageParts([
+    'Sınav sonucunuz yayınlandı.',
+    score ? `Puan: ${score}.` : '',
+    resultUrl ? `Detay: ${resultUrl}` : '',
+  ]);
+}
+
+function resolveSmsMessage(job) {
+  const payload = resolvePayload(job);
+  const explicitMessage = safeTrim(payload?.message || payload?.msg || payload?.sms_message || payload?.smsMessage);
+  if (explicitMessage) {
+    return explicitMessage;
+  }
+
+  const templateCode = safeTrim(job?.template_code).toUpperCase();
+  if (templateCode === 'CREDENTIALS_SMS' || templateCode === 'LOGIN_CREDENTIALS') {
+    return buildCredentialsSmsMessage(payload);
+  }
+  if (templateCode === 'EXAM_OPEN_SMS') {
+    return buildExamOpenSmsMessage(payload);
+  }
+  if (templateCode === 'EXAM_REMINDER_SMS') {
+    return buildExamReminderSmsMessage(payload);
+  }
+  if (templateCode === 'RESULT' || templateCode === 'RESULT_SMS') {
+    return buildResultSmsMessage(payload);
+  }
+
+  throw new Error(`unsupported_sms_template_${templateCode || 'unknown'}`);
+}
+
+async function readProviderResponse(response) {
+  const text = await response.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { raw: text };
+  }
+}
+
+function extractMobikobMessageId(data) {
+  const candidates = [
+    data?.message_id,
+    data?.provider_message_id,
+    data?.data?.message_id,
+    data?.result?.message_id,
+    Array.isArray(data?.messages) ? data.messages[0]?.message_id : '',
+    Array.isArray(data?.results) ? data.results[0]?.message_id : '',
+    Array.isArray(data) ? data[0]?.message_id : '',
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = safeTrim(candidate);
+    if (normalized) return normalized;
+  }
+  return '';
+}
+
+function extractMobikobStatus(data) {
+  const candidates = [
+    data?.status,
+    data?.data?.status,
+    data?.result?.status,
+    Array.isArray(data?.messages) ? data.messages[0]?.status : '',
+    Array.isArray(data?.results) ? data.results[0]?.status : '',
+    Array.isArray(data) ? data[0]?.status : '',
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = safeTrim(candidate).toLowerCase();
+    if (normalized) return normalized;
+  }
+  return '';
+}
+
+async function sendJobToMobikob(job, baseConfig) {
+  const config = resolveMobikobSmsConfig(baseConfig);
+  if (!config.endpoint) {
+    throw new Error('missing_provider_endpoint_SMS');
+  }
+  if (!config.apiUser) {
+    throw new Error('missing_mobikob_sms_api_user');
+  }
+  if (!config.apiPass) {
+    throw new Error('missing_mobikob_sms_api_pass');
+  }
+  if (!config.head) {
+    throw new Error('missing_mobikob_sms_head');
+  }
+
+  const recipient = normalizeRecipientForMobikob(job.recipient);
+  if (!recipient) {
+    throw new Error('invalid_sms_recipient');
+  }
+
+  const message = resolveSmsMessage(job);
+  if (!message) {
+    throw new Error('mobikob_sms_message_empty');
+  }
+
+  const providerTimeoutMs = readProviderTimeoutMs();
+  const abortController = new AbortController();
+  const timeoutHandle = setTimeout(() => {
+    abortController.abort();
+  }, providerTimeoutMs);
+
+  let response;
+  try {
+    response = await fetch(config.endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      signal: abortController.signal,
+      body: JSON.stringify({
+        api_user: config.apiUser,
+        api_pass: config.apiPass,
+        head: config.head,
+        messages: [{
+          to: recipient,
+          msg: message,
+        }],
+      }),
+    });
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error('provider_timeout');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+
+  if (!response.ok) {
+    throw new Error(`provider_status_${response.status}`);
+  }
+
+  const data = await readProviderResponse(response);
+  const providerStatus = extractMobikobStatus(data);
+  if (providerStatus && ['error', 'failed', 'rejected', 'invalid'].includes(providerStatus)) {
+    throw new Error(`provider_status_${providerStatus}`);
+  }
+
+  return {
+    providerMessageId: extractMobikobMessageId(data),
+  };
+}
+
 function resolveFaultRecipientBehavior(job) {
   const recipient = safeTrim(job?.recipient).toLowerCase();
   if (!recipient.startsWith('fault://')) {
@@ -200,6 +478,10 @@ async function sendJobToProvider(job) {
   }
 
   const config = resolveProviderConfig(job.channel);
+  if (job.channel === 'SMS' && resolveSmsProviderAdapter(config) === 'mobikob') {
+    return sendJobToMobikob(job, config);
+  }
+
   if (!config.endpoint) {
     throw new Error(`missing_provider_endpoint_${job.channel}`);
   }
@@ -241,7 +523,7 @@ async function sendJobToProvider(job) {
     throw new Error(`provider_status_${response.status}`);
   }
 
-  const data = await response.json().catch(() => ({}));
+  const data = await readProviderResponse(response);
   return {
     providerMessageId: safeTrim(data?.provider_message_id || data?.message_id || ''),
   };
