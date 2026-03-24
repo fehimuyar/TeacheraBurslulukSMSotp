@@ -35,14 +35,12 @@ const ROLE_NORMALIZATION_MAP: Record<string, string> = {
   OWNER: 'SUPER_ADMIN',
   USER: 'READ_ONLY',
   KULLANICI: 'READ_ONLY',
-  OGRENCI: 'READ_ONLY',
-  STUDENT: 'READ_ONLY',
 };
 
 const ROLE_LABEL_MAP: Record<string, string> = {
   SUPER_ADMIN: 'Ust Yonetici',
   OPERATIONS: 'Danisman (Ogretmen)',
-  READ_ONLY: 'Kullanici (Ogrenci)',
+  READ_ONLY: 'Izleyici (Read-only)',
 };
 
 const ROLE_PERMISSION_FALLBACK: Record<string, PanelPermission[]> = {

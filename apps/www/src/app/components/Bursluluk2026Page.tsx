@@ -421,6 +421,10 @@ export default function Bursluluk2026Page() {
     if (!video) return;
 
     if (video.paused) {
+      if (!hasActivatedVideo) {
+        setHasActivatedVideo(true);
+        video.loop = false;
+      }
       try {
         await video.play();
         setIsPlaying(true);
@@ -445,15 +449,6 @@ export default function Bursluluk2026Page() {
     if (!nextMuted && !hasActivatedVideo) {
       setHasActivatedVideo(true);
       video.loop = false;
-    }
-
-    if (video.paused) {
-      try {
-        await video.play();
-        setIsPlaying(true);
-      } catch {
-        setIsPlaying(false);
-      }
     }
   };
 
@@ -645,7 +640,8 @@ export default function Bursluluk2026Page() {
     }
   };
 
-  const videoStatusLabel = hasActivatedVideo ? (isMuted ? 'Sessiz İzleme' : 'Sesli İzleme') : 'Sessiz Ön İzleme';
+  const videoStatusLabel = hasActivatedVideo ? (isMuted ? 'Sessiz İzleme' : 'Sesli İzleme') : 'Video Hazır';
+  const playbackButtonLabel = isPlaying ? 'Durdur' : 'Başlat';
   const primaryCtaClass =
     "inline-flex min-h-[50px] items-center justify-center rounded-full bg-[#E70000] px-6 py-3.5 font-['Neutraface_2_Text:Demi',sans-serif] text-[12px] uppercase tracking-[0.16em] text-white shadow-[0_16px_30px_rgba(231,0,0,0.16)] transition-[background-color,box-shadow] duration-200 hover:bg-[#C50000] hover:shadow-[0_20px_34px_rgba(231,0,0,0.22)] sm:min-h-[52px] sm:px-8 sm:py-4 sm:text-[13px] sm:tracking-[0.18em]";
   const inputClass =
@@ -663,7 +659,7 @@ export default function Bursluluk2026Page() {
           className="fixed inset-0 z-[95] bg-[#1E1712]/36 backdrop-blur-[3px]"
           onClick={closeApplicationForm}
         >
-          <div className="flex min-h-full items-end justify-center px-3 pt-[76px] sm:items-center sm:px-6 sm:py-6">
+          <div className="flex min-h-[100svh] items-end justify-center px-3 pb-[calc(4.75rem+env(safe-area-inset-bottom))] pt-[76px] sm:min-h-full sm:items-center sm:px-6 sm:py-6">
             <motion.div
               role="dialog"
               aria-modal="true"
@@ -673,7 +669,7 @@ export default function Bursluluk2026Page() {
               exit={liteMode ? undefined : { opacity: 0, y: 18, scale: 0.99 }}
               transition={{ duration: liteMode ? 0 : 0.26, ease: revealEase }}
               onClick={(event) => event.stopPropagation()}
-              className="relative flex max-h-[calc(100dvh-0.5rem)] w-full max-w-[1080px] flex-col overflow-hidden rounded-t-[30px] border border-[#DDD2C5] bg-[#F8F4EE] shadow-[0_32px_90px_rgba(25,20,15,0.18)] sm:max-h-[calc(100dvh-3rem)] sm:rounded-[34px]"
+              className="relative flex max-h-[calc(100svh-1.5rem-env(safe-area-inset-bottom))] w-full max-w-[1080px] flex-col overflow-hidden rounded-t-[30px] border border-[#DDD2C5] bg-[#F8F4EE] shadow-[0_32px_90px_rgba(25,20,15,0.18)] sm:max-h-[calc(100dvh-3rem)] sm:rounded-[34px]"
             >
               <div className="border-b border-[#E4D8CA] bg-[linear-gradient(180deg,#FCF8F2_0%,#F6EFE6_100%)] px-4 py-4 sm:px-6 sm:py-5 lg:px-8">
                 <div className="flex items-start justify-between gap-4">
@@ -706,7 +702,7 @@ export default function Bursluluk2026Page() {
                 </div>
               </div>
 
-              <div className="overflow-y-auto px-4 pb-5 pt-4 sm:px-6 sm:pb-6 sm:pt-5 lg:px-8 lg:pb-8">
+              <div className="overflow-y-auto px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pb-6 sm:pt-5 lg:px-8 lg:pb-8">
                 <form className="grid gap-4 sm:grid-cols-2" onSubmit={handleApplicationSubmit}>
                   <label className="block sm:col-span-2">
                     <FieldLabel>Okul</FieldLabel>
@@ -1028,7 +1024,7 @@ export default function Bursluluk2026Page() {
                         ref={videoRef}
                         className="h-full w-full object-cover object-center"
                         src="/media/bursluluk-2026-hero.mp4"
-                        autoPlay={!liteMode}
+                        autoPlay={false}
                         loop={!hasActivatedVideo}
                         muted={isMuted}
                         playsInline
@@ -1094,7 +1090,7 @@ export default function Bursluluk2026Page() {
                       className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-full border border-[#D8CDC0] bg-white px-3.5 py-2 font-['Neutraface_2_Text:Demi',sans-serif] text-[9px] uppercase tracking-[0.11em] text-[#68232E] transition-colors duration-200 hover:bg-[#F7F2EB] sm:min-h-[42px] sm:border-[#D4C8BA] sm:px-4 sm:text-[10px] sm:tracking-[0.13em]"
                     >
                       {isPlaying ? <Pause size={15} strokeWidth={2.2} /> : <Play size={15} strokeWidth={2.2} />}
-                      {isPlaying ? 'Durdur' : 'Devam Et'}
+                      {playbackButtonLabel}
                     </button>
 
                     <button

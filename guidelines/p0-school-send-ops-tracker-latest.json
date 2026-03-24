@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-03-23T13:50:05.975Z",
-  "input_csv": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-school-link-distribution-pack-latest.csv",
-  "output_tracker_csv": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-school-send-ops-tracker-latest.csv",
-  "output_ready_csv": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-school-send-ops-ready-latest.csv",
+  "timestamp": "2026-03-24T07:03:31.798Z",
+  "input_csv": "/Users/aliye/Documents/New project/TeacheraBurslulukSMSotp-cc0439a-local-20260324-083634/guidelines/p0-school-link-distribution-pack-latest.csv",
+  "output_tracker_csv": "/Users/aliye/Documents/New project/TeacheraBurslulukSMSotp-cc0439a-local-20260324-083634/guidelines/p0-school-send-ops-tracker-latest.csv",
+  "output_ready_csv": "/Users/aliye/Documents/New project/TeacheraBurslulukSMSotp-cc0439a-local-20260324-083634/guidelines/p0-school-send-ops-ready-latest.csv",
   "total_schools": 130,
   "ready_schools": 130,
   "by_district": [

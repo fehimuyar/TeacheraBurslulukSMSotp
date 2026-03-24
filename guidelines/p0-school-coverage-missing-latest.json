@@ -1,16 +1,16 @@
 {
-  "timestamp": "2026-03-23T14:12:55.899Z",
+  "timestamp": "2026-03-24T07:03:49.407Z",
   "config": {
-    "csv_path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-school-target-130.csv",
+    "csv_path": "/Users/aliye/Documents/New project/TeacheraBurslulukSMSotp-cc0439a-local-20260324-083634/guidelines/p0-school-target-130.csv",
     "campaign_code": "2026_BURSLULUK",
-    "date_tr": "2026-03-23"
+    "date_tr": "2026-03-24"
   },
   "summary": {
     "expected_schools": 130,
     "campaign_seen_schools": 6,
-    "same_day_attr_seen_schools": 6,
+    "same_day_attr_seen_schools": 0,
     "missing_in_campaign": 124,
-    "missing_in_same_day_attr": 124,
+    "missing_in_same_day_attr": 130,
     "expected_channels": [
       "facebook",
       "instagram",
@@ -18,15 +18,14 @@
       "konya_outdoor",
       "youtube"
     ],
-    "observed_channels": [
+    "observed_channels": [],
+    "missing_channels": [
       "facebook",
-      "google",
       "instagram",
       "konya_avm",
       "konya_outdoor",
       "youtube"
-    ],
-    "missing_channels": []
+    ]
   },
   "missing_school_rows": [
     {
@@ -66,6 +65,15 @@
       "missing_in_same_day_attr": "YES"
     },
     {
+      "school_name": "Abdülhamid Han Ortaokulu",
+      "district": "KARATAY",
+      "city": "Konya",
+      "channel_group": "outdoor_qr",
+      "utm_source": "konya_outdoor",
+      "missing_in_campaign": "NO",
+      "missing_in_same_day_attr": "YES"
+    },
+    {
       "school_name": "Ahmet Azmi-Makbule Elberk İlkokulu",
       "district": "MERAM",
       "city": "Konya",
@@ -90,6 +98,42 @@
       "channel_group": "social_paid",
       "utm_source": "instagram",
       "missing_in_campaign": "YES",
+      "missing_in_same_day_attr": "YES"
+    },
+    {
+      "school_name": "Akabe İlkokulu",
+      "district": "KARATAY",
+      "city": "Konya",
+      "channel_group": "mall_screen",
+      "utm_source": "konya_avm",
+      "missing_in_campaign": "NO",
+      "missing_in_same_day_attr": "YES"
+    },
+    {
+      "school_name": "Akabe İmam Hatip Ortaokulu",
+      "district": "KARATAY",
+      "city": "Konya",
+      "channel_group": "social_paid",
+      "utm_source": "instagram",
+      "missing_in_campaign": "NO",
+      "missing_in_same_day_attr": "YES"
+    },
+    {
+      "school_name": "Akçesme İlkokulu",
+      "district": "KARATAY",
+      "city": "Konya",
+      "channel_group": "social_paid",
+      "utm_source": "facebook",
+      "missing_in_campaign": "NO",
+      "missing_in_same_day_attr": "YES"
+    },
+    {
+      "school_name": "Akif Paşa İlkokulu",
+      "district": "KARATAY",
+      "city": "Konya",
+      "channel_group": "social_paid",
+      "utm_source": "youtube",
+      "missing_in_campaign": "NO",
       "missing_in_same_day_attr": "YES"
     },
     {
@@ -252,6 +296,15 @@
       "channel_group": "social_paid",
       "utm_source": "facebook",
       "missing_in_campaign": "YES",
+      "missing_in_same_day_attr": "YES"
+    },
+    {
+      "school_name": "Cemil Keleşoğlu Anadolu Lisesi",
+      "district": "KARATAY",
+      "city": "Konya",
+      "channel_group": "social_paid",
+      "utm_source": "youtube",
+      "missing_in_campaign": "NO",
       "missing_in_same_day_attr": "YES"
     },
     {

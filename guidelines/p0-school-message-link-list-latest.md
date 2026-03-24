@@ -1,9 +1,9 @@
 # P0 School Message + Link List
 
-- Timestamp: 2026-03-23T14:00:40.750Z
-- Input CSV: `/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-school-link-distribution-pack-latest.csv`
+- Timestamp: 2026-03-24T07:03:31.797Z
+- Input CSV: `/Users/aliye/Documents/New project/TeacheraBurslulukSMSotp-cc0439a-local-20260324-083634/guidelines/p0-school-link-distribution-pack-latest.csv`
 - Total schools: 130
-- Output CSV: `/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-school-message-link-list-latest.csv`
+- Output CSV: `/Users/aliye/Documents/New project/TeacheraBurslulukSMSotp-cc0439a-local-20260324-083634/guidelines/p0-school-message-link-list-latest.csv`
 
 ## Template (SMS)
 

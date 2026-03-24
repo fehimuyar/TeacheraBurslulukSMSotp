@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-03-23T11:27:49.447Z",
+  "timestamp": "2026-03-24T06:53:55.291Z",
   "mode": {
     "http": false,
     "aws": false
@@ -17,7 +17,7 @@
       "status": "PASS",
       "detail": "P0-12 package document exists.",
       "evidence": {
-        "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-12-final-go-live-operations-package.md"
+        "path": "/Users/aliye/Documents/New project/TeacheraBurslulukSMSotp-cc0439a-local-20260324-083634/guidelines/p0-12-final-go-live-operations-package.md"
       }
     },
     {

@@ -363,6 +363,7 @@ export default function SettingsOperationsPanel({
           <p className="text-[12px] font-['Neutraface_2_Text:Book',sans-serif] text-[#7A7063]">Yazma Yetkisi</p>
           <p className="mt-1 font-['Neutraface_2_Text:Demi',sans-serif] text-[14px] text-[#1B2B24]">{canEdit ? 'SUPER_ADMIN (Aktif)' : 'Read-only'}</p>
         </div>
+      </div>
 
       {loading ? <PanelLoadingMessage>Ayar anahtarları yükleniyor...</PanelLoadingMessage> : null}
 
@@ -457,21 +458,12 @@ export default function SettingsOperationsPanel({
                 <td className="px-2 py-2">{item.updatedBy}</td>
                 <td className="px-2 py-2">{item.updatedAt}</td>
               </tr>
-            </thead>
-            <tbody>
-              {trackedItems.map((item) => (
-                <tr key={item.key} className="border-b border-white/6">
-                  <td className="px-2 py-2">{item.key}</td>
-                  <td className="px-2 py-2">{item.updatedBy}</td>
-                  <td className="px-2 py-2">{item.updatedAt}</td>
-                </tr>
-              ))}
-            </tbody>
+            ))}
+          </tbody>
           </table>
         </div>
-      </section>
 
       <PanelIpPolicyPanel active={active} role={role} permissions={permissions} />
-    </div>
+    </section>
   );
 }

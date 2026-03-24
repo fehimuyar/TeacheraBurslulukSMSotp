@@ -1,234 +1,38 @@
 {
-  "timestamp": "2026-03-18T00:20:07.100Z",
+  "timestamp": "2026-03-24T06:55:29.605Z",
   "mode": {
     "http": true,
     "aws": true
   },
   "totals": {
-    "pass": 28,
-    "fail": 0,
+    "pass": 0,
+    "fail": 1,
     "warn": 0,
     "skip": 0
   },
-  "overall_ready_for_p0_9": true,
+  "overall_ready_for_p0_9": false,
   "checks": [
     {
       "id": "preflight_required_env",
-      "status": "PASS",
-      "detail": "All required environment variables are present for selected mode.",
+      "status": "FAIL",
+      "detail": "Missing required env: EXAM_API_BASE_URL, PANEL_API_BASE_URL, OPS_API_BASE_URL, AWS_REGION, AURORA_CLUSTER_ID|RDS_INSTANCE_ID, ELASTICACHE_REPLICATION_GROUP_ID, SQS_QUEUE_URL, S3_BUCKET_NAME, CLOUDFRONT_DISTRIBUTION_ID",
       "evidence": {
-        "missing": [],
+        "missing": [
+          "EXAM_API_BASE_URL",
+          "PANEL_API_BASE_URL",
+          "OPS_API_BASE_URL",
+          "AWS_REGION",
+          "AURORA_CLUSTER_ID|RDS_INSTANCE_ID",
+          "ELASTICACHE_REPLICATION_GROUP_ID",
+          "SQS_QUEUE_URL",
+          "S3_BUCKET_NAME",
+          "CLOUDFRONT_DISTRIBUTION_ID"
+        ],
         "mode": {
           "http": true,
           "aws": true
         }
       }
-    },
-    {
-      "id": "runtime_boundaries_distinct_hosts",
-      "status": "PASS",
-      "detail": "Runtime concerns split across 4 hosts.",
-      "evidence": {
-        "bases": {
-          "wwwBase": "https://teachera.com.tr",
-          "examApiBase": "https://exam-api.teachera.com.tr",
-          "panelApiBase": "https://panel-api.teachera.com.tr",
-          "opsApiBase": "https://ops-api.teachera.com.tr"
-        },
-        "hosts": {
-          "www": "teachera.com.tr",
-          "exam_api": "exam-api.teachera.com.tr",
-          "panel_api": "panel-api.teachera.com.tr",
-          "ops_api": "ops-api.teachera.com.tr"
-        }
-      }
-    },
-    {
-      "id": "api_gateway_boundary",
-      "status": "PASS",
-      "detail": "Exam/API boundary appears to be behind dedicated API host/gateway.",
-      "evidence": {
-        "exam_api_host": "exam-api.teachera.com.tr"
-      }
-    },
-    {
-      "id": "www_root_http",
-      "status": "PASS",
-      "detail": "HTTP 200",
-      "evidence": {
-        "url": "https://teachera.com.tr",
-        "status": 200,
-        "expected": [
-          200,
-          301,
-          302,
-          308
-        ]
-      }
-    },
-    {
-      "id": "exam_health_http",
-      "status": "PASS",
-      "detail": "HTTP 200",
-      "evidence": {
-        "url": "https://exam-api.teachera.com.tr/api/health",
-        "status": 200,
-        "expected": [
-          200
-        ]
-      }
-    },
-    {
-      "id": "panel_auth_http",
-      "status": "PASS",
-      "detail": "HTTP 401",
-      "evidence": {
-        "url": "https://panel-api.teachera.com.tr/api/panel/auth/me",
-        "status": 401,
-        "expected": [
-          200,
-          401,
-          403
-        ]
-      }
-    },
-    {
-      "id": "ops_health_http",
-      "status": "PASS",
-      "detail": "HTTP 200",
-      "evidence": {
-        "url": "https://ops-api.teachera.com.tr/api/health",
-        "status": 200,
-        "expected": [
-          200
-        ]
-      }
-    },
-    {
-      "id": "aws_identity",
-      "status": "PASS",
-      "detail": "AWS credentials are valid for audit.",
-      "evidence": {}
-    },
-    {
-      "id": "postgres_instance_exists",
-      "status": "PASS",
-      "detail": "RDS instance found: database-1",
-      "evidence": {}
-    },
-    {
-      "id": "postgres_ha_multi_az",
-      "status": "PASS",
-      "detail": "MultiAZ=true",
-      "evidence": {}
-    },
-    {
-      "id": "postgres_backup_pitr",
-      "status": "PASS",
-      "detail": "BackupRetentionPeriod=7 (expected >=7).",
-      "evidence": {}
-    },
-    {
-      "id": "postgres_encryption_at_rest",
-      "status": "PASS",
-      "detail": "StorageEncrypted=true",
-      "evidence": {}
-    },
-    {
-      "id": "postgres_deletion_protection",
-      "status": "PASS",
-      "detail": "DeletionProtection=true",
-      "evidence": {}
-    },
-    {
-      "id": "redis_group_exists",
-      "status": "PASS",
-      "detail": "Redis replication group found: teachera-redis-ha-03120656",
-      "evidence": {}
-    },
-    {
-      "id": "redis_ha_failover",
-      "status": "PASS",
-      "detail": "AutomaticFailover=enabled",
-      "evidence": {}
-    },
-    {
-      "id": "redis_encryption_at_rest",
-      "status": "PASS",
-      "detail": "AtRestEncryptionEnabled=true",
-      "evidence": {}
-    },
-    {
-      "id": "redis_encryption_in_transit",
-      "status": "PASS",
-      "detail": "TransitEncryptionEnabled=true",
-      "evidence": {}
-    },
-    {
-      "id": "queue_exists",
-      "status": "PASS",
-      "detail": "SQS queue reachable.",
-      "evidence": {}
-    },
-    {
-      "id": "queue_dlq_policy",
-      "status": "PASS",
-      "detail": "RedrivePolicy present.",
-      "evidence": {}
-    },
-    {
-      "id": "queue_encryption",
-      "status": "PASS",
-      "detail": "Queue KMS key configured.",
-      "evidence": {}
-    },
-    {
-      "id": "queue_visibility_timeout",
-      "status": "PASS",
-      "detail": "VisibilityTimeout=45",
-      "evidence": {}
-    },
-    {
-      "id": "object_store_exists",
-      "status": "PASS",
-      "detail": "S3 bucket reachable: teachera-objects-20260312054450-eu-north-1",
-      "evidence": {}
-    },
-    {
-      "id": "object_store_versioning",
-      "status": "PASS",
-      "detail": "Versioning=Enabled",
-      "evidence": {}
-    },
-    {
-      "id": "object_store_encryption",
-      "status": "PASS",
-      "detail": "S3 default encryption policy check.",
-      "evidence": {}
-    },
-    {
-      "id": "cdn_distribution_enabled",
-      "status": "PASS",
-      "detail": "CloudFront enabled=true",
-      "evidence": {}
-    },
-    {
-      "id": "autoscaling_doc_exists",
-      "status": "PASS",
-      "detail": "guidelines/p0-9-target-topology-10k-15k.md present.",
-      "evidence": {}
-    },
-    {
-      "id": "autoscaling_doc_keywords",
-      "status": "PASS",
-      "detail": "Autoscaling matrix keywords check.",
-      "evidence": {}
-    },
-    {
-      "id": "backup_pitr_doc_keywords",
-      "status": "PASS",
-      "detail": "Backup/PITR documentation keywords check.",
-      "evidence": {}
     }
   ]
 }

@@ -1,15 +1,15 @@
 # P0 School Send Priority (Urgent Missing Coverage)
 
-- Timestamp: 2026-03-23T14:00:40.759Z
+- Timestamp: 2026-03-24T07:03:49.589Z
 - Expected target schools: 130
-- Missing schools (urgent send): 129
-- Output CSV: `/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-school-send-priority-urgent-latest.csv`
+- Missing schools (urgent send): 130
+- Output CSV: `/Users/aliye/Documents/New project/TeacheraBurslulukSMSotp-cc0439a-local-20260324-083634/guidelines/p0-school-send-priority-urgent-latest.csv`
 
 ## Channel Breakdown
 
 | channel_group | count |
 | --- | --- |
-| social_paid | 77 |
+| social_paid | 78 |
 | mall_screen | 26 |
 | outdoor_qr | 26 |
 
@@ -21,7 +21,7 @@
 | instagram | 26 |
 | konya_avm | 26 |
 | konya_outdoor | 26 |
-| youtube | 25 |
+| youtube | 26 |
 
 ## First 15 Urgent Rows
 

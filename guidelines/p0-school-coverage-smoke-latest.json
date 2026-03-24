@@ -1,29 +1,29 @@
 {
-  "timestamp": "2026-03-23T14:15:51.154Z",
+  "timestamp": "2026-03-24T07:00:56.308Z",
   "config": {
-    "csv_path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-school-target-130.csv",
+    "csv_path": "/Users/aliye/Documents/New project/TeacheraBurslulukSMSotp-cc0439a-local-20260324-083634/guidelines/p0-school-target-130.csv",
     "expected_school_count": 130,
     "campaign_code": "2026_BURSLULUK",
-    "date_tr": "2026-03-23",
-    "require_db": false,
-    "strict_traffic": false,
+    "date_tr": "2026-03-24",
+    "require_db": true,
+    "strict_traffic": true,
     "upsert_mode": false,
     "has_db_url": true
   },
   "totals": {
-    "pass": 12,
-    "fail": 0,
-    "warn": 2,
+    "pass": 11,
+    "fail": 3,
+    "warn": 0,
     "skip": 1
   },
-  "overall_pass": true,
+  "overall_pass": false,
   "checks": [
     {
       "id": "csv_path_not_placeholder",
       "status": "PASS",
       "detail": "CSV path looks valid.",
       "evidence": {
-        "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-school-target-130.csv"
+        "path": "/Users/aliye/Documents/New project/TeacheraBurslulukSMSotp-cc0439a-local-20260324-083634/guidelines/p0-school-target-130.csv"
       }
     },
     {
@@ -31,7 +31,7 @@
       "status": "PASS",
       "detail": "CSV file found.",
       "evidence": {
-        "path": "/Users/aliye/Downloads/TeacheraBurslulukSMSotp/guidelines/p0-school-target-130.csv"
+        "path": "/Users/aliye/Documents/New project/TeacheraBurslulukSMSotp-cc0439a-local-20260324-083634/guidelines/p0-school-target-130.csv"
       }
     },
     {
@@ -125,9 +125,9 @@
     {
       "id": "db_total_schools_expected",
       "status": "PASS",
-      "detail": "db schools=555, expected>=130",
+      "detail": "db schools=557, expected>=130",
       "evidence": {
-        "db_total_schools": 555,
+        "db_total_schools": 557,
         "expected_school_count": 130
       }
     },
@@ -142,34 +142,34 @@
     },
     {
       "id": "db_campaign_school_coverage",
-      "status": "WARN",
-      "detail": "campaign schools=26, expected>=130",
+      "status": "FAIL",
+      "detail": "campaign schools=32, expected>=130",
       "evidence": {
         "campaign_code": "2026_BURSLULUK",
-        "campaign_school_count": 26,
+        "campaign_school_count": 32,
         "expected_school_count": 130,
-        "strict_traffic": false
+        "strict_traffic": true
       }
     },
     {
       "id": "db_same_day_attr_school_coverage",
-      "status": "WARN",
-      "detail": "same-day attribution schools=9, expected>=130",
+      "status": "FAIL",
+      "detail": "same-day attribution schools=1, expected>=130",
       "evidence": {
         "campaign_code": "2026_BURSLULUK",
-        "date_tr": "2026-03-23",
-        "school_count": 9,
+        "date_tr": "2026-03-24",
+        "school_count": 1,
         "expected_school_count": 130,
-        "strict_traffic": false
+        "strict_traffic": true
       }
     },
     {
       "id": "db_same_day_channel_coverage",
-      "status": "PASS",
-      "detail": "All expected channels observed: facebook, instagram, konya_avm, konya_outdoor, youtube",
+      "status": "FAIL",
+      "detail": "Missing channels: facebook, instagram, konya_avm, konya_outdoor, youtube",
       "evidence": {
         "campaign_code": "2026_BURSLULUK",
-        "date_tr": "2026-03-23",
+        "date_tr": "2026-03-24",
         "expected_channels": [
           "facebook",
           "instagram",
@@ -177,16 +177,15 @@
           "konya_outdoor",
           "youtube"
         ],
-        "observed_channels": [
+        "observed_channels": [],
+        "missing_channels": [
           "facebook",
-          "google",
           "instagram",
           "konya_avm",
           "konya_outdoor",
           "youtube"
         ],
-        "missing_channels": [],
-        "strict_traffic": false
+        "strict_traffic": true
       }
     }
   ]
