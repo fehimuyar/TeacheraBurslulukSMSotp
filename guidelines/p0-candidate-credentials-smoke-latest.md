@@ -1,10 +1,10 @@
 # P0 Candidate Credentials Smoke
 
-- Generated (UTC): 2026-03-24T13:50:04.927Z
+- Generated (UTC): 2026-03-25T05:45:25.593Z
 - Status: PASS
-- Candidate ID: 88b9538d-7635-40a2-ae67-cc89090c564f
-- Candidate Code: AD101867
-- Application No: 20260324-101868
+- Candidate ID: 949f8c67-8c3f-46c3-a069-5b0b2e4c02bc
+- Candidate Code: AD101915
+- Application No: 20260325-101916
 
 ## Checks
 

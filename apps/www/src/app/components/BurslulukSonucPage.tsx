@@ -324,6 +324,8 @@ export default function BurslulukSonucPage() {
           </div>
         ) : null}
 
+        {result ? <BurslulukHybridResultOffers /> : null}
+
         {/* Randevu Al CTA */}
         {result && result.status === 'VIEWED' && (
           <div className="mt-8 rounded-3xl border border-[#2C5447]/30 bg-[#2C5447] p-6 text-center shadow-[0_12px_40px_rgba(44,84,71,0.3)]">
