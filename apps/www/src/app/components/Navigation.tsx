@@ -23,7 +23,8 @@ export default function Navigation({ isMenuOpen, setIsMenuOpen, currentSection }
   const isBurslulukLightSurfaceRoute =
     location.pathname === '/bursluluk-2026'
     || location.pathname === '/bursluluk/onay'
-    || location.pathname === '/bursluluk/giris';
+    || location.pathname === '/bursluluk/giris'
+    || location.pathname === '/bursluluk/bekleme';
   const isAcademyPage = location.pathname === '/academy' || location.pathname.startsWith('/academy/');
   const isSpeakUpPage = location.pathname === '/speakup';
   const navHeightClass = isSpeakUpPage
