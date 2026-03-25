@@ -4,6 +4,7 @@ import type {
   AuditSummary,
   CandidateSummary,
   DashboardPayload,
+  DashboardRecentActionItem,
   NotificationSummary,
   SettingItem,
   UnviewedSummary,
@@ -137,17 +138,74 @@ function SnapshotCard({
   );
 }
 
+function formatRecentActionTime(value: string | undefined) {
+  if (!value) return '--:--';
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return '--:--';
+  return date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+}
+
+const DASHBOARD_ACTION_LABELS: Record<string, string> = {
+  PANEL_SETTINGS_UPDATE: 'Ayar Güncelleme',
+  PANEL_PASSWORD_RESET: 'Şifre Sıfırlama',
+  PANEL_RESULTS_OVERRIDE: 'Sonuç Düzenleme',
+  PANEL_RESULTS_PUBLISH: 'Sonuç Yayınlama',
+  PANEL_UNVIEWED_RESULTS_WA_SEND: 'Sonuç WhatsApp',
+  PANEL_BOT_FOLLOWUP_SCAN: 'Bot Taraması',
+  PANEL_EXAM_REMINDER_BROADCAST_RUN: 'Sınav Hatırlatma',
+  PANEL_CANDIDATE_NOTE_ADD: 'Not Eklendi',
+  PANEL_CANDIDATE_APPOINTMENT_BOOKED: 'Randevu Alındı',
+  PANEL_CANDIDATE_APPOINTMENT_ATTENDED: 'Randevu Gerçekleşti',
+  PANEL_CANDIDATE_APPOINTMENT_NO_SHOW: 'No-show',
+  PANEL_CANDIDATE_SMS_RETRY: 'SMS Tekrar Gönder',
+  PANEL_CANDIDATE_WA_SEND: 'WhatsApp Gönder',
+  PANEL_NOTIFICATIONS_CANCEL: 'Bildirim İptali',
+  PANEL_NOTIFICATIONS_RETRY: 'Bildirim Tekrar Dene',
+  PANEL_NOTIFICATIONS_REQUEUE_DLQ: 'DLQ Yeniden Kuyrukla',
+  PANEL_DLQ_ASSIGN: 'DLQ Atama',
+  PANEL_DLQ_CLOSE: 'DLQ Kapat',
+  PANEL_DLQ_RETRY: 'DLQ Tekrar Dene',
+  PANEL_DLQ_CHANGE_TEMPLATE: 'DLQ Şablon Değiştir',
+  PANEL_CRM_EXPORT_ENQUEUE: 'CRM Kuyruğa Alma',
+  PANEL_CRM_EXPORT_RETRY: 'CRM Tekrar Dene',
+  PANEL_CRM_EXPORT_CANCEL: 'CRM İptali',
+};
+
+function formatRecentActionLabel(action: string | undefined) {
+  if (!action) return 'Panel İşlemi';
+  if (DASHBOARD_ACTION_LABELS[action]) return DASHBOARD_ACTION_LABELS[action];
+  return action
+    .replace(/^PANEL_/, '')
+    .toLowerCase()
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function formatRecentActionDetail(item: DashboardRecentActionItem) {
+  const metadata = item.metadata && typeof item.metadata === 'object' ? (item.metadata as Record<string, unknown>) : null;
+  const detailParts: string[] = [];
+  const templateCode = typeof metadata?.templateCode === 'string' ? metadata.templateCode.trim() : '';
+  const followUpType = typeof metadata?.followUpType === 'string' ? metadata.followUpType.trim() : '';
+  const note = typeof metadata?.note === 'string' ? metadata.note.trim() : '';
+  if (templateCode) detailParts.push(templateCode);
+  if (followUpType) detailParts.push(followUpType);
+  if (note) detailParts.push('Operatör notu');
+  if (item.target_type) detailParts.push(String(item.target_type).replace(/_/g, ' '));
+  if (item.target_id) detailParts.push(String(item.target_id).slice(0, 8));
+  return detailParts.filter(Boolean).join(' • ') || 'Panel işlemi';
+}
+
 /* ── Pending performance metrics ── */
 
-/* Mock appointment metrics — will be replaced with real data from API */
-const APPOINTMENT_METRICS = [
-  { title: 'Randevu', value: '42', helper: 'Randevu alan aday sayısı', trend: 'up' as const },
-  { title: 'Gerçekleşen', value: '28', helper: 'Görüşmeye gelen aday', trend: 'up' as const },
-  { title: 'Kayıt', value: '18', helper: 'Kayıt tamamlayan aday', trend: 'up' as const },
-  { title: 'Dönüşüm', value: '%42.9', helper: 'Başvurudan kayıda dönüşüm', trend: 'up' as const },
-];
-
 const PENDING_PERFORMANCE_METRICS: Array<{ title: string; statusLabel: string; sourceLabel: string; description: string }> = [
+  {
+    title: 'Kayıt',
+    statusLabel: 'Veri bekleniyor',
+    sourceLabel: 'Kaynak: enrollment / kesin kayıt kontratı',
+    description: 'Randevu sonrası kesin kayıt statüsü backend summary kontratına eklenecek.',
+  },
   {
     title: 'Dönüşüm Oranı',
     statusLabel: 'Veri bekleniyor',
@@ -217,6 +275,30 @@ export default function HomeDashboardPanel({
       { title: 'Sonuç Görüntüleme', value: formatPercent(dashboard?.summary?.result_view_rate), helper: 'Yayınlanan sonucun görülme oranı', trend: 'up' as const },
     ],
     [dashboard?.summary?.total_applications, dashboard?.summary?.first_login_rate, dashboard?.summary?.exam_completion_rate, dashboard?.summary?.result_view_rate],
+  );
+
+  const appointmentMetrics = useMemo(
+    () => [
+      { title: 'Randevu', value: formatNumber(dashboard?.appointment_summary?.appointment_booked), helper: 'Randevu alan aday sayısı' },
+      { title: 'Gerçekleşen', value: formatNumber(dashboard?.appointment_summary?.appointment_attended), helper: 'Görüşmeye gelen aday' },
+      { title: 'No-show', value: formatNumber(dashboard?.appointment_summary?.appointment_no_show), helper: 'Randevusuna gelmeyen aday' },
+    ],
+    [
+      dashboard?.appointment_summary?.appointment_attended,
+      dashboard?.appointment_summary?.appointment_booked,
+      dashboard?.appointment_summary?.appointment_no_show,
+    ],
+  );
+
+  const recentCriticalActions = useMemo(
+    () =>
+      (dashboard?.recent_actions || []).map((item) => ({
+        time: formatRecentActionTime(item.created_at),
+        user: item.actor_name?.trim() || 'Sistem',
+        action: formatRecentActionLabel(item.action),
+        detail: formatRecentActionDetail(item),
+      })),
+    [dashboard?.recent_actions],
   );
 
   const communicationHealthMetrics = useMemo(
@@ -300,15 +382,18 @@ export default function HomeDashboardPanel({
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className={`${panelStatCardClassName} border-[#C8CAD8] bg-[#F0F0F6]`}>
               <p className="font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#4A4A6A]">Aktif Kullanıcı</p>
-              <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[22px] text-[#1B2B24]">6</p>
+              <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[22px] text-[#1B2B24]">{formatNumber(dashboard?.admin_overview?.active_users)}</p>
             </div>
             <div className={`${panelStatCardClassName} border-[#C8CAD8] bg-[#F0F0F6]`}>
               <p className="font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#4A4A6A]">Son 24s Admin İşlemi</p>
               <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[22px] text-[#1B2B24]">{formatNumber(auditSummary.panel_actions)}</p>
             </div>
             <div className={`${panelStatCardClassName} border-[#C8CAD8] bg-[#F0F0F6]`}>
-              <p className="font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#4A4A6A]">Bekleyen Onay</p>
-              <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[22px] text-[#1B2B24]">3</p>
+              <div className="flex items-start justify-between gap-2">
+                <p className="font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#4A4A6A]">Bekleyen Onay</p>
+                <span className={`rounded-full border px-2 py-0.5 text-[9px] font-['Neutraface_2_Text:Demi',sans-serif] uppercase tracking-[0.14em] ${statusChipClassName('neutral')}`}>Yakında</span>
+              </div>
+              <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[18px] text-[#7A7063]">Veri bekleniyor</p>
             </div>
             <div className={`${panelStatCardClassName} border-[#C8CAD8] bg-[#F0F0F6]`}>
               <p className="font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#4A4A6A]">Açık Uyarı</p>
@@ -319,20 +404,18 @@ export default function HomeDashboardPanel({
           <div className="mt-4 rounded-[18px] border border-[#E4DBCF] bg-[#FFFCF8] p-3">
             <p className="font-['Neutraface_2_Text:Demi',sans-serif] text-[11px] uppercase tracking-[0.14em] text-[#7A7063]">Son Kritik İşlemler</p>
             <div className="mt-2 divide-y divide-[#ECE2D5]">
-              {[
-                { time: '14:30', user: 'Zeynep', action: 'Sonuç Düzenleme', detail: 'OTP doğrulandı' },
-                { time: '14:15', user: 'Sistem', action: 'Toplu SMS', detail: '1.200 kişi' },
-                { time: '13:45', user: 'Ali', action: 'Rol Değişikliği', detail: 'Öğretmen → Operasyon' },
-                { time: '13:20', user: 'Zeynep', action: 'Ayar Güncelleme', detail: 'Kampanya kodu değişti' },
-                { time: '12:50', user: 'Sistem', action: 'WA Tetikleme', detail: '234 kişi gönderildi' },
-              ].map((item) => (
-                <div key={`${item.time}-${item.action}`} className="flex items-center gap-3 py-2">
-                  <span className="w-[45px] shrink-0 font-['Neutraface_2_Text:Demi',sans-serif] text-[12px] text-[#1B2B24]">{item.time}</span>
-                  <span className="w-[60px] shrink-0 font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#7A7063]">{item.user}</span>
-                  <span className="font-['Neutraface_2_Text:Demi',sans-serif] text-[12px] text-[#33463E]">{item.action}</span>
-                  <span className="ml-auto font-['Neutraface_2_Text:Book',sans-serif] text-[11px] text-[#8A7F71]">{item.detail}</span>
-                </div>
-              ))}
+              {recentCriticalActions.length > 0 ? (
+                recentCriticalActions.map((item) => (
+                  <div key={`${item.time}-${item.action}-${item.detail}`} className="flex items-center gap-3 py-2">
+                    <span className="w-[45px] shrink-0 font-['Neutraface_2_Text:Demi',sans-serif] text-[12px] text-[#1B2B24]">{item.time}</span>
+                    <span className="w-[84px] shrink-0 truncate font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#7A7063]">{item.user}</span>
+                    <span className="font-['Neutraface_2_Text:Demi',sans-serif] text-[12px] text-[#33463E]">{item.action}</span>
+                    <span className="ml-auto max-w-[42%] truncate text-right font-['Neutraface_2_Text:Book',sans-serif] text-[11px] text-[#8A7F71]">{item.detail}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="py-3 font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#7A7063]">Son kritik işlem bulunmuyor.</p>
+              )}
             </div>
           </div>
 
@@ -387,7 +470,7 @@ export default function HomeDashboardPanel({
           <div>
             <p className={panelEyebrowClassName}>Kurum Performansı</p>
             <h2 className={panelLargeTitleClassName}>Başvurudan sonuca kadar genel görünüm</h2>
-            <p className={panelDescriptionClassName}>Canlı kontratı olan metrikler gerçek veriyle gösterilir. Randevu ve kayıt için beklenen alanlar görünür tutulur.</p>
+            <p className={panelDescriptionClassName}>Canlı kontratı olan metrikler gerçek veriyle gösterilir. Kayıt ve dönüşüm alanları veri kontratı tamamlanana kadar bekleyen metriklerde tutulur.</p>
           </div>
           <span className={`rounded-full border px-3 py-1 text-[11px] font-['Neutraface_2_Text:Demi',sans-serif] uppercase tracking-[0.14em] ${statusChipClassName('watch')}`}>Canlı + Bekleyen</span>
         </div>
@@ -395,8 +478,8 @@ export default function HomeDashboardPanel({
           {organizationMetrics.map((item) => (
             <KpiCard key={item.title} title={item.title} value={item.value} helper={item.helper} trend={item.trend} />
           ))}
-          {APPOINTMENT_METRICS.map((item) => (
-            <KpiCard key={item.title} title={item.title} value={item.value} helper={item.helper} trend={item.trend} />
+          {appointmentMetrics.map((item) => (
+            <KpiCard key={item.title} title={item.title} value={item.value} helper={item.helper} />
           ))}
         </div>
         <details className="mt-4 rounded-[20px] border border-[#E8DFD2] bg-[#FFFCF8] p-3">

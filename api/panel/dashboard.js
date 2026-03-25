@@ -4,6 +4,7 @@ import { appendAuditLog, buildPanelActor, readRequestContext } from '../_lib/aud
 import { ROLES } from '../_lib/constants.js';
 import { query } from '../_lib/db.js';
 import { handleRequest, methodGuard, ok, parseDateRange, parseFiltersFromQuery, safeTrim } from '../_lib/http.js';
+import { readPanelSessionIdleTimeoutMinutes } from '../_lib/panelSession.js';
 import { buildWhereClause, pushParam } from '../_lib/sql.js';
 
 function buildCampaignAndDateFilters(filters, params, columnPrefix = '') {
@@ -36,8 +37,9 @@ export default async function handler(req, res) {
     const filters = parseFiltersFromQuery(req.query?.filters);
     const params = [];
     const whereBase = buildWhereClause(buildCampaignAndDateFilters(filters, params));
+    const sessionIdleTimeoutMinutes = readPanelSessionIdleTimeoutMinutes();
 
-    const [kpiResult, trendResult, channelsResult, schoolDistributionResult, schoolPerformanceResult, dlqResult, criticalErrorsResult] = await Promise.all([
+    const [kpiResult, trendResult, channelsResult, schoolDistributionResult, schoolPerformanceResult, dlqResult, criticalErrorsResult, activeUsersResult, recentActionsResult, appointmentSummaryResult] = await Promise.all([
       query(
         `
           WITH base AS (
@@ -228,9 +230,9 @@ export default async function handler(req, res) {
               b.school_name,
               b.candidate_id,
               COALESCE(NULLIF(b.grade::text, ''), 'Bilinmiyor') AS grade_label,
-              COALESCE(lr.status, 'NOT_PUBLISHED') AS result_status,
+              COALESCE(lr.status::text, 'NOT_PUBLISHED') AS result_status,
               COALESCE(la.appointment_status, 'NONE') AS appointment_status,
-              COALESCE(lc.status, 'NOT_QUEUED') AS crm_status
+              COALESCE(lc.status::text, 'NOT_QUEUED') AS crm_status
             FROM base b
             LEFT JOIN latest_result lr ON lr.candidate_id = b.candidate_id
             LEFT JOIN latest_appointment la ON la.candidate_id = b.candidate_id
@@ -291,10 +293,99 @@ export default async function handler(req, res) {
         `,
         params,
       ),
+      query(
+        `
+          SELECT COUNT(DISTINCT s.admin_user_id)::int AS active_users
+          FROM admin_sessions s
+          JOIN admin_users au ON au.id = s.admin_user_id
+          WHERE s.revoked_at IS NULL
+            AND s.expires_at > NOW()
+            AND COALESCE(s.last_seen_at, s.issued_at) >= NOW() - ($1::int * INTERVAL '1 minute')
+            AND au.status = 'ACTIVE'
+        `,
+        [sessionIdleTimeoutMinutes],
+      ),
+      query(
+        `
+          SELECT
+            al.id,
+            al.created_at,
+            al.action,
+            al.target_type,
+            al.target_id,
+            al.metadata,
+            COALESCE(
+              NULLIF(BTRIM(al.metadata ->> 'actorName'), ''),
+              NULLIF(BTRIM(au.full_name), ''),
+              NULLIF(BTRIM(au.email), ''),
+              'Sistem'
+            ) AS actor_name
+          FROM audit_log_entries al
+          LEFT JOIN admin_users au ON au.id::text = al.actor_id
+          WHERE al.actor_type = 'PANEL_USER'
+            AND COALESCE(al.metadata ->> 'preview', 'false') <> 'true'
+            AND (
+              al.action = 'PANEL_SETTINGS_UPDATE'
+              OR al.action = 'PANEL_PASSWORD_RESET'
+              OR al.action IN (
+                'PANEL_RESULTS_OVERRIDE',
+                'PANEL_RESULTS_PUBLISH',
+                'PANEL_UNVIEWED_RESULTS_WA_SEND',
+                'PANEL_BOT_FOLLOWUP_SCAN',
+                'PANEL_EXAM_REMINDER_BROADCAST_RUN'
+              )
+              OR al.action IN (
+                'PANEL_CANDIDATE_NOTE_ADD',
+                'PANEL_CANDIDATE_APPOINTMENT_BOOKED',
+                'PANEL_CANDIDATE_APPOINTMENT_ATTENDED',
+                'PANEL_CANDIDATE_APPOINTMENT_NO_SHOW',
+                'PANEL_CANDIDATE_SMS_RETRY',
+                'PANEL_CANDIDATE_WA_SEND'
+              )
+              OR (al.action LIKE 'PANEL_NOTIFICATIONS_%' AND al.action <> 'PANEL_NOTIFICATIONS_READ')
+              OR (al.action LIKE 'PANEL_DLQ_%' AND al.action <> 'PANEL_DLQ_READ')
+              OR (al.action LIKE 'PANEL_CRM_EXPORT_%' AND al.action <> 'PANEL_CRM_EXPORT_READ')
+            )
+          ORDER BY al.created_at DESC, al.seq DESC
+          LIMIT 5
+        `,
+      ),
+      query(
+        `
+          WITH base AS (
+            SELECT c.id AS candidate_id
+            FROM candidates c
+            ${whereBase}
+          ),
+          latest_appointment AS (
+            SELECT DISTINCT ON (ev.candidate_id)
+              ev.candidate_id,
+              CASE ev.event_type
+                WHEN 'APPOINTMENT_BOOKED' THEN 'BOOKED'
+                WHEN 'APPOINTMENT_ATTENDED' THEN 'ATTENDED'
+                WHEN 'APPOINTMENT_NO_SHOW' THEN 'NO_SHOW'
+                ELSE 'NONE'
+              END AS appointment_status
+            FROM activity_events ev
+            JOIN base b ON b.candidate_id = ev.candidate_id
+            WHERE ev.event_type IN ('APPOINTMENT_BOOKED', 'APPOINTMENT_ATTENDED', 'APPOINTMENT_NO_SHOW')
+            ORDER BY ev.candidate_id, ev.occurred_at DESC
+          )
+          SELECT
+            COUNT(*) FILTER (WHERE la.appointment_status = 'BOOKED')::int AS appointment_booked,
+            COUNT(*) FILTER (WHERE la.appointment_status = 'ATTENDED')::int AS appointment_attended,
+            COUNT(*) FILTER (WHERE la.appointment_status = 'NO_SHOW')::int AS appointment_no_show
+          FROM base b
+          LEFT JOIN latest_appointment la ON la.candidate_id = b.candidate_id
+        `,
+        params,
+      ),
     ]);
 
     const kpi = kpiResult.rows[0] || {};
     const dlq = dlqResult.rows[0] || {};
+    const adminOverview = activeUsersResult.rows[0] || {};
+    const appointmentSummary = appointmentSummaryResult.rows[0] || {};
 
     ok(res, {
       summary: {
@@ -316,6 +407,14 @@ export default async function handler(req, res) {
         last_30m_failures: Number(dlq.last_30m_failures || 0),
         critical_error_codes: criticalErrorsResult.rows,
       },
+      admin_overview: {
+        active_users: Number(adminOverview.active_users || 0),
+      },
+      appointment_summary: {
+        appointment_booked: Number(appointmentSummary.appointment_booked || 0),
+        appointment_attended: Number(appointmentSummary.appointment_attended || 0),
+        appointment_no_show: Number(appointmentSummary.appointment_no_show || 0),
+      },
       hourly_application_trend: trendResult.rows
         .map((row) => ({
           hour: row.hour,
@@ -325,6 +424,15 @@ export default async function handler(req, res) {
       channel_status_distribution: channelsResult.rows,
       school_grade_distribution: schoolDistributionResult.rows,
       school_performance: schoolPerformanceResult.rows,
+      recent_actions: recentActionsResult.rows.map((row) => ({
+        id: row.id,
+        created_at: row.created_at,
+        actor_name: row.actor_name,
+        action: row.action,
+        target_type: row.target_type,
+        target_id: row.target_id,
+        metadata: row.metadata || null,
+      })),
     });
 
     const ctx = readRequestContext(req);

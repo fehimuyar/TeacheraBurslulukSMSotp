@@ -80,6 +80,26 @@ export type DashboardChannelStatusItem = {
   count?: number;
 };
 
+export type DashboardAdminOverview = {
+  active_users?: number;
+};
+
+export type DashboardAppointmentSummary = {
+  appointment_booked?: number;
+  appointment_attended?: number;
+  appointment_no_show?: number;
+};
+
+export type DashboardRecentActionItem = {
+  id?: string;
+  created_at?: string;
+  actor_name?: string;
+  action?: string;
+  target_type?: string;
+  target_id?: string;
+  metadata?: Record<string, unknown> | null;
+};
+
 export type DashboardPayload = {
   summary?: {
     total_applications?: number;
@@ -95,6 +115,9 @@ export type DashboardPayload = {
     last_30m_failures?: number;
     critical_error_codes?: DashboardErrorCodeItem[];
   };
+  admin_overview?: DashboardAdminOverview;
+  appointment_summary?: DashboardAppointmentSummary;
+  recent_actions?: DashboardRecentActionItem[];
   hourly_application_trend?: DashboardTrendItem[];
   channel_status_distribution?: DashboardChannelStatusItem[];
 };
