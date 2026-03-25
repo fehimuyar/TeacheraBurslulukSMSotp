@@ -58,6 +58,62 @@ function canUseWhatsappFallback(payload) {
   return true;
 }
 
+function readOpsNotificationWorkerBaseUrl() {
+  return String(process.env.OPS_API_BASE_URL || 'https://ops-api.teachera.com.tr')
+    .trim()
+    .replace(/\/$/, '');
+}
+
+function readOpsNotificationWorkerSecret() {
+  return String(process.env.NOTIFICATION_WORKER_SECRET || process.env.CRON_SECRET || '')
+    .trim();
+}
+
+async function nudgeCredentialSmsWorkerBestEffort({ channel, templateCode, campaignCode }) {
+  if (String(channel || '').toUpperCase() !== 'SMS' || !isCredentialsSmsTemplate(templateCode)) {
+    return;
+  }
+
+  const workerBaseUrl = readOpsNotificationWorkerBaseUrl();
+  const workerSecret = readOpsNotificationWorkerSecret();
+  if (!workerBaseUrl || !workerSecret) {
+    return;
+  }
+
+  const endpoint = new URL('/api/notifications/worker', workerBaseUrl + '/');
+  endpoint.searchParams.set('limit', '10');
+  endpoint.searchParams.set('reconcile_limit', '10');
+  if (String(campaignCode || '').trim()) {
+    endpoint.searchParams.set('campaign_code', String(campaignCode).trim().slice(0, 120));
+  }
+
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => controller.abort(), 1500);
+
+  try {
+    const response = await fetch(endpoint.toString(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: 'Bearer ' + workerSecret,
+      },
+      body: '{}',
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      console.error('[notification_worker_nudge_failed]', response.status, response.statusText);
+    }
+  } catch (error) {
+    if (error?.name !== 'AbortError') {
+      console.error('[notification_worker_nudge_failed]', error);
+    }
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+}
+
 async function enqueueWhatsappFallbackForResultSms(sourceJob, reasonCode) {
   if (!sourceJob?.result_id) {
     return {
@@ -240,6 +296,11 @@ export async function enqueueNotification({
 
   if (normalizedChannel === 'SMS' && isCredentialsSmsTemplate(templateCode)) {
     await syncApplicationCredentialsSmsStatusByCandidate(candidateId, 'QUEUED');
+    await nudgeCredentialSmsWorkerBestEffort({
+      channel: normalizedChannel,
+      templateCode,
+      campaignCode,
+    });
   }
 
   return { jobId };

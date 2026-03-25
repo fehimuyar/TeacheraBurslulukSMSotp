@@ -34,6 +34,57 @@ function normalizeApplicationNo(value) {
   return safeTrim(value).toUpperCase().slice(0, 60);
 }
 
+function readOpsNotificationWorkerBaseUrl() {
+  return String(process.env.OPS_API_BASE_URL || 'https://ops-api.teachera.com.tr')
+    .trim()
+    .replace(/\/$/, '');
+}
+
+function readOpsNotificationWorkerSecret() {
+  return safeTrim(process.env.NOTIFICATION_WORKER_SECRET || process.env.CRON_SECRET);
+}
+
+async function nudgeCredentialsSmsWorkerBestEffort(campaignCode) {
+  const workerBaseUrl = readOpsNotificationWorkerBaseUrl();
+  const workerSecret = readOpsNotificationWorkerSecret();
+  if (!workerBaseUrl || !workerSecret) {
+    return;
+  }
+
+  const endpoint = new URL('/api/notifications/worker', workerBaseUrl + '/');
+  endpoint.searchParams.set('limit', '10');
+  endpoint.searchParams.set('reconcile_limit', '10');
+  if (safeTrim(campaignCode)) {
+    endpoint.searchParams.set('campaign_code', safeTrim(campaignCode).slice(0, 120));
+  }
+
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => controller.abort(), 1500);
+
+  try {
+    const response = await fetch(endpoint.toString(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Bearer ${workerSecret}`,
+      },
+      body: '{}',
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      console.error('[credentials_sms_worker_nudge_failed]', response.status, response.statusText);
+    }
+  } catch (error) {
+    if (error?.name !== 'AbortError') {
+      console.error('[credentials_sms_worker_nudge_failed]', error);
+    }
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+}
+
 async function enqueueCredentialsSmsInTransaction(client, payload) {
   const {
     campaignCode,
@@ -229,30 +280,26 @@ async function rotateCredentials({
     };
   });
 
+  const sideEffects = [
+    writeExamSessionCache(nextTokenHash, {
+      id: sessionId,
+      attempt_id: attemptId,
+      expires_at: nextExpiresAt,
+      revoked_at: null,
+    }),
+    nudgeCredentialsSmsWorkerBestEffort(row.campaign_code),
+  ];
   if (currentToken && authenticatedSession) {
     const currentTokenHash = hashSessionToken(currentToken);
-    await Promise.allSettled([
+    sideEffects.push(
       writeExamSessionCache(currentTokenHash, {
         ...authenticatedSession,
         revoked_at: revokedAt,
       }),
-      writeExamSessionCache(nextTokenHash, {
-        id: sessionId,
-        attempt_id: attemptId,
-        expires_at: nextExpiresAt,
-        revoked_at: null,
-      }),
-    ]);
-  } else {
-    await Promise.allSettled([
-      writeExamSessionCache(nextTokenHash, {
-        id: sessionId,
-        attempt_id: attemptId,
-        expires_at: nextExpiresAt,
-        revoked_at: null,
-      }),
-    ]);
+    );
   }
+
+  await Promise.allSettled(sideEffects);
 
   return {
     applicationNo: row.application_no,
