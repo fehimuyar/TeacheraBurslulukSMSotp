@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { candidateLogin, renewCandidateCredentials } from '../api/examApi';
 import { notifyError, notifySuccess } from '../lib/notifications';
@@ -13,6 +13,7 @@ import {
   readCandidateSession,
   resolveDefaultExamOpenAt,
   saveCandidateSession,
+  type BurslulukCandidateSession,
 } from './bursluluk/burslulukFlowSession';
 
 const CAMPAIGN_CODE = String(import.meta.env.VITE_BURSLULUK_CAMPAIGN_CODE || '2026_BURSLULUK').trim();
@@ -41,6 +42,68 @@ function formatCooldown(seconds: number) {
   return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
 }
 
+function updateStoredSession(
+  current: BurslulukCandidateSession,
+  patch: Partial<BurslulukCandidateSession>,
+) {
+  return saveCandidateSession({
+    applicationNo: patch.applicationNo || current.applicationNo,
+    candidateCode: patch.candidateCode ?? current.candidateCode,
+    attemptId: patch.attemptId || current.attemptId,
+    sessionToken: patch.sessionToken || current.sessionToken,
+    candidateId: patch.candidateId ?? current.candidateId,
+    expiresAt: patch.expiresAt ?? current.expiresAt,
+    startedAt: patch.startedAt ?? current.startedAt,
+    credentialsSmsStatus: patch.credentialsSmsStatus ?? current.credentialsSmsStatus,
+    consentVersion: patch.consentVersion ?? current.consentVersion,
+    studentFullName: patch.studentFullName || current.studentFullName,
+    parentFullName: patch.parentFullName || current.parentFullName,
+    parentPhoneE164: patch.parentPhoneE164 || current.parentPhoneE164,
+    parentEmail: patch.parentEmail ?? current.parentEmail,
+    schoolName: patch.schoolName || current.schoolName,
+    schoolDistrict: patch.schoolDistrict ?? current.schoolDistrict,
+    schoolType: patch.schoolType ?? current.schoolType,
+    grade: patch.grade ?? current.grade,
+    tckn: patch.tckn ?? current.tckn,
+    birthYear: patch.birthYear ?? current.birthYear,
+    branch: patch.branch ?? current.branch,
+    selectedSessionId: patch.selectedSessionId ?? current.selectedSessionId,
+    selectedSessionLabel: patch.selectedSessionLabel ?? current.selectedSessionLabel,
+    ageRange: patch.ageRange || current.ageRange,
+    language: patch.language || current.language,
+    questionCount: patch.questionCount ?? current.questionCount,
+    campaignCode: patch.campaignCode || current.campaignCode,
+    examOpenAt: patch.examOpenAt || current.examOpenAt,
+    examSlotLabel: patch.examSlotLabel ?? current.examSlotLabel,
+  });
+}
+
+async function requestCredentialsSms({
+  applicationNo,
+  parentPhoneE164,
+  attemptId,
+  sessionToken,
+}: {
+  applicationNo: string;
+  parentPhoneE164: string;
+  attemptId?: string;
+  sessionToken?: string | null;
+}) {
+  if (attemptId && sessionToken) {
+    try {
+      return await renewCandidateCredentials(sessionToken, { attemptId });
+    } catch {
+      // Fall back to public recovery when the stored session token is stale.
+    }
+  }
+
+  return renewCandidateCredentials(null, {
+    applicationNo,
+    parentPhoneE164,
+    campaignCode: CAMPAIGN_CODE,
+  });
+}
+
 function SectionLabel({ children }: { children: string }) {
   return (
     <div className="mb-3 flex items-center gap-2.5 sm:mb-4 sm:gap-3">
@@ -54,20 +117,21 @@ function SectionLabel({ children }: { children: string }) {
 
 export default function BurslulukGirisPage() {
   const navigate = useNavigate();
-  const existingSession = useMemo(() => readCandidateSession(), []);
+  const [sessionContext, setSessionContext] = useState<BurslulukCandidateSession | null>(() => readCandidateSession());
 
-  const [loginApplicationNo, setLoginApplicationNo] = useState(existingSession?.applicationNo || '');
+  const [loginApplicationNo, setLoginApplicationNo] = useState(sessionContext?.applicationNo || '');
   const [loginPassword, setLoginPassword] = useState('');
   const [isLoginSubmitting, setIsLoginSubmitting] = useState(false);
   const [showRenewFlow, setShowRenewFlow] = useState(false);
-  const [renewApplicationNo, setRenewApplicationNo] = useState(existingSession?.applicationNo || '');
-  const [renewPhone, setRenewPhone] = useState(fromE164ToTrMobile(existingSession?.parentPhoneE164 || ''));
+  const [renewApplicationNo, setRenewApplicationNo] = useState(sessionContext?.applicationNo || '');
+  const [renewPhone, setRenewPhone] = useState(fromE164ToTrMobile(sessionContext?.parentPhoneE164 || ''));
   const [isRenewSubmitting, setIsRenewSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [renewMessage, setRenewMessage] = useState('');
   const [cooldownRemaining, setCooldownRemaining] = useState(() =>
-    getCredentialsResendRemainingSeconds(existingSession?.applicationNo || ''),
+    getCredentialsResendRemainingSeconds(sessionContext?.applicationNo || ''),
   );
+  const [hasAttemptedAutoRenew, setHasAttemptedAutoRenew] = useState(false);
 
   useEffect(() => {
     const applicationNo = renewApplicationNo.trim().toUpperCase();
@@ -90,6 +154,63 @@ export default function BurslulukGirisPage() {
     }
   }, [showRenewFlow, renewApplicationNo, loginApplicationNo]);
 
+  useEffect(() => {
+    const session = sessionContext;
+    const applicationNo = session?.applicationNo.trim().toUpperCase() || '';
+    const parentPhoneE164 = String(session?.parentPhoneE164 || '').trim();
+
+    if (!session || !applicationNo || !parentPhoneE164 || hasAttemptedAutoRenew || cooldownRemaining > 0) {
+      return;
+    }
+
+    let cancelled = false;
+    setHasAttemptedAutoRenew(true);
+
+    const run = async () => {
+      setErrorMessage('');
+      setRenewMessage('');
+      setIsRenewSubmitting(true);
+
+      try {
+        const response = await requestCredentialsSms({
+          applicationNo,
+          parentPhoneE164,
+          attemptId: session.attemptId,
+          sessionToken: session.sessionToken,
+        });
+
+        if (cancelled) return;
+        const updated = updateStoredSession(session, {
+          sessionToken: response.credentials.sessionToken,
+          expiresAt: response.credentials.expiresAt,
+          credentialsSmsStatus: response.credentials.credentialsSmsStatus,
+          parentPhoneE164: response.credentials.phone || parentPhoneE164,
+        });
+        setSessionContext(updated);
+        setLoginApplicationNo(updated.applicationNo);
+        setRenewApplicationNo(updated.applicationNo);
+        setRenewPhone(fromE164ToTrMobile(updated.parentPhoneE164 || parentPhoneE164));
+        startCredentialsResendCooldown(updated.applicationNo);
+        setCooldownRemaining(getCredentialsResendRemainingSeconds(updated.applicationNo));
+        setRenewMessage('Şifreniz kayıtlı telefon numarasına gönderildi.');
+      } catch (error) {
+        if (cancelled) return;
+        const message = normalizeError(error, 'Şifre gönderilemedi.');
+        setErrorMessage(message);
+      } finally {
+        if (!cancelled) {
+          setIsRenewSubmitting(false);
+        }
+      }
+    };
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionContext, hasAttemptedAutoRenew, cooldownRemaining]);
+
   const handleLoginSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorMessage('');
@@ -109,35 +230,36 @@ export default function BurslulukGirisPage() {
 
       const session = response.session;
       const candidate = response.candidate || {};
-      const isSameCandidate = existingSession?.applicationNo === session.applicationNo;
+      const isSameCandidate = sessionContext?.applicationNo === session.applicationNo;
 
-      saveCandidateSession({
+      const savedSession = saveCandidateSession({
         applicationNo: session.applicationNo,
         attemptId: session.attemptId,
         sessionToken: session.sessionToken,
         candidateId: session.candidateId,
         expiresAt: session.expiresAt,
-        studentFullName: candidate.studentFullName || existingSession?.studentFullName || 'Aday Öğrenci',
-        parentFullName: candidate.parentFullName || existingSession?.parentFullName || 'Veli',
-        parentPhoneE164: isSameCandidate ? existingSession?.parentPhoneE164 || '' : '',
-        schoolName: isSameCandidate ? existingSession?.schoolName || '' : '',
-        schoolDistrict: isSameCandidate ? existingSession?.schoolDistrict : undefined,
-        schoolType: isSameCandidate ? existingSession?.schoolType : undefined,
-        grade: normalizeGrade(candidate.grade ?? existingSession?.grade ?? 8),
-        tckn: isSameCandidate ? existingSession?.tckn : undefined,
-        birthYear: isSameCandidate ? existingSession?.birthYear : undefined,
-        branch: isSameCandidate ? existingSession?.branch : undefined,
-        selectedSessionId: isSameCandidate ? existingSession?.selectedSessionId : undefined,
-        selectedSessionLabel: isSameCandidate ? existingSession?.selectedSessionLabel : undefined,
+        studentFullName: candidate.studentFullName || sessionContext?.studentFullName || 'Aday Öğrenci',
+        parentFullName: candidate.parentFullName || sessionContext?.parentFullName || 'Veli',
+        parentPhoneE164: isSameCandidate ? sessionContext?.parentPhoneE164 || '' : '',
+        schoolName: isSameCandidate ? sessionContext?.schoolName || '' : '',
+        schoolDistrict: isSameCandidate ? sessionContext?.schoolDistrict : undefined,
+        schoolType: isSameCandidate ? sessionContext?.schoolType : undefined,
+        grade: normalizeGrade(candidate.grade ?? sessionContext?.grade ?? 8),
+        tckn: isSameCandidate ? sessionContext?.tckn : undefined,
+        birthYear: isSameCandidate ? sessionContext?.birthYear : undefined,
+        branch: isSameCandidate ? sessionContext?.branch : undefined,
+        selectedSessionId: isSameCandidate ? sessionContext?.selectedSessionId : undefined,
+        selectedSessionLabel: isSameCandidate ? sessionContext?.selectedSessionLabel : undefined,
         ageRange:
           session.examAgeRange
-          || (isSameCandidate ? existingSession?.ageRange : undefined)
-          || deriveAgeRangeFromGrade(normalizeGrade(candidate.grade ?? existingSession?.grade ?? 8)),
-        language: session.examLanguage || (isSameCandidate ? existingSession?.language : undefined) || 'en',
+          || (isSameCandidate ? sessionContext?.ageRange : undefined)
+          || deriveAgeRangeFromGrade(normalizeGrade(candidate.grade ?? sessionContext?.grade ?? 8)),
+        language: session.examLanguage || (isSameCandidate ? sessionContext?.language : undefined) || 'en',
         questionCount: Number(session.questionCount || QUESTION_COUNT),
         campaignCode: CAMPAIGN_CODE,
-        examOpenAt: response.gate?.exam_open_at || existingSession?.examOpenAt || resolveDefaultExamOpenAt(),
+        examOpenAt: response.gate?.exam_open_at || sessionContext?.examOpenAt || resolveDefaultExamOpenAt(),
       });
+      setSessionContext(savedSession);
 
       navigate('/bursluluk/bekleme');
     } catch (error) {
@@ -170,17 +292,39 @@ export default function BurslulukGirisPage() {
     setIsRenewSubmitting(true);
 
     try {
-      await renewCandidateCredentials(null, {
+      const parentPhoneE164 = toE164FromTrMobile(normalizedPhone);
+      const currentSession = sessionContext && sessionContext.applicationNo.trim().toUpperCase() === applicationNo
+        ? sessionContext
+        : null;
+      const authenticatedSession = currentSession
+        && (!currentSession.parentPhoneE164 || currentSession.parentPhoneE164 === parentPhoneE164)
+          ? currentSession
+          : null;
+
+      const response = await requestCredentialsSms({
         applicationNo,
-        parentPhoneE164: toE164FromTrMobile(normalizedPhone),
-        campaignCode: CAMPAIGN_CODE,
+        parentPhoneE164,
+        attemptId: authenticatedSession?.attemptId,
+        sessionToken: authenticatedSession?.sessionToken,
       });
+
+      if (currentSession) {
+        const updated = updateStoredSession(currentSession, {
+          sessionToken: response.credentials.sessionToken,
+          expiresAt: response.credentials.expiresAt,
+          credentialsSmsStatus: response.credentials.credentialsSmsStatus,
+          parentPhoneE164: response.credentials.phone || parentPhoneE164,
+        });
+        setSessionContext(updated);
+        setRenewPhone(fromE164ToTrMobile(updated.parentPhoneE164 || parentPhoneE164));
+      }
 
       startCredentialsResendCooldown(applicationNo);
       setCooldownRemaining(getCredentialsResendRemainingSeconds(applicationNo));
       setRenewMessage('Şifreniz kayıtlı telefon numarasına tekrar gönderildi.');
       notifySuccess('Şifre kayıtlı telefon numarasına tekrar gönderildi.');
       setLoginApplicationNo(applicationNo);
+      setRenewApplicationNo(applicationNo);
     } catch (error) {
       const message = normalizeError(error, 'Şifre tekrar gönderilemedi.');
       setErrorMessage(message);
