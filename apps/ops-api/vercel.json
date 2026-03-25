@@ -10,7 +10,7 @@
   },
   "crons": [
     {
-      "path": "/api/notifications/worker?limit=20&reconcile_limit=50",
+      "path": "/api/notifications/worker?limit=50&reconcile_limit=50",
       "schedule": "* * * * *"
     },
     {

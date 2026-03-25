@@ -496,7 +496,14 @@ async function lockPendingJobs(limit, leaseSeconds, campaignCode = '') {
           WHERE status IN ('QUEUED', 'RETRYING')
             AND (next_retry_at IS NULL OR next_retry_at <= NOW())
             AND ($3::text = '' OR campaign_code = $3)
-          ORDER BY created_at ASC
+          ORDER BY
+            CASE
+              WHEN channel = 'SMS' AND template_code = 'CREDENTIALS_SMS' AND status = 'QUEUED' THEN 0
+              WHEN channel = 'SMS' AND template_code = 'CREDENTIALS_SMS' THEN 1
+              WHEN status = 'QUEUED' THEN 2
+              ELSE 3
+            END ASC,
+            created_at DESC
           LIMIT $1
           FOR UPDATE SKIP LOCKED
         )
