@@ -227,9 +227,9 @@ export default async function handler(req, res) {
               b.school_name,
               b.candidate_id,
               COALESCE(NULLIF(b.grade::text, ''), 'Bilinmiyor') AS grade_label,
-              COALESCE(lr.status, 'NOT_PUBLISHED') AS result_status,
+              COALESCE(lr.status::text, 'NOT_PUBLISHED') AS result_status,
               COALESCE(la.appointment_status, 'NONE') AS appointment_status,
-              COALESCE(lc.status, 'NOT_QUEUED') AS crm_status
+              COALESCE(lc.status::text, 'NOT_QUEUED') AS crm_status
             FROM base b
             LEFT JOIN latest_result lr ON lr.candidate_id = b.candidate_id
             LEFT JOIN latest_appointment la ON la.candidate_id = b.candidate_id
