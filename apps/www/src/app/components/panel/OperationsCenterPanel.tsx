@@ -21,10 +21,14 @@ import BankListTab from './ops/BankListTab';
 
 export default function OperationsCenterPanel({
   role,
+  permissions,
   focus,
+  campaignCode,
 }: {
   role?: string;
+  permissions?: string[];
   focus: PanelFocus;
+  campaignCode?: string;
 }) {
   const [, setSearchParams] = useSearchParams();
 
@@ -54,8 +58,8 @@ export default function OperationsCenterPanel({
       </section>
 
       {activeFocus === 'exam-assign' && <ExamAssignmentTab role={role} />}
-      {activeFocus === 'whatsapp-triggers' && <WhatsAppTriggersTab role={role} />}
-      {activeFocus === 'sms' && <SmsOperationsTab role={role} />}
+      {activeFocus === 'whatsapp-triggers' && <WhatsAppTriggersTab role={role} permissions={permissions} seedCampaignCode={campaignCode} />}
+      {activeFocus === 'sms' && <SmsOperationsTab role={role} permissions={permissions} seedCampaignCode={campaignCode} />}
       {activeFocus === 'api-status' && <ApiStatusTab role={role} />}
       {activeFocus === 'schools' && <SchoolListTab role={role} />}
       {activeFocus === 'programs' && <ProgramsPricingTab role={role} />}

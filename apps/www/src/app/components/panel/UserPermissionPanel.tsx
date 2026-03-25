@@ -13,9 +13,11 @@ import UserAccountsTab from './users/UserAccountsTab';
 
 export default function UserPermissionPanel({
   role,
+  permissions,
   focus,
 }: {
   role?: string;
+  permissions?: string[];
   focus: PanelFocus;
 }) {
   const [, setSearchParams] = useSearchParams();
@@ -48,8 +50,8 @@ export default function UserPermissionPanel({
         </div>
       </section>
 
-      {activeFocus === 'roles' && <RoleManagementTab role={role} />}
-      {activeFocus === 'accounts' && <UserAccountsTab role={role} />}
+      {activeFocus === 'roles' && <RoleManagementTab role={role} permissions={permissions} />}
+      {activeFocus === 'accounts' && <UserAccountsTab role={role} permissions={permissions} />}
     </div>
   );
 }

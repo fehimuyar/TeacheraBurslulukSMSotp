@@ -1,14 +1,82 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { NAVIGATION_ITEMS, NAVIGATION_SECTION_META } from './panelNavigationConfig';
+import { NAVIGATION_ITEMS } from './panelNavigationConfig';
 import { canViewModule, normalizePanelRole } from './panelPermissions';
-import type { NavigationSection, PanelFocus, PanelIdentity, PanelView } from './panelTypes';
+import {
+  PANEL_PERMISSION,
+  canReadCandidates,
+  canReadDashboard,
+  canReadSettings,
+  canReviewResults,
+  hasAnyPanelPermission,
+} from './panelRoleAccess';
+import type { PanelIdentity, PanelView } from './panelTypes';
 import { buildDashboardHref } from './panelTypes';
 import {
   panelDangerButtonClassName,
 } from './panelUi';
 
 type BadgeCounts = Record<string, number>;
+
+function canAccessNavigationItem(identity: PanelIdentity | null, item: (typeof NAVIGATION_ITEMS)[number]) {
+  const role = identity?.role;
+  const permissions = identity?.permissions;
+
+  if (!permissions || permissions.length === 0) {
+    return !item.superAdminOnly || canViewModule(role, item.id);
+  }
+
+  if (item.superAdminOnly) {
+    return canViewModule(role, item.id);
+  }
+
+  switch (item.id) {
+    case 'home':
+      return canReadDashboard(role, permissions);
+    case 'applications':
+    case 'scholarship':
+    case 'appointments':
+      return canReadCandidates(role, permissions);
+    case 'results':
+      return canReviewResults(role, permissions);
+    case 'operations':
+      return hasAnyPanelPermission(
+        [
+          PANEL_PERMISSION.CANDIDATES_ACTION,
+          PANEL_PERMISSION.NOTIFICATIONS_READ,
+          PANEL_PERMISSION.NOTIFICATIONS_ACTION,
+          PANEL_PERMISSION.UNVIEWED_READ,
+          PANEL_PERMISSION.UNVIEWED_ACTION,
+          PANEL_PERMISSION.DLQ_READ,
+          PANEL_PERMISSION.DLQ_ACTION,
+          PANEL_PERMISSION.CRM_PUSH,
+        ],
+        role,
+        permissions,
+      );
+    case 'reports':
+      return hasAnyPanelPermission(
+        [
+          PANEL_PERMISSION.CANDIDATES_EXPORT,
+          PANEL_PERMISSION.NOTIFICATIONS_READ,
+          PANEL_PERMISSION.UNVIEWED_READ,
+          PANEL_PERMISSION.DLQ_READ,
+          PANEL_PERMISSION.AUDIT_READ,
+          PANEL_PERMISSION.AUDIT_EXPORT,
+        ],
+        role,
+        permissions,
+      );
+    case 'exam-builder':
+    case 'system-status':
+      return canReadSettings(role, permissions);
+    case 'users':
+    case 'security':
+      return canViewModule(role, item.id);
+    default:
+      return canViewModule(role, item.id);
+  }
+}
 
 export default function PanelSidebar({
   identity,
@@ -35,17 +103,6 @@ export default function PanelSidebar({
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const normalizedRole = normalizePanelRole(identity?.role);
-
-  const grouped = NAVIGATION_ITEMS.reduce(
-    (acc, item) => {
-      if (!acc[item.section]) acc[item.section] = [];
-      acc[item.section].push(item);
-      return acc;
-    },
-    {} as Record<NavigationSection, typeof NAVIGATION_ITEMS>,
-  );
-
-  const sectionOrder: NavigationSection[] = ['ana-operasyon', 'yonetim', 'sistem'];
 
   /* Mobile: hidden by default, overlay when mobileOpen. Desktop: always visible. */
   const handleNavClick = () => { if (onMobileClose) onMobileClose(); };
@@ -91,7 +148,7 @@ export default function PanelSidebar({
           <div className="flex-1 overflow-y-auto px-2 py-2">
             <nav className="space-y-0.5">
               {NAVIGATION_ITEMS
-                .filter((item) => !item.superAdminOnly || canViewModule(identity?.role, item.id))
+                .filter((item) => canAccessNavigationItem(identity, item))
                 .map((item) => {
                   const active = item.id === activeView;
                   const badge = item.badgeKey ? badgeCounts[item.badgeKey] : undefined;

@@ -69,17 +69,27 @@ function hashOpaqueToken(token) {
 
 function normalizeRoleCodes(value) {
   if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => safeTrim(item).toUpperCase())
-    .map((item) => LEGACY_ROLE_NORMALIZATION_MAP[item] || item)
-    .filter((item) => ROLE_PRIORITY.includes(item));
+
+  const seen = new Set();
+  const roles = [];
+  for (const entry of value) {
+    const normalized = LEGACY_ROLE_NORMALIZATION_MAP[safeTrim(entry).toUpperCase()] || safeTrim(entry).toUpperCase();
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    roles.push(normalized);
+  }
+  return roles;
 }
 
 function pickPrimaryRole(roles) {
   for (const role of ROLE_PRIORITY) {
     if (roles.includes(role)) return role;
   }
-  return null;
+  const customRoles = roles
+    .filter(Boolean)
+    .slice()
+    .sort((left, right) => left.localeCompare(right, 'en'));
+  return customRoles[0] || null;
 }
 
 function readRequestIp(req) {

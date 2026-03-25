@@ -211,22 +211,26 @@ export default function PanelDashboardPage() {
         <PageIntro eyebrow="Bursluluk Başvuruları" title="Aday operasyonu ve süreç takibi">
           <PanelSubNavTabs items={[{ label: 'Aday Listesi', focus: 'candidates' as const }, { label: 'Sonuç Görmeyenler', focus: 'unviewed' as const }]} activeFocus={(activeFocus || 'candidates') as string} onSelect={(f) => handleSubTabSelect('scholarship', f)} />
         </PageIntro>
-        {(activeFocus || 'candidates') === 'unviewed' ? <UnviewedResultsPanel active role={identity?.role} /> : <CandidateOperationsPanel active seedQuery={appliedGlobalSearch} seedCampaignCode={appliedCampaign} role={identity?.role} />}
+        {(activeFocus || 'candidates') === 'unviewed'
+          ? <UnviewedResultsPanel active role={identity?.role} permissions={identity?.permissions} />
+          : <CandidateOperationsPanel active seedQuery={appliedGlobalSearch} seedCampaignCode={appliedCampaign} role={identity?.role} permissions={identity?.permissions} />}
       </div>
     );
     if (activeView === 'results') return <ResultsScholarshipPanel role={identity?.role} />;
-    if (activeView === 'operations') return <OperationsCenterPanel role={identity?.role} focus={activeFocus || 'exam-assign'} />;
+    if (activeView === 'operations') return <OperationsCenterPanel role={identity?.role} permissions={identity?.permissions} focus={activeFocus || 'exam-assign'} campaignCode={appliedCampaign} />;
     if (activeView === 'reports') return <ReportsPanel role={identity?.role} focus={activeFocus || 'sales'} />;
     if (activeView === 'appointments') return <AppointmentsPanel role={identity?.role} focus={activeFocus || 'schedule'} />;
     if (activeView === 'exam-builder') return <ExamBuilderPanel role={identity?.role} />;
     if (activeView === 'system-status') return <SystemStatusPanel />;
-    if (activeView === 'users') return <UserPermissionPanel role={identity?.role} focus={activeFocus || 'roles'} />;
+    if (activeView === 'users') return <UserPermissionPanel role={identity?.role} permissions={identity?.permissions} focus={activeFocus || 'roles'} />;
     if (activeView === 'automation') return (
       <div className="space-y-5">
         <PageIntro eyebrow="Otomasyon" title="Bildirim ve DLQ">
           <PanelSubNavTabs items={[{ label: 'Bildirimler', focus: 'notifications' as const }, { label: 'DLQ', focus: 'dlq' as const }]} activeFocus={(activeFocus || 'notifications') as string} onSelect={(f) => handleSubTabSelect('automation', f)} />
         </PageIntro>
-        {(activeFocus || 'notifications') === 'dlq' ? <DlqOperationsPanel active role={identity?.role} /> : <NotificationCenterPanel active role={identity?.role} />}
+        {(activeFocus || 'notifications') === 'dlq'
+          ? <DlqOperationsPanel active role={identity?.role} permissions={identity?.permissions} />
+          : <NotificationCenterPanel active role={identity?.role} permissions={identity?.permissions} />}
       </div>
     );
     if (activeView === 'security') return (
@@ -234,13 +238,13 @@ export default function PanelDashboardPage() {
         <PageIntro eyebrow="Güvenlik & Audit" title="Audit trail">
           <button type="button" onClick={() => setCriticalActionDraft({ id: 'sec', title: 'Güvenlik Aksiyonu', description: 'Step-up zorunlu.', impact: 'Güvenlik yüzeyini etkiler.' })} className={panelPrimaryButtonClassName}>Step-up Modalını Aç</button>
         </PageIntro>
-        <PanelAuditTrailPanel active />
+        <PanelAuditTrailPanel active role={identity?.role} permissions={identity?.permissions} />
       </div>
     );
     if (activeView === 'settings') return (
       <div className="space-y-5">
         <PageIntro eyebrow="Ayarlar" title="Panel konfigürasyonu" />
-        <SettingsOperationsPanel active role={identity?.role} initialCount={settingsCount} />
+        <SettingsOperationsPanel active role={identity?.role} permissions={identity?.permissions} initialCount={settingsCount} />
       </div>
     );
     return <PlannedModulePanel title="Modül" description="Henüz implement edilmedi." />;

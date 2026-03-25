@@ -68,7 +68,7 @@ function normalizePermissionCodes(permissions) {
 }
 
 function isKnownRole(role) {
-  return Object.values(ROLES).includes(normalizeRoleCode(role));
+  return Boolean(normalizeRoleCode(role));
 }
 
 function normalizeRoleCode(role) {
@@ -273,7 +273,7 @@ function isSessionValid(row, claims) {
   if (!row) return false;
   if (safeTrim(row.user_status).toUpperCase() !== 'ACTIVE') return false;
   if (row.revoked_at) return false;
-  if (!isKnownRole(row.role_code)) return false;
+  if (!normalizeRoleCode(row.role_code)) return false;
 
   const rowRole = normalizeRoleCode(row.role_code);
   const claimsRole = normalizeRoleCode(claims.role);
@@ -320,7 +320,7 @@ export async function getPanelIdentity(req) {
     return unauthenticatedIdentity();
   }
 
-  if (!claims.userId || !claims.sessionId || !isKnownRole(claims.role)) {
+  if (!claims.userId || !claims.sessionId || !normalizeRoleCode(claims.role)) {
     return unauthenticatedIdentity();
   }
 

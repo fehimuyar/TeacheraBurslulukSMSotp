@@ -81,6 +81,7 @@ export default async function handler(req, res) {
     }
 
     const action = safeTrim(body.action).toLowerCase();
+    const previewOnly = parseBooleanLike(body.preview ?? body.dry_run ?? body.dryRun);
     if (action === 'run_exam_reminder_broadcast') {
       const campaignCode = safeTrim(body.campaign_code || body.campaignCode || readDefaultCampaignCode()).slice(0, 120);
       const limit = clampInt(body.limit ?? 250, 1, 2000, 250);
@@ -145,6 +146,7 @@ export default async function handler(req, res) {
         [campaignCode, limit],
       );
 
+      let enqueueable = 0;
       let enqueued = 0;
       let skippedNoPhone = 0;
       let skippedNoExamOpenAt = 0;
@@ -184,6 +186,11 @@ export default async function handler(req, res) {
           }
         }
 
+        enqueueable += 1;
+        if (previewOnly) {
+          continue;
+        }
+
         try {
           const created = await enqueueExamReminderSmsIfNeeded({
             campaignCode: row.campaign_code,
@@ -208,6 +215,7 @@ export default async function handler(req, res) {
 
       ok(res, {
         action,
+        preview: previewOnly,
         campaign_code: campaignCode,
         force,
         reminder_lead_minutes: reminderLeadMinutes,
@@ -215,18 +223,23 @@ export default async function handler(req, res) {
         gate,
         reminder_window: gateReminderWindow,
         scanned: rows.length,
+        enqueueable,
         enqueued,
         skipped_no_phone: skippedNoPhone,
         skipped_no_exam_open_at: skippedNoExamOpenAt,
         skipped_outside_window: skippedOutsideWindow,
         skipped_errors: skippedErrors,
-        skipped_reason: enqueued > 0
+        skipped_reason: (previewOnly ? enqueueable : enqueued) > 0
           ? null
           : (skippedNoExamOpenAt > 0
             ? 'missing_exam_open_at'
             : (skippedOutsideWindow > 0 ? 'outside_window' : null)),
         job_ids: enqueuedJobIds,
       });
+
+      if (previewOnly) {
+        return;
+      }
 
       const ctx = readRequestContext(req);
       await appendAuditLog({

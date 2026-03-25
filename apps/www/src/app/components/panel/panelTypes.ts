@@ -59,7 +59,9 @@ export type PanelIdentity = {
   email: string;
   full_name: string;
   role: string;
+  permissions?: string[];
   mfa_verified: boolean;
+  otp_verified?: boolean;
   session_id: string;
   password_reset_required?: boolean;
 };

@@ -21,7 +21,6 @@ import {
 } from '../../_lib/http.js';
 import { decryptPii, isPrivilegedPiiRole, maskPiiName, maskPiiPhone } from '../../_lib/piiCrypto.js';
 import { buildWhereClause } from '../../_lib/sql.js';
-import { utils as xlsxUtils, write as xlsxWrite } from 'xlsx';
 
 function escapeCsvCell(value) {
   if (value === null || value === undefined) return '';
@@ -182,7 +181,8 @@ function buildCsvExport(headers, rows) {
   return lines.join('\n');
 }
 
-function buildXlsxExport(headers, rows) {
+async function buildXlsxExport(headers, rows) {
+  const { utils: xlsxUtils, write: xlsxWrite } = await import('xlsx');
   const workbook = xlsxUtils.book_new();
   const worksheet = xlsxUtils.json_to_sheet(rows, { header: headers });
   xlsxUtils.book_append_sheet(workbook, worksheet, 'Candidates');
@@ -448,7 +448,7 @@ export default async function handler(req, res) {
     const now = new Date().toISOString().slice(0, 19).replaceAll(':', '-');
     res.status(200);
     if (exportFormat === 'xlsx') {
-      const workbookBuffer = buildXlsxExport(headers, mappedRows);
+      const workbookBuffer = await buildXlsxExport(headers, mappedRows);
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="candidate-operations-${now}.xlsx"`);
       res.end(workbookBuffer);
