@@ -27,6 +27,38 @@ function XIcon({ size = 20, className = '' }: { size?: number; className?: strin
   );
 }
 
+function ContactWordmark({ className = '' }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 120 32"
+      aria-label="İletişim"
+      role="img"
+      className={className}
+      fill="none"
+      preserveAspectRatio="xMinYMid meet"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <g stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="6" cy="4" r="1.6" fill="currentColor" stroke="none" />
+        <path d="M6 9V22" />
+        <path d="M16 5V22" />
+        <path d="M37 16H25.5C25.8 12.5 28.2 10 31.5 10C34.8 10 37 12.4 37 15.7C37 19.3 34.6 22 31.1 22C28.6 22 26.5 20.8 25.3 18.8" />
+        <path d="M46 6V22" />
+        <path d="M41 10H50" />
+        <circle cx="59" cy="4" r="1.6" fill="currentColor" stroke="none" />
+        <path d="M59 10V22" />
+        <path d="M76 12.3C74.7 10.8 72.8 10 70.8 10C68 10 66 11.3 66 13.4C66 15.2 67.4 16.1 70.6 16.6C74.2 17.1 76.2 18.2 76.2 20.6C76.2 23.4 73.6 25 70.1 25C67.6 25 65.3 24.2 63.7 22.5" />
+        <path d="M70 24.7V26.6C70 28.1 69.2 29.2 67.8 30" />
+        <circle cx="86" cy="4" r="1.6" fill="currentColor" stroke="none" />
+        <path d="M86 10V22" />
+        <path d="M96 22V10" />
+        <path d="M96 14.4C97.2 11.7 99.2 10 101.8 10C104.9 10 106.8 12 106.8 15.8V22" />
+        <path d="M106.8 14.4C108 11.7 110 10 112.6 10C115.7 10 117.6 12 117.6 15.8V22" />
+      </g>
+    </svg>
+  );
+}
+
 interface MobileMenuProps {
   onClose: () => void;
   currentSection: string;
@@ -334,16 +366,7 @@ export default function MobileMenu({ onClose, currentSection: _currentSection }:
                                      <span>Academy</span>
                                    </span>
                                  ) : item.id === 'contact' ? (
-                                   <span aria-label="İletişim" className="inline-flex items-baseline">
-                                     <span aria-hidden="true" className="relative inline-block">
-                                       <span>I</span>
-                                       <span
-                                         className="pointer-events-none absolute rounded-full bg-current"
-                                         style={{ width: "0.14em", height: "0.14em", left: "50%", top: "0.02em", transform: "translateX(-50%)" }}
-                                       />
-                                     </span>
-                                     <span>letişim</span>
-                                   </span>
+                                   <ContactWordmark className="h-[0.88em] w-auto overflow-visible translate-y-[0.02em]" />
                                  ) : (
                                    item.label
                                  )}
