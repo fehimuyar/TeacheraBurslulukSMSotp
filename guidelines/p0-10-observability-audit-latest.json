@@ -1,15 +1,15 @@
 {
-  "timestamp": "2026-03-21T07:09:54.343Z",
+  "timestamp": "2026-03-25T12:59:35.152Z",
   "mode": {
     "http": true,
-    "aws": false,
+    "aws": true,
     "service_scoped": true
   },
   "totals": {
-    "pass": 2,
+    "pass": 1,
     "fail": 0,
     "warn": 0,
-    "skip": 1
+    "skip": 0
   },
   "overall_ready_for_p0_10": true,
   "checks": [
@@ -21,26 +21,11 @@
         "missing": [],
         "mode": {
           "http": true,
-          "aws": false
+          "aws": true
         },
         "service_scoped": true,
         "require_alarm_actions": true
       }
-    },
-    {
-      "id": "collector_http",
-      "status": "PASS",
-      "detail": "Collector HTTP 200 and published 19 metrics.",
-      "evidence": {
-        "collector_url": "https://ops-api.teachera.com.tr/api/ops/observability/collect?sample_size=3&timeout_ms=3000",
-        "metrics_published": 19
-      }
-    },
-    {
-      "id": "aws_checks",
-      "status": "SKIP",
-      "detail": "AWS checks disabled (use --aws).",
-      "evidence": {}
     }
   ]
 }

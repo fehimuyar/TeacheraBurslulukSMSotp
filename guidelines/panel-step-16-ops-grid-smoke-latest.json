@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-03-25T11:13:42.441Z",
+  "timestamp": "2026-03-25T12:45:16.382Z",
   "mode": {
     "http": true,
     "static": true
@@ -195,13 +195,13 @@
     {
       "id": "bundle_index_path",
       "status": "PASS",
-      "detail": "Found /assets/index-CKJFPeGK.js",
+      "detail": "Found /assets/index-BqveX-Fl.js",
       "evidence": {}
     },
     {
       "id": "bundle_dashboard_chunk",
       "status": "PASS",
-      "detail": "Found assets/PanelDashboardPage-DC6qIOqb.js",
+      "detail": "Found assets/PanelDashboardPage-B4zc6ZNn.js",
       "evidence": {}
     },
     {
