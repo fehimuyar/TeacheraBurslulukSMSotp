@@ -359,6 +359,31 @@ export function resolveExamEndpoint(path: string) {
   return `${normalizedBase}${normalizedPath}`;
 }
 
+function readExamRequestTimeoutMs() {
+  const parsed = Number.parseInt(String(import.meta.env.VITE_EXAM_REQUEST_TIMEOUT_MS || ''), 10);
+  if (!Number.isFinite(parsed)) return 12000;
+  return Math.max(3000, Math.min(parsed, 30000));
+}
+
+async function withTimeout(input: RequestInfo | URL, init: RequestInit, timeoutMs = readExamRequestTimeoutMs()) {
+  const controller = new AbortController();
+  const timeoutHandle = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error('İstek zaman aşımına uğradı. Lütfen tekrar deneyin.');
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutHandle);
+  }
+}
+
 async function parseApiResponse<T>(response: Response): Promise<T> {
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
@@ -449,7 +474,7 @@ export async function renewCandidateCredentials(
     headers['x-exam-session-token'] = String(sessionToken).trim();
   }
 
-  const response = await fetch(resolveExamEndpoint('/api/exam/session/credentials'), {
+  const response = await withTimeout(resolveExamEndpoint('/api/exam/session/credentials'), {
     method: 'POST',
     headers,
     body: JSON.stringify(payload),

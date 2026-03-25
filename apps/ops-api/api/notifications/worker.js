@@ -627,26 +627,19 @@ export default async function handler(req, res) {
     assertWorkerSecret(req);
 
     const runLock = await acquireWorkerRunLock();
-    if (!runLock.locked) {
-      ok(res, {
-        queue_topology: resolveQueueTopology(),
-        owner_runtime: ownerRuntime,
-        skipped: true,
-        reason: 'worker_lock_held',
-      });
-      return;
-    }
 
     try {
       const body = req.method === 'GET' ? null : await parseBody(req);
       const limit = readBoundedInt(body?.limit ?? req.query?.limit ?? 20, 20, 1, 200);
       const campaignCode = safeTrim(body?.campaign_code ?? body?.campaignCode ?? req.query?.campaign_code).slice(0, 120);
-      const reconcileLimit = readBoundedInt(
+      const requestedReconcileLimit = readBoundedInt(
         body?.reconcile_limit ?? body?.reconcileLimit ?? req.query?.reconcile_limit ?? process.env.NOTIFICATION_RECONCILE_LIMIT ?? 50,
         50,
         0,
         500,
       );
+      const advisoryLockBypassed = !runLock.locked;
+      const reconcileLimit = advisoryLockBypassed ? 0 : requestedReconcileLimit;
       const leaseSeconds = resolveWorkerLeaseSeconds(body?.lease_seconds ?? req.query?.lease_seconds);
       const assumeDelivered = shouldAssumeDelivered();
       const jobs = await lockPendingJobs(limit, leaseSeconds, campaignCode);
@@ -750,7 +743,10 @@ export default async function handler(req, res) {
       ok(res, {
         queue_topology: queueTopology,
         owner_runtime: ownerRuntime,
-        lock: 'pg_advisory',
+        lock: runLock.locked ? 'pg_advisory' : 'pg_advisory_bypassed',
+        advisory_lock_acquired: runLock.locked,
+        advisory_lock_bypassed: !runLock.locked,
+        requested_reconcile_limit: requestedReconcileLimit,
         ...summary,
         reconciliation,
       });
