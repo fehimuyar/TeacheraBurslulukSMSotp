@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-03-25T05:46:50.897Z",
+  "timestamp": "2026-03-25T09:15:44.361Z",
   "exam_api_base": "https://exam-api.teachera.com.tr",
   "ops_api_base": "https://ops-api.teachera.com.tr",
-  "campaign_code": "P0_REMINDER_SMOKE_1774417602150",
+  "campaign_code": "P0_REMINDER_SMOKE_1774430137824",
   "totals": {
     "pass": 4,
     "fail": 0,
@@ -17,7 +17,7 @@
       "detail": "HTTP 200",
       "evidence": {
         "status": 200,
-        "attempt_id": "63fcf2f0-6a33-4f69-8c74-c7a7e12fd3d0",
+        "attempt_id": "5f25539f-9cd6-49a0-b224-cde311f2faf4",
         "error": null,
         "message": null
       }
@@ -48,7 +48,7 @@
       "status": "PASS",
       "detail": "attempt_reminder_jobs=1",
       "evidence": {
-        "attempt_id": "63fcf2f0-6a33-4f69-8c74-c7a7e12fd3d0",
+        "attempt_id": "5f25539f-9cd6-49a0-b224-cde311f2faf4",
         "attempt_reminder_jobs": 1
       }
     }

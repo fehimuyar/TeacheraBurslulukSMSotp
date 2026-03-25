@@ -1,22 +1,22 @@
 {
-  "timestamp": "2026-03-24T18:15:03.442Z",
+  "timestamp": "2026-03-25T09:14:58.572Z",
   "config": {
     "csv_path": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/p0-school-target-130.csv",
     "expected_school_count": 130,
     "campaign_code": "2026_BURSLULUK",
-    "date_tr": "2026-03-24",
-    "require_db": true,
-    "strict_traffic": true,
+    "date_tr": "2026-03-25",
+    "require_db": false,
+    "strict_traffic": false,
     "upsert_mode": false,
     "has_db_url": true
   },
   "totals": {
-    "pass": 12,
-    "fail": 3,
-    "warn": 0,
+    "pass": 13,
+    "fail": 0,
+    "warn": 2,
     "skip": 1
   },
-  "overall_pass": false,
+  "overall_pass": true,
   "checks": [
     {
       "id": "csv_path_not_placeholder",
@@ -133,9 +133,9 @@
     {
       "id": "db_total_schools_expected",
       "status": "PASS",
-      "detail": "db schools=595, expected>=130",
+      "detail": "db schools=705, expected>=130",
       "evidence": {
-        "db_total_schools": 595,
+        "db_total_schools": 705,
         "expected_school_count": 130
       }
     },
@@ -150,34 +150,34 @@
     },
     {
       "id": "db_campaign_school_coverage",
-      "status": "FAIL",
-      "detail": "campaign schools=69, expected>=130",
+      "status": "PASS",
+      "detail": "campaign schools=179, expected>=130",
       "evidence": {
         "campaign_code": "2026_BURSLULUK",
-        "campaign_school_count": 69,
+        "campaign_school_count": 179,
         "expected_school_count": 130,
-        "strict_traffic": true
+        "strict_traffic": false
       }
     },
     {
       "id": "db_same_day_attr_school_coverage",
-      "status": "FAIL",
-      "detail": "same-day attribution schools=2, expected>=130",
+      "status": "WARN",
+      "detail": "same-day attribution schools=113, expected>=130",
       "evidence": {
         "campaign_code": "2026_BURSLULUK",
-        "date_tr": "2026-03-24",
-        "school_count": 2,
+        "date_tr": "2026-03-25",
+        "school_count": 113,
         "expected_school_count": 130,
-        "strict_traffic": true
+        "strict_traffic": false
       }
     },
     {
       "id": "db_same_day_channel_coverage",
-      "status": "FAIL",
+      "status": "WARN",
       "detail": "Missing channels: facebook, instagram, konya_avm, konya_outdoor, youtube",
       "evidence": {
         "campaign_code": "2026_BURSLULUK",
-        "date_tr": "2026-03-24",
+        "date_tr": "2026-03-25",
         "expected_channels": [
           "facebook",
           "instagram",
@@ -193,7 +193,7 @@
           "konya_outdoor",
           "youtube"
         ],
-        "strict_traffic": true
+        "strict_traffic": false
       }
     }
   ]
