@@ -334,7 +334,7 @@ export default function MobileMenu({ onClose, currentSection: _currentSection }:
                                      <span>Academy</span>
                                    </span>
                                  ) : item.id === 'contact' ? (
-                                   <span aria-label="İletişim">{'I\u0307letişim'}</span>
+                                   <span style={{ fontFamily: '"Avenir Next", "Avenir", "Helvetica Neue", Arial, sans-serif', fontWeight: 300 }}>İletişim</span>
                                  ) : (
                                    item.label
                                  )}
