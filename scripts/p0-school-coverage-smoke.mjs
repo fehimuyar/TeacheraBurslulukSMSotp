@@ -306,6 +306,12 @@ async function run() {
     ),
   ).sort();
 
+  const expectedSourceBySchool = new Map(
+    parsed.rows
+      .map((row) => [safeTrim(row.school_name), safeTrim(row.utm_source).toLowerCase()])
+      .filter(([schoolName, utmSource]) => schoolName && utmSource),
+  );
+
   checks.push(
     makeCheck(
       'csv_channel_mix_present',
@@ -451,6 +457,420 @@ async function run() {
         ),
       );
 
+      const activeTargetSchoolsRes = await client.query(
+        `
+          SELECT trim(s.name) AS school_name,
+                 COUNT(DISTINCT c.id)::int AS candidate_count
+          FROM applications a
+          JOIN candidates c ON c.id = a.candidate_id
+          JOIN schools s ON s.id = c.school_id
+          WHERE c.campaign_code = $1
+            AND c.school_id IS NOT NULL
+            AND trim(s.name) = ANY($3::text[])
+            AND (a.created_at AT TIME ZONE 'Europe/Istanbul')::date = $2::date
+          GROUP BY 1
+          ORDER BY candidate_count DESC, school_name ASC
+        `,
+        [campaignCode, dateTr, uniqueExactSchoolNames],
+      );
+      const activeTargetSchoolRows = activeTargetSchoolsRes.rows.map((row) => ({
+        school_name: safeTrim(row.school_name),
+        candidate_count: Number(row.candidate_count || 0),
+      }));
+      const activeTargetSchoolNames = activeTargetSchoolRows
+        .map((row) => safeTrim(row.school_name))
+        .filter(Boolean);
+
+      checks.push(
+        makeCheck(
+          'db_same_day_target_app_school_count',
+          activeTargetSchoolNames.length > 0 ? 'PASS' : 'SKIP',
+          activeTargetSchoolNames.length > 0
+            ? `same-day active target schools=${activeTargetSchoolNames.length}`
+            : `No target schools observed on ${dateTr}.`,
+          {
+            campaign_code: campaignCode,
+            date_tr: dateTr,
+            active_target_school_count: activeTargetSchoolNames.length,
+            active_target_schools_preview: activeTargetSchoolRows.slice(0, 10),
+          },
+        ),
+      );
+
+      if (activeTargetSchoolNames.length === 0) {
+        checks.push(
+          makeCheck(
+            'db_same_day_target_attr_event_coverage',
+            'SKIP',
+            'Skipped because no active target schools were observed today.',
+          ),
+        );
+        checks.push(
+          makeCheck(
+            'db_same_day_target_effective_channel_coverage',
+            'SKIP',
+            'Skipped because no active target schools were observed today.',
+          ),
+        );
+        checks.push(
+          makeCheck(
+            'db_same_day_target_raw_channel_coverage',
+            'SKIP',
+            'Skipped because no active target schools were observed today.',
+          ),
+        );
+        checks.push(
+          makeCheck(
+            'db_same_day_target_blank_effective_source',
+            'SKIP',
+            'Skipped because no active target schools were observed today.',
+          ),
+        );
+        checks.push(
+          makeCheck(
+            'db_same_day_target_capture_source_mix',
+            'SKIP',
+            'Skipped because no active target schools were observed today.',
+          ),
+        );
+        checks.push(
+          makeCheck(
+            'db_same_day_target_landing_path_mix',
+            'SKIP',
+            'Skipped because no active target schools were observed today.',
+          ),
+        );
+      } else {
+        const attrEventCoverageRes = await client.query(
+          `
+            SELECT trim(s.name) AS school_name,
+                   COUNT(*)::int AS attr_event_count
+            FROM activity_events ev
+            JOIN candidates c ON c.id = ev.candidate_id
+            JOIN schools s ON s.id = c.school_id
+            WHERE ev.event_type = 'ATTRIBUTION_CAPTURED'
+              AND c.campaign_code = $1
+              AND c.school_id IS NOT NULL
+              AND trim(s.name) = ANY($3::text[])
+              AND (ev.occurred_at AT TIME ZONE 'Europe/Istanbul')::date = $2::date
+            GROUP BY 1
+            ORDER BY school_name ASC
+          `,
+          [campaignCode, dateTr, activeTargetSchoolNames],
+        );
+        const attrEventCoverageRows = attrEventCoverageRes.rows.map((row) => ({
+          school_name: safeTrim(row.school_name),
+          attr_event_count: Number(row.attr_event_count || 0),
+        }));
+        const attrEventSchoolNames = attrEventCoverageRows
+          .map((row) => safeTrim(row.school_name))
+          .filter(Boolean);
+        const missingAttrEventSchools = activeTargetSchoolNames.filter(
+          (schoolName) => !attrEventSchoolNames.includes(schoolName),
+        );
+        checks.push(
+          makeCheck(
+            'db_same_day_target_attr_event_coverage',
+            missingAttrEventSchools.length === 0 ? 'PASS' : 'FAIL',
+            missingAttrEventSchools.length === 0
+              ? `All ${activeTargetSchoolNames.length} active target schools have ATTRIBUTION_CAPTURED events.`
+              : `Missing ATTRIBUTION_CAPTURED events for ${missingAttrEventSchools.length} active target school(s).`,
+            {
+              campaign_code: campaignCode,
+              date_tr: dateTr,
+              active_target_school_count: activeTargetSchoolNames.length,
+              attr_event_school_count: attrEventSchoolNames.length,
+              missing_school_count: missingAttrEventSchools.length,
+              missing_schools_preview: missingAttrEventSchools.slice(0, 10),
+              attr_event_coverage_preview: attrEventCoverageRows.slice(0, 10),
+            },
+          ),
+        );
+
+        const effectiveChannelCoverageRes = await client.query(
+          `
+            SELECT trim(s.name) AS school_name,
+                   lower(trim(COALESCE(
+                     ev.event_payload ->> 'utm_source',
+                     ev.event_payload ->> 'last_touch_utm_source',
+                     ev.event_payload ->> 'first_touch_utm_source',
+                     ''
+                   ))) AS effective_source,
+                   COUNT(*)::int AS total
+            FROM activity_events ev
+            JOIN candidates c ON c.id = ev.candidate_id
+            JOIN schools s ON s.id = c.school_id
+            WHERE ev.event_type = 'ATTRIBUTION_CAPTURED'
+              AND c.campaign_code = $1
+              AND c.school_id IS NOT NULL
+              AND trim(s.name) = ANY($3::text[])
+              AND (ev.occurred_at AT TIME ZONE 'Europe/Istanbul')::date = $2::date
+            GROUP BY 1,2
+            ORDER BY school_name ASC, total DESC
+          `,
+          [campaignCode, dateTr, activeTargetSchoolNames],
+        );
+        const effectiveChannelCoverageRows = effectiveChannelCoverageRes.rows.map((row) => ({
+          school_name: safeTrim(row.school_name),
+          effective_source: safeTrim(row.effective_source).toLowerCase(),
+          total: Number(row.total || 0),
+        }));
+        const expectedChannelsForActiveSchools = Array.from(
+          new Set(activeTargetSchoolNames.map((schoolName) => expectedSourceBySchool.get(schoolName)).filter(Boolean)),
+        ).sort();
+        const observedEffectiveChannels = Array.from(
+          new Set(
+            effectiveChannelCoverageRows
+              .map((row) => safeTrim(row.effective_source).toLowerCase())
+              .filter(Boolean),
+          ),
+        ).sort();
+        const missingEffectiveChannels = expectedChannelsForActiveSchools.filter(
+          (channel) => !observedEffectiveChannels.includes(channel),
+        );
+        checks.push(
+          makeCheck(
+            'db_same_day_target_effective_channel_coverage',
+            expectedChannelsForActiveSchools.length === 0
+              ? 'WARN'
+              : missingEffectiveChannels.length === 0
+                ? 'PASS'
+                : 'WARN',
+            expectedChannelsForActiveSchools.length === 0
+              ? 'No expected channels resolved for active target schools.'
+              : missingEffectiveChannels.length === 0
+                ? `All expected effective channels observed: ${expectedChannelsForActiveSchools.join(', ')}`
+                : `Missing effective channels for active target schools: ${missingEffectiveChannels.join(', ')}`,
+            {
+              campaign_code: campaignCode,
+              date_tr: dateTr,
+              active_target_school_count: activeTargetSchoolNames.length,
+              expected_channels: expectedChannelsForActiveSchools,
+              observed_channels: observedEffectiveChannels,
+              missing_channels: missingEffectiveChannels,
+              effective_channel_preview: effectiveChannelCoverageRows.slice(0, 20),
+            },
+          ),
+        );
+
+        const rawSourceDiagnosticRes = await client.query(
+          `
+            SELECT lower(trim(COALESCE(ev.event_payload ->> 'utm_source', ''))) AS raw_utm_source,
+                   COUNT(*)::int AS total
+            FROM activity_events ev
+            JOIN candidates c ON c.id = ev.candidate_id
+            JOIN schools s ON s.id = c.school_id
+            WHERE ev.event_type = 'ATTRIBUTION_CAPTURED'
+              AND c.campaign_code = $1
+              AND c.school_id IS NOT NULL
+              AND trim(s.name) = ANY($3::text[])
+              AND (ev.occurred_at AT TIME ZONE 'Europe/Istanbul')::date = $2::date
+            GROUP BY 1
+            ORDER BY total DESC, raw_utm_source ASC
+          `,
+          [campaignCode, dateTr, activeTargetSchoolNames],
+        );
+        const rawSourceDiagnosticRows = rawSourceDiagnosticRes.rows.map((row) => ({
+          raw_utm_source: safeTrim(row.raw_utm_source).toLowerCase(),
+          total: Number(row.total || 0),
+        }));
+        const observedRawChannels = Array.from(
+          new Set(rawSourceDiagnosticRows.map((row) => safeTrim(row.raw_utm_source)).filter(Boolean)),
+        ).sort();
+        const missingRawChannels = expectedChannelsForActiveSchools.filter(
+          (channel) => !observedRawChannels.includes(channel),
+        );
+        checks.push(
+          makeCheck(
+            'db_same_day_target_raw_channel_coverage',
+            expectedChannelsForActiveSchools.length === 0
+              ? 'WARN'
+              : missingRawChannels.length === 0
+                ? 'PASS'
+                : 'WARN',
+            expectedChannelsForActiveSchools.length === 0
+              ? 'No expected channels resolved for active target schools.'
+              : missingRawChannels.length === 0
+                ? `All expected raw utm_source channels observed: ${expectedChannelsForActiveSchools.join(', ')}`
+                : `Raw utm_source is missing channels for active target schools: ${missingRawChannels.join(', ')}`,
+            {
+              campaign_code: campaignCode,
+              date_tr: dateTr,
+              expected_channels: expectedChannelsForActiveSchools,
+              observed_channels: observedRawChannels,
+              missing_channels: missingRawChannels,
+              raw_source_preview: rawSourceDiagnosticRows.slice(0, 20),
+            },
+          ),
+        );
+
+        const blankEffectiveSourceRes = await client.query(
+          `
+            SELECT trim(s.name) AS school_name,
+                   COUNT(*)::int AS total
+            FROM activity_events ev
+            JOIN candidates c ON c.id = ev.candidate_id
+            JOIN schools s ON s.id = c.school_id
+            WHERE ev.event_type = 'ATTRIBUTION_CAPTURED'
+              AND c.campaign_code = $1
+              AND c.school_id IS NOT NULL
+              AND trim(s.name) = ANY($3::text[])
+              AND (ev.occurred_at AT TIME ZONE 'Europe/Istanbul')::date = $2::date
+              AND lower(trim(COALESCE(
+                ev.event_payload ->> 'utm_source',
+                ev.event_payload ->> 'last_touch_utm_source',
+                ev.event_payload ->> 'first_touch_utm_source',
+                ''
+              ))) = ''
+            GROUP BY 1
+            ORDER BY total DESC, school_name ASC
+          `,
+          [campaignCode, dateTr, activeTargetSchoolNames],
+        );
+        const blankEffectiveSourceRows = blankEffectiveSourceRes.rows.map((row) => ({
+          school_name: safeTrim(row.school_name),
+          total: Number(row.total || 0),
+        }));
+        const blankEffectiveSourceCount = blankEffectiveSourceRows.reduce(
+          (sum, row) => sum + Number(row.total || 0),
+          0,
+        );
+        checks.push(
+          makeCheck(
+            'db_same_day_target_blank_effective_source',
+            blankEffectiveSourceCount === 0 ? 'PASS' : 'WARN',
+            blankEffectiveSourceCount === 0
+              ? 'All active target attribution events have an effective source.'
+              : `${blankEffectiveSourceCount} attribution event(s) for active target schools have blank effective source.`,
+            {
+              campaign_code: campaignCode,
+              date_tr: dateTr,
+              blank_effective_source_count: blankEffectiveSourceCount,
+              schools_preview: blankEffectiveSourceRows.slice(0, 10),
+            },
+          ),
+        );
+
+        const captureSourceMixRes = await client.query(
+          `
+            SELECT lower(trim(COALESCE(ev.event_payload ->> 'capture_source', ''))) AS capture_source,
+                   COUNT(*)::int AS total
+            FROM activity_events ev
+            JOIN candidates c ON c.id = ev.candidate_id
+            JOIN schools s ON s.id = c.school_id
+            WHERE ev.event_type = 'ATTRIBUTION_CAPTURED'
+              AND c.campaign_code = $1
+              AND c.school_id IS NOT NULL
+              AND trim(s.name) = ANY($3::text[])
+              AND (ev.occurred_at AT TIME ZONE 'Europe/Istanbul')::date = $2::date
+            GROUP BY 1
+            ORDER BY total DESC, capture_source ASC
+          `,
+          [campaignCode, dateTr, activeTargetSchoolNames],
+        );
+        const captureSourceMixRows = captureSourceMixRes.rows.map((row) => ({
+          capture_source: safeTrim(row.capture_source).toLowerCase(),
+          total: Number(row.total || 0),
+        }));
+        checks.push(
+          makeCheck(
+            'db_same_day_target_capture_source_mix',
+            'PASS',
+            captureSourceMixRows.length > 0
+              ? `Capture sources observed: ${captureSourceMixRows
+                  .slice(0, 5)
+                  .map((row) => `${row.capture_source || '(blank)'}=${row.total}`)
+                  .join(', ')}`
+              : 'No capture source rows observed for active target schools.',
+            {
+              campaign_code: campaignCode,
+              date_tr: dateTr,
+              capture_source_mix: captureSourceMixRows.slice(0, 20),
+            },
+          ),
+        );
+
+        const landingPathMixRes = await client.query(
+          `
+            SELECT lower(trim(COALESCE(ev.event_payload ->> 'landing_path', ''))) AS landing_path,
+                   COUNT(*)::int AS total
+            FROM activity_events ev
+            JOIN candidates c ON c.id = ev.candidate_id
+            JOIN schools s ON s.id = c.school_id
+            WHERE ev.event_type = 'ATTRIBUTION_CAPTURED'
+              AND c.campaign_code = $1
+              AND c.school_id IS NOT NULL
+              AND trim(s.name) = ANY($3::text[])
+              AND (ev.occurred_at AT TIME ZONE 'Europe/Istanbul')::date = $2::date
+            GROUP BY 1
+            ORDER BY total DESC, landing_path ASC
+          `,
+          [campaignCode, dateTr, activeTargetSchoolNames],
+        );
+        const landingPathMixRows = landingPathMixRes.rows.map((row) => ({
+          landing_path: safeTrim(row.landing_path).toLowerCase(),
+          total: Number(row.total || 0),
+        }));
+        checks.push(
+          makeCheck(
+            'db_same_day_target_landing_path_mix',
+            'PASS',
+            landingPathMixRows.length > 0
+              ? `Landing paths observed: ${landingPathMixRows
+                  .slice(0, 5)
+                  .map((row) => `${row.landing_path || '(blank)'}=${row.total}`)
+                  .join(', ')}`
+              : 'No landing path rows observed for active target schools.',
+            {
+              campaign_code: campaignCode,
+              date_tr: dateTr,
+              landing_path_mix: landingPathMixRows.slice(0, 20),
+            },
+          ),
+        );
+      }
+
+      const nonTargetTrafficShareRes = await client.query(
+        `
+          SELECT
+            COUNT(DISTINCT c.school_id)::int AS all_campaign_schools,
+            COUNT(DISTINCT c.school_id) FILTER (
+              WHERE trim(s.name) = ANY($3::text[])
+            )::int AS target_schools
+          FROM applications a
+          JOIN candidates c ON c.id = a.candidate_id
+          JOIN schools s ON s.id = c.school_id
+          WHERE c.campaign_code = $1
+            AND c.school_id IS NOT NULL
+            AND (a.created_at AT TIME ZONE 'Europe/Istanbul')::date = $2::date
+        `,
+        [campaignCode, dateTr, uniqueExactSchoolNames],
+      );
+      const nonTargetTrafficShareRow = nonTargetTrafficShareRes.rows?.[0] || {};
+      const allCampaignSchoolsSameDay = Number(nonTargetTrafficShareRow.all_campaign_schools || 0);
+      const targetSchoolsSameDay = Number(nonTargetTrafficShareRow.target_schools || 0);
+      const nonTargetSchoolCount = Math.max(0, allCampaignSchoolsSameDay - targetSchoolsSameDay);
+      checks.push(
+        makeCheck(
+          'db_same_day_non_target_traffic_share',
+          allCampaignSchoolsSameDay === 0
+            ? 'SKIP'
+            : targetSchoolsSameDay > 0
+              ? 'PASS'
+              : 'WARN',
+          allCampaignSchoolsSameDay === 0
+            ? `No same-day campaign schools observed on ${dateTr}.`
+            : `same-day campaign schools=${allCampaignSchoolsSameDay}, target schools=${targetSchoolsSameDay}, non-target schools=${nonTargetSchoolCount}`,
+          {
+            campaign_code: campaignCode,
+            date_tr: dateTr,
+            all_campaign_schools: allCampaignSchoolsSameDay,
+            target_schools: targetSchoolsSameDay,
+            non_target_schools: nonTargetSchoolCount,
+          },
+        ),
+      );
+
       const attrSchoolCoverageRes = await client.query(
         `
           SELECT COUNT(DISTINCT c.school_id)::int AS school_count
@@ -472,7 +892,7 @@ async function run() {
             : strictTraffic
               ? 'FAIL'
               : 'WARN',
-          `same-day attribution schools=${attrSchoolCount}, expected>=${expectedSchoolCount}`,
+          `legacy campaign-wide same-day attribution schools=${attrSchoolCount}, expected>=${expectedSchoolCount}`,
           {
             campaign_code: campaignCode,
             date_tr: dateTr,
@@ -517,7 +937,7 @@ async function run() {
             ? 'Expected channels list is empty (CSV utm_source values missing).'
             : missingChannels.length === 0
               ? `All expected channels observed: ${expectedChannels.join(', ')}`
-              : `Missing channels: ${missingChannels.join(', ')}`,
+              : `Legacy campaign-wide raw utm_source view is missing channels: ${missingChannels.join(', ')}`,
           {
             campaign_code: campaignCode,
             date_tr: dateTr,

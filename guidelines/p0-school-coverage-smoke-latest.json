@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-03-25T09:14:58.572Z",
+  "timestamp": "2026-03-25T14:07:15.263Z",
   "config": {
     "csv_path": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/p0-school-target-130.csv",
     "expected_school_count": 130,
@@ -11,9 +11,9 @@
     "has_db_url": true
   },
   "totals": {
-    "pass": 13,
+    "pass": 19,
     "fail": 0,
-    "warn": 2,
+    "warn": 4,
     "skip": 1
   },
   "overall_pass": true,
@@ -133,9 +133,9 @@
     {
       "id": "db_total_schools_expected",
       "status": "PASS",
-      "detail": "db schools=705, expected>=130",
+      "detail": "db schools=863, expected>=130",
       "evidence": {
-        "db_total_schools": 705,
+        "db_total_schools": 863,
         "expected_school_count": 130
       }
     },
@@ -151,22 +151,224 @@
     {
       "id": "db_campaign_school_coverage",
       "status": "PASS",
-      "detail": "campaign schools=179, expected>=130",
+      "detail": "campaign schools=340, expected>=130",
       "evidence": {
         "campaign_code": "2026_BURSLULUK",
-        "campaign_school_count": 179,
+        "campaign_school_count": 340,
         "expected_school_count": 130,
         "strict_traffic": false
       }
     },
     {
-      "id": "db_same_day_attr_school_coverage",
-      "status": "WARN",
-      "detail": "same-day attribution schools=113, expected>=130",
+      "id": "db_same_day_target_app_school_count",
+      "status": "PASS",
+      "detail": "same-day active target schools=4",
       "evidence": {
         "campaign_code": "2026_BURSLULUK",
         "date_tr": "2026-03-25",
-        "school_count": 113,
+        "active_target_school_count": 4,
+        "active_target_schools_preview": [
+          {
+            "school_name": "Karatay Ortaokulu",
+            "candidate_count": 2
+          },
+          {
+            "school_name": "Kurtuluş Ortaokulu",
+            "candidate_count": 2
+          },
+          {
+            "school_name": "Ahmet Tevfik İleri İmam Hatip Ortaokulu",
+            "candidate_count": 1
+          },
+          {
+            "school_name": "Akabe İlkokulu",
+            "candidate_count": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "db_same_day_target_attr_event_coverage",
+      "status": "PASS",
+      "detail": "All 4 active target schools have ATTRIBUTION_CAPTURED events.",
+      "evidence": {
+        "campaign_code": "2026_BURSLULUK",
+        "date_tr": "2026-03-25",
+        "active_target_school_count": 4,
+        "attr_event_school_count": 4,
+        "missing_school_count": 0,
+        "missing_schools_preview": [],
+        "attr_event_coverage_preview": [
+          {
+            "school_name": "Ahmet Tevfik İleri İmam Hatip Ortaokulu",
+            "attr_event_count": 1
+          },
+          {
+            "school_name": "Akabe İlkokulu",
+            "attr_event_count": 1
+          },
+          {
+            "school_name": "Karatay Ortaokulu",
+            "attr_event_count": 2
+          },
+          {
+            "school_name": "Kurtuluş Ortaokulu",
+            "attr_event_count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "db_same_day_target_effective_channel_coverage",
+      "status": "WARN",
+      "detail": "Missing effective channels for active target schools: facebook, instagram, konya_avm, youtube",
+      "evidence": {
+        "campaign_code": "2026_BURSLULUK",
+        "date_tr": "2026-03-25",
+        "active_target_school_count": 4,
+        "expected_channels": [
+          "facebook",
+          "instagram",
+          "konya_avm",
+          "youtube"
+        ],
+        "observed_channels": [],
+        "missing_channels": [
+          "facebook",
+          "instagram",
+          "konya_avm",
+          "youtube"
+        ],
+        "effective_channel_preview": [
+          {
+            "school_name": "Ahmet Tevfik İleri İmam Hatip Ortaokulu",
+            "effective_source": "",
+            "total": 1
+          },
+          {
+            "school_name": "Akabe İlkokulu",
+            "effective_source": "",
+            "total": 1
+          },
+          {
+            "school_name": "Karatay Ortaokulu",
+            "effective_source": "",
+            "total": 2
+          },
+          {
+            "school_name": "Kurtuluş Ortaokulu",
+            "effective_source": "",
+            "total": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "db_same_day_target_raw_channel_coverage",
+      "status": "WARN",
+      "detail": "Raw utm_source is missing channels for active target schools: facebook, instagram, konya_avm, youtube",
+      "evidence": {
+        "campaign_code": "2026_BURSLULUK",
+        "date_tr": "2026-03-25",
+        "expected_channels": [
+          "facebook",
+          "instagram",
+          "konya_avm",
+          "youtube"
+        ],
+        "observed_channels": [],
+        "missing_channels": [
+          "facebook",
+          "instagram",
+          "konya_avm",
+          "youtube"
+        ],
+        "raw_source_preview": [
+          {
+            "raw_utm_source": "",
+            "total": 6
+          }
+        ]
+      }
+    },
+    {
+      "id": "db_same_day_target_blank_effective_source",
+      "status": "WARN",
+      "detail": "6 attribution event(s) for active target schools have blank effective source.",
+      "evidence": {
+        "campaign_code": "2026_BURSLULUK",
+        "date_tr": "2026-03-25",
+        "blank_effective_source_count": 6,
+        "schools_preview": [
+          {
+            "school_name": "Karatay Ortaokulu",
+            "total": 2
+          },
+          {
+            "school_name": "Kurtuluş Ortaokulu",
+            "total": 2
+          },
+          {
+            "school_name": "Ahmet Tevfik İleri İmam Hatip Ortaokulu",
+            "total": 1
+          },
+          {
+            "school_name": "Akabe İlkokulu",
+            "total": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "db_same_day_target_capture_source_mix",
+      "status": "PASS",
+      "detail": "Capture sources observed: exam_session_start=6",
+      "evidence": {
+        "campaign_code": "2026_BURSLULUK",
+        "date_tr": "2026-03-25",
+        "capture_source_mix": [
+          {
+            "capture_source": "exam_session_start",
+            "total": 6
+          }
+        ]
+      }
+    },
+    {
+      "id": "db_same_day_target_landing_path_mix",
+      "status": "PASS",
+      "detail": "Landing paths observed: /bursluluk-2026=6",
+      "evidence": {
+        "campaign_code": "2026_BURSLULUK",
+        "date_tr": "2026-03-25",
+        "landing_path_mix": [
+          {
+            "landing_path": "/bursluluk-2026",
+            "total": 6
+          }
+        ]
+      }
+    },
+    {
+      "id": "db_same_day_non_target_traffic_share",
+      "status": "PASS",
+      "detail": "same-day campaign schools=278, target schools=4, non-target schools=274",
+      "evidence": {
+        "campaign_code": "2026_BURSLULUK",
+        "date_tr": "2026-03-25",
+        "all_campaign_schools": 278,
+        "target_schools": 4,
+        "non_target_schools": 274
+      }
+    },
+    {
+      "id": "db_same_day_attr_school_coverage",
+      "status": "PASS",
+      "detail": "legacy campaign-wide same-day attribution schools=278, expected>=130",
+      "evidence": {
+        "campaign_code": "2026_BURSLULUK",
+        "date_tr": "2026-03-25",
+        "school_count": 278,
         "expected_school_count": 130,
         "strict_traffic": false
       }
@@ -174,7 +376,7 @@
     {
       "id": "db_same_day_channel_coverage",
       "status": "WARN",
-      "detail": "Missing channels: facebook, instagram, konya_avm, konya_outdoor, youtube",
+      "detail": "Legacy campaign-wide raw utm_source view is missing channels: facebook, instagram, konya_avm, konya_outdoor, youtube",
       "evidence": {
         "campaign_code": "2026_BURSLULUK",
         "date_tr": "2026-03-25",
