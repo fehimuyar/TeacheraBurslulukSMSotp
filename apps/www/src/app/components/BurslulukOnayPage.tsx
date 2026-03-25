@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link } from 'react-router';
 import { renewCandidateCredentials } from '../api/examApi';
 import { notifyError, notifySuccess } from '../lib/notifications';
 import {
@@ -191,7 +191,6 @@ function updateStoredSession(
 
 export default function BurslulukOnayPage() {
   const [session, setSession] = useState<BurslulukCandidateSession | null>(() => readCandidateSession());
-  const navigate = useNavigate();
   const [resendError, setResendError] = useState('');
   const [resendSuccess, setResendSuccess] = useState('');
   const [isResending, setIsResending] = useState(false);
@@ -313,13 +312,6 @@ export default function BurslulukOnayPage() {
               >
                 Giriş Yap
               </Link>
-              <button
-                type="button"
-                onClick={() => navigate('/bursluluk/bekleme')}
-                className="inline-flex min-h-[50px] items-center justify-center rounded-full border border-[#D6CABC] bg-white px-6 py-3.5 font-['Neutraface_2_Text:Demi',sans-serif] text-[12px] uppercase tracking-[0.16em] text-[#324D47] transition-[background-color,opacity] duration-200 hover:bg-[#F8F2EA] sm:min-h-[52px] sm:px-8"
-              >
-                Bekleme Ekranı
-              </button>
               <button
                 type="button"
                 onClick={() => void handleResendCredentials()}

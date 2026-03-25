@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { useNavigate } from 'react-router';
 import { getExamSessionStatus } from '../api/examApi';
 import { trackEvent } from '../lib/analytics';
 import { readCandidateSession } from './bursluluk/burslulukFlowSession';
@@ -18,14 +18,14 @@ function padTimerUnit(value: number) {
 
 function formatTimerParts(totalSeconds: number) {
   const safe = Math.max(0, totalSeconds);
-  const hours = Math.floor(safe / 3600);
+  const days = Math.floor(safe / 86400);
+  const hours = Math.floor((safe % 86400) / 3600);
   const minutes = Math.floor((safe % 3600) / 60);
-  const seconds = safe % 60;
 
   return {
+    days: padTimerUnit(days),
     hours: padTimerUnit(hours),
     minutes: padTimerUnit(minutes),
-    seconds: padTimerUnit(seconds),
   };
 }
 
@@ -185,12 +185,6 @@ export default function BurslulukBeklemePage() {
           <p className="mt-4 max-w-[56ch] text-[15px] leading-[1.8] text-[#5B4F45]">
             Bekleme ekranini acmak icin once giris yapilmis bir bursluluk oturumu gerekiyor.
           </p>
-          <Link
-            to="/bursluluk/giris"
-            className="mt-7 inline-flex min-h-[52px] items-center justify-center rounded-full bg-[#E70000] px-7 py-3 text-[12px] font-['Neutraface_2_Text:Demi',sans-serif] uppercase tracking-[0.16em] text-white shadow-[0_16px_32px_rgba(231,0,0,0.14)] transition-[background-color,box-shadow] duration-200 hover:bg-[#C50000] hover:shadow-[0_20px_38px_rgba(231,0,0,0.2)]"
-          >
-            Giris Sayfasina Don
-          </Link>
         </div>
       </section>
     );
@@ -221,9 +215,9 @@ export default function BurslulukBeklemePage() {
             </div>
 
             <div className="mt-7 grid gap-3 sm:grid-cols-3">
+              <CountdownCard label="Gun" value={timer.days} />
               <CountdownCard label="Saat" value={timer.hours} />
               <CountdownCard label="Dakika" value={timer.minutes} />
-              <CountdownCard label="Saniye" value={timer.seconds} />
             </div>
 
             <div className="mt-6 rounded-[24px] border border-[#E2D8CC] bg-[#FFFCF8] px-5 py-5">
@@ -252,12 +246,6 @@ export default function BurslulukBeklemePage() {
               >
                 {canStart ? 'Sinava Basla' : 'Sinav Acilisi Bekleniyor'}
               </button>
-              <Link
-                to="/bursluluk/giris"
-                className="inline-flex min-h-[54px] items-center justify-center rounded-full border border-[#D6CABC] bg-white px-7 py-3 text-[12px] font-['Neutraface_2_Text:Demi',sans-serif] uppercase tracking-[0.16em] text-[#68232E] transition-colors duration-200 hover:bg-[#F8F2EA]"
-              >
-                Girise Don
-              </Link>
             </div>
 
             {gateError ? (
