@@ -389,11 +389,9 @@ export default function HomeDashboardPanel({
               <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[22px] text-[#1B2B24]">{formatNumber(auditSummary.panel_actions)}</p>
             </div>
             <div className={`${panelStatCardClassName} border-[#C8CAD8] bg-[#F0F0F6]`}>
-              <div className="flex items-start justify-between gap-2">
-                <p className="font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#4A4A6A]">Bekleyen Onay</p>
-                <span className={`rounded-full border px-2 py-0.5 text-[9px] font-['Neutraface_2_Text:Demi',sans-serif] uppercase tracking-[0.14em] ${statusChipClassName('neutral')}`}>Yakında</span>
-              </div>
-              <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[18px] text-[#7A7063]">Veri bekleniyor</p>
+              <p className="font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#4A4A6A]">Bekleyen Onay</p>
+              <p className="mt-1 font-['Neutraface_2_Text:Bold',sans-serif] text-[22px] text-[#1B2B24]">{formatNumber(dashboard?.admin_overview?.pending_approvals)}</p>
+              <p className="mt-2 font-['Neutraface_2_Text:Book',sans-serif] text-[11px] leading-[1.45] text-[#6C7269]">Sonuç yayın onayı bekleyen kayıt</p>
             </div>
             <div className={`${panelStatCardClassName} border-[#C8CAD8] bg-[#F0F0F6]`}>
               <p className="font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#4A4A6A]">Açık Uyarı</p>

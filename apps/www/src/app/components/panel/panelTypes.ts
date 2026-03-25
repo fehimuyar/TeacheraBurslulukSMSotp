@@ -82,6 +82,7 @@ export type DashboardChannelStatusItem = {
 
 export type DashboardAdminOverview = {
   active_users?: number;
+  pending_approvals?: number;
 };
 
 export type DashboardAppointmentSummary = {

@@ -38,7 +38,7 @@ export default async function handler(req, res) {
     const whereBase = buildWhereClause(buildCampaignAndDateFilters(filters, params));
     const sessionIdleTimeoutMinutes = readPanelSessionIdleTimeoutMinutes();
 
-    const [kpiResult, trendResult, channelsResult, schoolDistributionResult, schoolPerformanceResult, dlqResult, criticalErrorsResult, activeUsersResult, recentActionsResult, appointmentSummaryResult] = await Promise.all([
+    const [kpiResult, trendResult, channelsResult, schoolDistributionResult, schoolPerformanceResult, dlqResult, criticalErrorsResult, activeUsersResult, recentActionsResult, appointmentSummaryResult, pendingApprovalsResult] = await Promise.all([
       query(
         `
           WITH base AS (
@@ -379,12 +379,38 @@ export default async function handler(req, res) {
         `,
         params,
       ),
+      query(
+        `
+          WITH base AS (
+            SELECT c.id AS candidate_id
+            FROM candidates c
+            ${whereBase}
+          ),
+          latest_result AS (
+            SELECT DISTINCT ON (r.candidate_id)
+              r.candidate_id,
+              r.status,
+              r.published_at
+            FROM results r
+            JOIN base b ON b.candidate_id = r.candidate_id
+            ORDER BY r.candidate_id, r.created_at DESC
+          )
+          SELECT
+            COUNT(*) FILTER (
+              WHERE latest_result.published_at IS NULL
+                OR latest_result.status = 'NOT_READY'
+            )::int AS pending_approvals
+          FROM latest_result
+        `,
+        params,
+      ),
     ]);
 
     const kpi = kpiResult.rows[0] || {};
     const dlq = dlqResult.rows[0] || {};
     const adminOverview = activeUsersResult.rows[0] || {};
     const appointmentSummary = appointmentSummaryResult.rows[0] || {};
+    const pendingApprovals = pendingApprovalsResult.rows[0] || {};
 
     ok(res, {
       summary: {
@@ -408,6 +434,7 @@ export default async function handler(req, res) {
       },
       admin_overview: {
         active_users: Number(adminOverview.active_users || 0),
+        pending_approvals: Number(pendingApprovals.pending_approvals || 0),
       },
       appointment_summary: {
         appointment_booked: Number(appointmentSummary.appointment_booked || 0),
