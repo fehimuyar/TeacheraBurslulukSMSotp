@@ -333,6 +333,11 @@ export default function MobileMenu({ onClose, currentSection: _currentSection }:
                                      </span>
                                      <span>Academy</span>
                                    </span>
+                                 ) : item.id === 'contact' ? (
+                                   <span className="inline-flex items-baseline">
+                                     <span style={{ fontFamily: '"Helvetica Neue", Arial, sans-serif' }}>İ</span>
+                                     <span>letişim</span>
+                                   </span>
                                  ) : (
                                    item.label
                                  )}
