@@ -1,10 +1,11 @@
 {
-  "timestamp": "2026-03-21T07:10:02.813Z",
+  "timestamp": "2026-03-25T11:13:42.441Z",
   "mode": {
-    "http": true
+    "http": true,
+    "static": true
   },
   "totals": {
-    "pass": 49,
+    "pass": 53,
     "fail": 0,
     "warn": 0,
     "skip": 0
@@ -89,6 +90,18 @@
       "detail": "HTTP 401",
       "evidence": {
         "url": "https://panel-api.teachera.com.tr/api/panel/candidates/export?format=csv",
+        "status": 401,
+        "expected": [
+          401
+        ]
+      }
+    },
+    {
+      "id": "unauth_get_/api/panel/candidates/export?format=xlsx",
+      "status": "PASS",
+      "detail": "HTTP 401",
+      "evidence": {
+        "url": "https://panel-api.teachera.com.tr/api/panel/candidates/export?format=xlsx",
         "status": 401,
         "expected": [
           401
@@ -182,13 +195,13 @@
     {
       "id": "bundle_index_path",
       "status": "PASS",
-      "detail": "Found /assets/index-DZuxQwIn.js",
+      "detail": "Found /assets/index-CKJFPeGK.js",
       "evidence": {}
     },
     {
       "id": "bundle_dashboard_chunk",
       "status": "PASS",
-      "detail": "Found assets/PanelDashboardPage-BnJr58Vh.js",
+      "detail": "Found assets/PanelDashboardPage-DC6qIOqb.js",
       "evidence": {}
     },
     {
@@ -387,6 +400,24 @@
       "id": "marker_action_xls_export",
       "status": "PASS",
       "detail": "Marker found: XLS Export",
+      "evidence": {}
+    },
+    {
+      "id": "source_marker_action_xlsx_export",
+      "status": "PASS",
+      "detail": "Marker found: XLSX Export",
+      "evidence": {}
+    },
+    {
+      "id": "source_marker_build_xlsx_export",
+      "status": "PASS",
+      "detail": "Marker found: buildXlsxExport",
+      "evidence": {}
+    },
+    {
+      "id": "source_marker_content_type_xlsx",
+      "status": "PASS",
+      "detail": "Marker found: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "evidence": {}
     }
   ]

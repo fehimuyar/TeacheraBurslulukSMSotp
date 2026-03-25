@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { panelFetch } from '../../api/panelApi';
+import { notifyError, notifySuccess } from '../../lib/notifications';
 import CandidatePersonDrawer from './CandidatePersonDrawer';
 import { canExportPanelData, canOperatePanelActions, canPushCrm, isReadOnlyPanelRole } from './panelRoleAccess';
 import {
@@ -92,9 +93,17 @@ type CandidateListResponse = {
 
 type CandidateActionResponse = {
   requested?: number;
+  matched?: number;
   enqueued?: number;
+  enqueueable?: number;
   skipped?: number;
+  skipped_no_phone?: number;
   processed?: number;
+  processable?: number;
+  updated?: number;
+  preview?: boolean;
+  audit_log_id?: string | number | null;
+  audit_log_seq?: number | null;
   message?: string;
   error?: string;
 };
@@ -177,6 +186,30 @@ function normalizeMessage(payload: { message?: string; error?: string } | null, 
   const error = String(payload?.error || '').trim();
   if (error) return error;
   return fallback;
+}
+
+function readAuditLabel(payload: CandidateActionResponse | null | undefined) {
+  const auditId = payload?.audit_log_id;
+  if (auditId === null || auditId === undefined || auditId === '') return '';
+  const seq = Number(payload?.audit_log_seq);
+  if (Number.isFinite(seq) && seq > 0) {
+    return ' Audit #' + String(auditId) + ' / Seq ' + String(seq);
+  }
+  return ' Audit #' + String(auditId);
+}
+
+function buildCandidatePreviewMessage(
+  action: 'sms_retry' | 'wa_send' | 'add_note' | 'appointment_booked' | 'appointment_attended' | 'appointment_no_show',
+  payload: CandidateActionResponse,
+) {
+  const requested = formatNumber(payload.requested);
+  const matched = formatNumber(payload.matched);
+  const skipped = formatNumber(payload.skipped);
+  if (action === 'add_note' || action === 'appointment_booked' || action === 'appointment_attended' || action === 'appointment_no_show') {
+    return 'Dry-run sonucu\nRequested: ' + requested + '\nMatched: ' + matched + '\nProcessable: ' + formatNumber(payload.processable) + '\nSkipped: ' + skipped + '\n\nİşlem uygulansın mı?';
+  }
+
+  return 'Dry-run sonucu\nRequested: ' + requested + '\nMatched: ' + matched + '\nEnqueueable: ' + formatNumber(payload.enqueueable) + '\nNo phone: ' + formatNumber(payload.skipped_no_phone) + '\nSkipped: ' + skipped + '\n\nİşlem uygulansın mı?';
 }
 
 function readActionBoolean(value: boolean) {
@@ -268,7 +301,7 @@ function buildCandidatesPath(query: string, filters: CandidateFilters, page: num
   return `/api/panel/candidates?${params.toString()}`;
 }
 
-function buildExportPath(query: string, filters: CandidateFilters, format: 'csv' | 'xls') {
+function buildExportPath(query: string, filters: CandidateFilters, format: 'csv' | 'xls' | 'xlsx') {
   const params = new URLSearchParams();
   const normalizedQuery = query.trim();
   if (normalizedQuery) {
@@ -434,6 +467,14 @@ export default function CandidateOperationsPanel({
     setPage(1);
   }, [active, normalizedSeedCampaignCode, normalizedSeedQuery]);
 
+  useEffect(() => {
+    if (message) notifySuccess(message);
+  }, [message]);
+
+  useEffect(() => {
+    if (errorMessage) notifyError(errorMessage);
+  }, [errorMessage]);
+
   const handleSavePreset = () => {
     const suggested = `Preset ${new Date().toLocaleDateString('tr-TR')}`;
     const rawName = window.prompt('Preset adı girin', suggested);
@@ -556,6 +597,30 @@ export default function CandidateOperationsPanel({
     setErrorMessage('');
     setMessage('');
     try {
+      if (candidateIds.length > 1) {
+        const previewResponse = await panelFetch('/api/panel/candidates/actions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({
+            action,
+            candidate_ids: candidateIds,
+            preview: true,
+            ...extraBody,
+          }),
+        });
+        const previewPayload = (await previewResponse.json()) as CandidateActionResponse;
+        if (!previewResponse.ok) {
+          throw new Error(normalizeMessage(previewPayload, 'Dry-run önizlemesi alınamadı.'));
+        }
+        const confirmed = window.confirm(buildCandidatePreviewMessage(action, previewPayload));
+        if (!confirmed) {
+          return;
+        }
+      }
+
       const response = await panelFetch('/api/panel/candidates/actions', {
         method: 'POST',
         headers: {
@@ -573,6 +638,7 @@ export default function CandidateOperationsPanel({
         throw new Error(normalizeMessage(payload, 'Aksiyon başarısız.'));
       }
 
+      const auditLabel = readAuditLabel(payload);
       if (action === 'add_note' || action === 'appointment_booked' || action === 'appointment_attended' || action === 'appointment_no_show') {
         const actionLabel =
           action === 'add_note'
@@ -582,10 +648,16 @@ export default function CandidateOperationsPanel({
               : action === 'appointment_attended'
                 ? 'Görüşmeye geldi olarak işaretlendi'
                 : 'No-show olarak işaretlendi';
-        setMessage(`${actionLabel}. İşlenen aday: ${formatNumber(payload.processed)}.`);
+        setMessage(actionLabel + '. İşlenen aday: ' + formatNumber(payload.processed) + '.' + auditLabel);
       } else {
         setMessage(
-          `Aksiyon tamamlandı. Requested: ${formatNumber(payload.requested)} • Enqueued: ${formatNumber(payload.enqueued)} • Skipped: ${formatNumber(payload.skipped)}`,
+          'Aksiyon tamamlandı. Requested: '
+            + formatNumber(payload.requested)
+            + ' • Enqueued: '
+            + formatNumber(payload.enqueued)
+            + ' • Skipped: '
+            + formatNumber(payload.skipped)
+            + auditLabel,
         );
       }
 
@@ -631,8 +703,15 @@ export default function CandidateOperationsPanel({
         throw new Error(normalizeMessage(payload, 'CRM enqueue işlemi başarısız.'));
       }
 
+      const auditLabel = readAuditLabel(payload);
       setMessage(
-        `CRM enqueue tamamlandı. Requested: ${formatNumber(payload.requested)} • Enqueued: ${formatNumber(payload.enqueued)} • Skipped: ${formatNumber(payload.skipped)}`,
+        'CRM enqueue tamamlandı. Requested: '
+          + formatNumber(payload.requested)
+          + ' • Enqueued: '
+          + formatNumber(payload.enqueued)
+          + ' • Skipped: '
+          + formatNumber(payload.skipped)
+          + auditLabel,
       );
 
       const refresh = await panelFetch(buildCandidatesPath(appliedQuery, appliedFilters, page, perPage), { method: 'GET' });
@@ -650,7 +729,7 @@ export default function CandidateOperationsPanel({
     }
   };
 
-  const handleExport = async (format: 'csv' | 'xls') => {
+  const handleExport = async (format: 'csv' | 'xls' | 'xlsx') => {
     if (!canExport) {
       setErrorMessage('Bu rol için export izni bulunmuyor.');
       return;
@@ -722,6 +801,14 @@ export default function CandidateOperationsPanel({
             className={panelSecondaryButtonClassName}
           >
             XLS Export
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleExport('xlsx')}
+            disabled={!canExport || isExportRunning}
+            className={panelSecondaryButtonClassName}
+          >
+            XLSX Export
           </button>
         </div>
       </div>

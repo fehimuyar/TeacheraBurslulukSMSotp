@@ -1,11 +1,11 @@
 {
-  "timestamp": "2026-03-21T07:10:03.704Z",
+  "timestamp": "2026-03-25T11:11:42.167Z",
   "mode": {
     "http": true,
     "static": true
   },
   "totals": {
-    "pass": 9,
+    "pass": 11,
     "fail": 0,
     "warn": 0,
     "skip": 0
@@ -30,6 +30,18 @@
       "detail": "HTTP 200",
       "evidence": {
         "url": "https://teachera.com.tr/panel/dashboard",
+        "status": 200,
+        "expected": [
+          200
+        ]
+      }
+    },
+    {
+      "id": "public_route_/panel/password-reset",
+      "status": "PASS",
+      "detail": "HTTP 200",
+      "evidence": {
+        "url": "https://teachera.com.tr/panel/password-reset",
         "status": 200,
         "expected": [
           200
@@ -68,19 +80,21 @@
     {
       "id": "login_password_reset_flow_markers",
       "status": "PASS",
-      "detail": "Found 4/4 login flow marker(s).",
+      "detail": "Found 5/5 login flow marker(s).",
       "evidence": {
         "expected": [
           "/panel/password-reset",
           "/panel/dashboard",
           "next_step",
-          "password_reset"
+          "password_reset",
+          "otp_required"
         ],
         "found": [
           "/panel/password-reset",
           "/panel/dashboard",
           "next_step",
-          "password_reset"
+          "password_reset",
+          "otp_required"
         ]
       }
     },
@@ -90,16 +104,16 @@
       "detail": "Found 4/4 route redirect marker(s).",
       "evidence": {
         "expected": [
-          "/panel/dashboard?view=operations&focus=candidates",
-          "/panel/dashboard?view=operations&focus=notifications",
-          "/panel/dashboard?view=operations&focus=dlq",
-          "/panel/dashboard?view=operations&focus=unviewed"
+          "/panel/dashboard?view=home",
+          "/panel/dashboard?view=scholarship",
+          "/panel/dashboard?view=operations",
+          "/panel/dashboard?view=reports&focus=sales"
         ],
         "found": [
-          "/panel/dashboard?view=operations&focus=candidates",
-          "/panel/dashboard?view=operations&focus=notifications",
-          "/panel/dashboard?view=operations&focus=dlq",
-          "/panel/dashboard?view=operations&focus=unviewed"
+          "/panel/dashboard?view=home",
+          "/panel/dashboard?view=scholarship",
+          "/panel/dashboard?view=operations",
+          "/panel/dashboard?view=reports&focus=sales"
         ]
       }
     },
@@ -110,14 +124,34 @@
       "evidence": {
         "expected": [
           "/api/panel/auth/me",
-          "/panel/login?next=/panel/dashboard",
+          "resolvePanelLoginHref",
           "/panel/password-reset"
         ],
         "found": [
           "/api/panel/auth/me",
-          "/panel/login?next=/panel/dashboard",
+          "resolvePanelLoginHref",
           "/panel/password-reset"
         ]
+      }
+    },
+    {
+      "id": "preview_runtime_guard_markers",
+      "status": "PASS",
+      "detail": "Found 4/4 preview guard marker(s) with no query bypass.",
+      "evidence": {
+        "expected": [
+          "VITE_PANEL_PREVIEW_MODE",
+          "localhost",
+          "127.0.0.1",
+          ".local"
+        ],
+        "found": [
+          "VITE_PANEL_PREVIEW_MODE",
+          "localhost",
+          "127.0.0.1",
+          ".local"
+        ],
+        "query_bypass_removed": true
       }
     },
     {
@@ -138,23 +172,25 @@
       }
     },
     {
-      "id": "backend_login_role_and_mfa_markers",
+      "id": "backend_login_role_and_otp_markers",
       "status": "PASS",
-      "detail": "Found 5/5 backend login marker(s).",
+      "detail": "Found 6/6 backend login marker(s).",
       "evidence": {
         "expected": [
           "LEGACY_ROLE_NORMALIZATION_MAP",
           "EDUCATION_ADVISOR",
           "ADMIN",
-          "panel_mfa_not_enabled",
-          "verifyTotpCode"
+          "PANEL_LOGIN_SMS_OTP",
+          "otp_required",
+          "challenge_token"
         ],
         "found": [
           "LEGACY_ROLE_NORMALIZATION_MAP",
           "EDUCATION_ADVISOR",
           "ADMIN",
-          "panel_mfa_not_enabled",
-          "verifyTotpCode"
+          "PANEL_LOGIN_SMS_OTP",
+          "otp_required",
+          "challenge_token"
         ]
       }
     }

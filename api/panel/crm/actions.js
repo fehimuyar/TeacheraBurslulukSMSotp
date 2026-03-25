@@ -214,19 +214,9 @@ export default async function handler(req, res) {
         }
         throw error;
       }
-
       const enqueuedJobIds = enqueueResult.inserted.map((item) => item.job_id);
-      ok(res, {
-        action,
-        requested: candidateIds.length,
-        matched: enqueueResult.matched,
-        enqueued: enqueuedJobIds.length,
-        skipped: enqueueResult.matched - enqueuedJobIds.length,
-        job_ids: enqueuedJobIds,
-      });
-
       const ctx = readRequestContext(req);
-      await appendAuditLog({
+      const auditEntry = await appendAuditLog({
         ...buildPanelActor(identity),
         action: 'PANEL_CRM_EXPORT_ENQUEUE',
         targetType: 'CANDIDATE_BATCH',
@@ -238,6 +228,17 @@ export default async function handler(req, res) {
           candidateIds,
           enqueuedJobIds,
         },
+      });
+
+      ok(res, {
+        action,
+        requested: candidateIds.length,
+        matched: enqueueResult.matched,
+        enqueued: enqueuedJobIds.length,
+        skipped: enqueueResult.matched - enqueuedJobIds.length,
+        job_ids: enqueuedJobIds,
+        audit_log_id: auditEntry?.id || null,
+        audit_log_seq: auditEntry?.seq || null,
       });
       return;
     }
@@ -256,16 +257,8 @@ export default async function handler(req, res) {
       }
       throw error;
     }
-
-    ok(res, {
-      action,
-      requested: jobIds.length,
-      updated: updatedJobIds.length,
-      job_ids: updatedJobIds,
-    });
-
     const ctx = readRequestContext(req);
-    await appendAuditLog({
+    const auditEntry = await appendAuditLog({
       ...buildPanelActor(identity),
       action: action === 'retry' ? 'PANEL_CRM_EXPORT_RETRY' : 'PANEL_CRM_EXPORT_CANCEL',
       targetType: 'CRM_JOB_BATCH',
@@ -277,6 +270,15 @@ export default async function handler(req, res) {
         requestedJobIds: jobIds,
         updatedJobIds,
       },
+    });
+
+    ok(res, {
+      action,
+      requested: jobIds.length,
+      updated: updatedJobIds.length,
+      job_ids: updatedJobIds,
+      audit_log_id: auditEntry?.id || null,
+      audit_log_seq: auditEntry?.seq || null,
     });
   });
 }

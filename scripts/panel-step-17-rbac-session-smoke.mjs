@@ -79,6 +79,7 @@ async function run() {
   const publicRouteChecks = [
     ['/panel/login', 200],
     ['/panel/dashboard', 200],
+    ['/panel/password-reset', 200],
   ];
   for (const [routePath, expected] of publicRouteChecks) {
     const response = await httpRequest({
@@ -109,7 +110,8 @@ async function run() {
   );
 
   const panelLoginSource = await fs.readFile(path.join(rootDir, 'apps/www/src/app/components/panel/PanelLoginPage.tsx'), 'utf8');
-  const panelDashboardSource = await fs.readFile(path.join(rootDir, 'apps/www/src/app/components/panel/PanelDashboardPage.tsx'), 'utf8');
+  const panelUseAuthSource = await fs.readFile(path.join(rootDir, 'apps/www/src/app/components/panel/usePanelAuth.ts'), 'utf8');
+  const panelPreviewSource = await fs.readFile(path.join(rootDir, 'apps/www/src/app/components/panel/panelPreviewSession.ts'), 'utf8');
   const panelRoutesSource = await fs.readFile(path.join(rootDir, 'apps/www/src/app/routes.ts'), 'utf8');
   const backendAuthSource = await fs.readFile(path.join(rootDir, 'apps/panel-api/api/_lib/auth.js'), 'utf8');
   const backendLoginSource = await fs.readFile(path.join(rootDir, 'apps/panel-api/api/panel/auth/login.js'), 'utf8');
@@ -125,7 +127,7 @@ async function run() {
     ),
   );
 
-  const loginFlowMarkers = ['/panel/password-reset', '/panel/dashboard', 'next_step', 'password_reset'];
+  const loginFlowMarkers = ['/panel/password-reset', '/panel/dashboard', 'next_step', 'password_reset', 'otp_required'];
   const loginFlowFound = hasAllMarkers(panelLoginSource, loginFlowMarkers);
   checks.push(
     makeCheck(
@@ -137,10 +139,10 @@ async function run() {
   );
 
   const routeRedirectMarkers = [
-    '/panel/dashboard?view=operations&focus=candidates',
-    '/panel/dashboard?view=operations&focus=notifications',
-    '/panel/dashboard?view=operations&focus=dlq',
-    '/panel/dashboard?view=operations&focus=unviewed',
+    '/panel/dashboard?view=home',
+    '/panel/dashboard?view=scholarship',
+    '/panel/dashboard?view=operations',
+    '/panel/dashboard?view=reports&focus=sales',
   ];
   const routeRedirectFound = hasAllMarkers(panelRoutesSource, routeRedirectMarkers);
   checks.push(
@@ -152,14 +154,32 @@ async function run() {
     ),
   );
 
-  const dashboardGuardMarkers = ['/api/panel/auth/me', '/panel/login?next=/panel/dashboard', '/panel/password-reset'];
-  const dashboardGuardFound = hasAllMarkers(panelDashboardSource, dashboardGuardMarkers);
+  const dashboardGuardMarkers = ['/api/panel/auth/me', 'resolvePanelLoginHref', '/panel/password-reset'];
+  const dashboardGuardFound = hasAllMarkers(panelUseAuthSource, dashboardGuardMarkers);
   checks.push(
     makeCheck(
       'dashboard_session_guard_markers',
       dashboardGuardFound.length === dashboardGuardMarkers.length ? 'PASS' : 'FAIL',
       `Found ${dashboardGuardFound.length}/${dashboardGuardMarkers.length} dashboard session guard marker(s).`,
       { expected: dashboardGuardMarkers, found: dashboardGuardFound },
+    ),
+  );
+
+  const previewGuardMarkers = ['VITE_PANEL_PREVIEW_MODE', 'localhost', '127.0.0.1', '.local'];
+  const previewGuardFound = hasAllMarkers(panelPreviewSource, previewGuardMarkers);
+  const previewBypassBlocked = !panelPreviewSource.includes('panelPreview=1');
+  checks.push(
+    makeCheck(
+      'preview_runtime_guard_markers',
+      previewGuardFound.length === previewGuardMarkers.length && previewBypassBlocked ? 'PASS' : 'FAIL',
+      previewBypassBlocked
+        ? `Found ${previewGuardFound.length}/${previewGuardMarkers.length} preview guard marker(s) with no query bypass.`
+        : 'Query-string preview bypass marker still present.',
+      {
+        expected: previewGuardMarkers,
+        found: previewGuardFound,
+        query_bypass_removed: previewBypassBlocked,
+      },
     ),
   );
 
@@ -178,13 +198,14 @@ async function run() {
     'LEGACY_ROLE_NORMALIZATION_MAP',
     'EDUCATION_ADVISOR',
     'ADMIN',
-    'panel_mfa_not_enabled',
-    'verifyTotpCode',
+    'PANEL_LOGIN_SMS_OTP',
+    'otp_required',
+    'challenge_token',
   ];
   const backendLoginFound = hasAllMarkers(backendLoginSource, backendLoginMarkers);
   checks.push(
     makeCheck(
-      'backend_login_role_and_mfa_markers',
+      'backend_login_role_and_otp_markers',
       backendLoginFound.length === backendLoginMarkers.length ? 'PASS' : 'FAIL',
       `Found ${backendLoginFound.length}/${backendLoginMarkers.length} backend login marker(s).`,
       { expected: backendLoginMarkers, found: backendLoginFound },

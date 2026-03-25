@@ -21,6 +21,7 @@ import {
 } from '../../_lib/http.js';
 import { decryptPii, isPrivilegedPiiRole, maskPiiName, maskPiiPhone } from '../../_lib/piiCrypto.js';
 import { buildWhereClause } from '../../_lib/sql.js';
+import { utils as xlsxUtils, write as xlsxWrite } from 'xlsx';
 
 function escapeCsvCell(value) {
   if (value === null || value === undefined) return '';
@@ -41,6 +42,7 @@ function escapeHtmlCell(value) {
 
 function readExportFormat(value) {
   const normalized = safeTrim(value).toLowerCase();
+  if (normalized === 'xlsx') return 'xlsx';
   return normalized === 'xls' ? 'xls' : 'csv';
 }
 
@@ -162,6 +164,29 @@ function buildFilterState(req) {
     whereClause: buildWhereClause(clauses),
     params,
   };
+}
+
+function buildHtmlExport(headers, rows) {
+  const tableHead = `<tr>${headers.map((header) => `<th>${escapeHtmlCell(header)}</th>`).join('')}</tr>`;
+  const tableBody = rows
+    .map((row) => `<tr>${headers.map((header) => `<td>${escapeHtmlCell(row[header])}</td>`).join('')}</tr>`)
+    .join('');
+  return `<!doctype html><html><head><meta charset="utf-8"></head><body><table border="1">${tableHead}${tableBody}</table></body></html>`;
+}
+
+function buildCsvExport(headers, rows) {
+  const lines = [headers.join(',')];
+  for (const row of rows) {
+    lines.push(headers.map((header) => escapeCsvCell(row[header])).join(','));
+  }
+  return lines.join('\n');
+}
+
+function buildXlsxExport(headers, rows) {
+  const workbook = xlsxUtils.book_new();
+  const worksheet = xlsxUtils.json_to_sheet(rows, { header: headers });
+  xlsxUtils.book_append_sheet(workbook, worksheet, 'Candidates');
+  return xlsxWrite(workbook, { bookType: 'xlsx', type: 'buffer' });
 }
 
 export default async function handler(req, res) {
@@ -422,23 +447,21 @@ export default async function handler(req, res) {
 
     const now = new Date().toISOString().slice(0, 19).replaceAll(':', '-');
     res.status(200);
-    if (exportFormat === 'xls') {
-      const tableHead = `<tr>${headers.map((header) => `<th>${escapeHtmlCell(header)}</th>`).join('')}</tr>`;
-      const tableBody = mappedRows
-        .map((row) => `<tr>${headers.map((header) => `<td>${escapeHtmlCell(row[header])}</td>`).join('')}</tr>`)
-        .join('');
-      const html = `<!doctype html><html><head><meta charset="utf-8"></head><body><table border="1">${tableHead}${tableBody}</table></body></html>`;
+    if (exportFormat === 'xlsx') {
+      const workbookBuffer = buildXlsxExport(headers, mappedRows);
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="candidate-operations-${now}.xlsx"`);
+      res.end(workbookBuffer);
+    } else if (exportFormat === 'xls') {
+      const html = buildHtmlExport(headers, mappedRows);
       res.setHeader('Content-Type', 'application/vnd.ms-excel; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="candidate-operations-${now}.xls"`);
       res.end(html);
     } else {
-      const lines = [headers.join(',')];
-      for (const row of mappedRows) {
-        lines.push(headers.map((header) => escapeCsvCell(row[header])).join(','));
-      }
+      const csv = buildCsvExport(headers, mappedRows);
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="candidate-operations-${now}.csv"`);
-      res.end(lines.join('\n'));
+      res.end(csv);
     }
 
     const ctx = readRequestContext(req);

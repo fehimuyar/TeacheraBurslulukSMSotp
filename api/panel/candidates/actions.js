@@ -66,6 +66,7 @@ export default async function handler(req, res) {
 
     const action = safeTrim(body.action).toLowerCase();
     const candidateIds = normalizeCandidateIds(body.candidate_ids || body.candidateIds);
+    const previewOnly = Boolean(body.preview ?? body.dry_run ?? body.dryRun);
     if (candidateIds.length === 0) {
       throw new HttpError(400, 'candidateIds is required.', 'missing_candidate_ids');
     }
@@ -106,6 +107,17 @@ export default async function handler(req, res) {
       if (action === 'add_note' && !note) {
         throw new HttpError(400, 'note is required for add_note action.', 'missing_note');
       }
+      if (previewOnly) {
+        ok(res, {
+          action,
+          preview: true,
+          requested: candidateIds.length,
+          matched: candidates.length,
+          processable: candidates.length,
+          skipped: candidateIds.length - candidates.length,
+        });
+        return;
+      }
 
       await withTransaction(async (client) => {
         const createdAt = new Date().toISOString();
@@ -137,13 +149,8 @@ export default async function handler(req, res) {
         }
       });
 
-      ok(res, {
-        action,
-        processed: candidates.length,
-      });
-
       const ctx = readRequestContext(req);
-      await appendAuditLog({
+      const auditEntry = await appendAuditLog({
         ...buildPanelActor(identity),
         action: auditAction,
         targetType: 'CANDIDATE_BATCH',
@@ -158,41 +165,49 @@ export default async function handler(req, res) {
           eventType,
         },
       });
+
+      ok(res, {
+        action,
+        processed: candidates.length,
+        audit_log_id: auditEntry?.id || null,
+        audit_log_seq: auditEntry?.seq || null,
+      });
+      return;
+    }
+    const deliverableCandidates = candidates.filter((candidate) => candidate.parent_phone_e164);
+
+    if (previewOnly) {
+      ok(res, {
+        action,
+        preview: true,
+        requested: candidateIds.length,
+        matched: candidates.length,
+        enqueueable: deliverableCandidates.length,
+        skipped: candidateIds.length - deliverableCandidates.length,
+        skipped_no_phone: candidates.length - deliverableCandidates.length,
+      });
       return;
     }
 
-    const jobs = [];
-    for (const candidate of candidates) {
-      if (!candidate.parent_phone_e164) continue;
-      jobs.push(
-        enqueueNotification({
-          campaignCode: candidate.campaign_code,
-          candidateId: candidate.candidate_id,
-          attemptId: candidate.attempt_id,
-          resultId: candidate.result_id,
-          channel: action === 'sms_retry' ? 'SMS' : 'WHATSAPP',
-          templateCode: action === 'sms_retry' ? 'CREDENTIALS_SMS' : 'WA_RESULT',
-          recipient: candidate.parent_phone_e164,
-          payload: {
-            trigger: 'manual_panel_action',
-            action,
-          },
-        }),
-      );
-    }
+    const jobs = deliverableCandidates.map((candidate) =>
+      enqueueNotification({
+        campaignCode: candidate.campaign_code,
+        candidateId: candidate.candidate_id,
+        attemptId: candidate.attempt_id,
+        resultId: candidate.result_id,
+        channel: action === 'sms_retry' ? 'SMS' : 'WHATSAPP',
+        templateCode: action === 'sms_retry' ? 'CREDENTIALS_SMS' : 'WA_RESULT',
+        recipient: candidate.parent_phone_e164,
+        payload: {
+          trigger: 'manual_panel_action',
+          action,
+        },
+      }),
+    );
 
     const enqueued = await Promise.all(jobs);
-
-    ok(res, {
-      action,
-      requested: candidateIds.length,
-      enqueued: enqueued.length,
-      skipped: candidateIds.length - enqueued.length,
-      job_ids: enqueued.map((item) => item.jobId),
-    });
-
     const ctx = readRequestContext(req);
-    await appendAuditLog({
+    const auditEntry = await appendAuditLog({
       ...buildPanelActor(identity),
       action: action === 'sms_retry' ? 'PANEL_CANDIDATE_SMS_RETRY' : 'PANEL_CANDIDATE_WA_SEND',
       targetType: 'CANDIDATE_BATCH',
@@ -202,8 +217,21 @@ export default async function handler(req, res) {
       userAgent: ctx.userAgent,
       metadata: {
         candidateIds,
+        deliverableCandidateIds: deliverableCandidates.map((item) => item.candidate_id),
         enqueuedJobIds: enqueued.map((item) => item.jobId),
       },
+    });
+
+    ok(res, {
+      action,
+      requested: candidateIds.length,
+      matched: candidates.length,
+      enqueued: enqueued.length,
+      skipped: candidateIds.length - enqueued.length,
+      skipped_no_phone: candidates.length - deliverableCandidates.length,
+      job_ids: enqueued.map((item) => item.jobId),
+      audit_log_id: auditEntry?.id || null,
+      audit_log_seq: auditEntry?.seq || null,
     });
   });
 }

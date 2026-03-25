@@ -1,8 +1,8 @@
 # Panel Step-16 Ops Grid Smoke
 
-- Timestamp: 2026-03-21T07:10:02.813Z
+- Timestamp: 2026-03-25T11:13:42.441Z
 - overall_ready_for_step_16: **true**
-- pass: 49, fail: 0, warn: 0, skip: 0
+- pass: 53, fail: 0, warn: 0, skip: 0
 
 ## Checks
 
@@ -15,6 +15,7 @@
 | public_route_/panel/unviewed-results | PASS | HTTP 200 |
 | unauth_get_/api/panel/candidates | PASS | HTTP 401 |
 | unauth_get_/api/panel/candidates/export?format=csv | PASS | HTTP 401 |
+| unauth_get_/api/panel/candidates/export?format=xlsx | PASS | HTTP 401 |
 | unauth_get_/api/panel/notifications | PASS | HTTP 401 |
 | unauth_get_/api/panel/dlq | PASS | HTTP 401 |
 | unauth_get_/api/panel/unviewed-results | PASS | HTTP 401 |
@@ -22,8 +23,8 @@
 | unauth_post_/api/panel/notifications/actions | PASS | HTTP 401 |
 | unauth_post_/api/panel/dlq/actions | PASS | HTTP 401 |
 | unauth_post_/api/panel/unviewed-results/actions | PASS | HTTP 401 |
-| bundle_index_path | PASS | Found /assets/index-DZuxQwIn.js |
-| bundle_dashboard_chunk | PASS | Found assets/PanelDashboardPage-BnJr58Vh.js |
+| bundle_index_path | PASS | Found /assets/index-CKJFPeGK.js |
+| bundle_dashboard_chunk | PASS | Found assets/PanelDashboardPage-DC6qIOqb.js |
 | marker_focus_candidates_route | PASS | Marker found: /panel/candidates |
 | marker_candidates_api | PASS | Marker found: /api/panel/candidates |
 | marker_notifications_api | PASS | Marker found: /api/panel/notifications |
@@ -57,4 +58,7 @@
 | marker_result_unseen_delay | PASS | Marker found: result_unseen_delay_minutes |
 | marker_action_csv_export | PASS | Marker found: CSV Export |
 | marker_action_xls_export | PASS | Marker found: XLS Export |
+| source_marker_action_xlsx_export | PASS | Marker found: XLSX Export |
+| source_marker_build_xlsx_export | PASS | Marker found: buildXlsxExport |
+| source_marker_content_type_xlsx | PASS | Marker found: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet |
 

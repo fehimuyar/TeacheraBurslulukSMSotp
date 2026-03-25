@@ -8,6 +8,12 @@ import {
 import type { PanelIdentity } from './panelTypes';
 import { readJsonSafe } from './panelTypes';
 
+function resolvePanelLoginHref() {
+  if (typeof window === 'undefined') return '/panel/login?next=%2Fpanel%2Fdashboard';
+  const nextPath = (window.location.pathname || '/panel/dashboard') + window.location.search;
+  return '/panel/login?next=' + encodeURIComponent(nextPath || '/panel/dashboard');
+}
+
 type UsePanelAuthReturn = {
   identity: PanelIdentity | null;
   isLoading: boolean;
@@ -44,7 +50,8 @@ export function usePanelAuth(): UsePanelAuthReturn {
       if (meResponse.status === 401 || meResponse.status === 403) {
         setAuthRequired(true);
         setIdentity(null);
-        setErrorMessage('Panel oturumu bulunamadı. Devam etmek için tekrar giriş yapın.');
+        setErrorMessage('Panel oturumu bulunamadı. Giriş ekranına yönlendiriliyorsunuz.');
+        window.location.replace(resolvePanelLoginHref());
         return null;
       }
       setAuthRequired(false);

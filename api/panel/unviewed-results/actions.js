@@ -42,7 +42,7 @@ async function appendBotFollowupEvent({ candidateId, attemptId, mode, trigger, j
   );
 }
 
-async function enqueueRows({ rows, trigger, mode }) {
+async function enqueueRows({ rows, trigger, mode, previewOnly = false }) {
   let enqueued = 0;
   let skippedNoPhone = 0;
   const jobIds = [];
@@ -51,6 +51,10 @@ async function enqueueRows({ rows, trigger, mode }) {
     const parentPhoneE164 = await decryptPii(row.parent_phone_e164_enc, row.parent_phone_e164_legacy);
     if (!parentPhoneE164) {
       skippedNoPhone += 1;
+      continue;
+    }
+    if (previewOnly) {
+      enqueued += 1;
       continue;
     }
 
@@ -260,6 +264,7 @@ export default async function handler(req, res) {
     }
 
     const action = safeTrim(body.action).toLowerCase();
+    const previewOnly = Boolean(body.preview ?? body.dry_run ?? body.dryRun);
     if (!['send_whatsapp', 'run_followup_auto_whatsapp'].includes(action)) {
       throw new HttpError(400, 'Unsupported action.', 'invalid_action');
     }
@@ -296,7 +301,6 @@ export default async function handler(req, res) {
         `,
         [candidateIds],
       );
-
       const rowsWithPhone = await Promise.all(
         rows.map(async (row) => ({
           ...row,
@@ -304,36 +308,40 @@ export default async function handler(req, res) {
         })),
       );
 
-      const jobs = rowsWithPhone
-        .filter((row) => row.parent_phone_e164)
-        .map((row) =>
-          enqueueNotification({
-            campaignCode: row.campaign_code,
-            candidateId: row.candidate_id,
-            attemptId: row.attempt_id,
-            resultId: row.result_id,
-            channel: 'WHATSAPP',
+      const deliverableRows = rowsWithPhone.filter((row) => row.parent_phone_e164);
+
+      if (previewOnly) {
+        ok(res, {
+          action,
+          preview: true,
+          requested: candidateIds.length,
+          matched: rows.length,
+          enqueueable: deliverableRows.length,
+          skipped: candidateIds.length - deliverableRows.length,
+          skipped_no_phone: rows.length - deliverableRows.length,
+        });
+        return;
+      }
+
+      const jobs = deliverableRows.map((row) =>
+        enqueueNotification({
+          campaignCode: row.campaign_code,
+          candidateId: row.candidate_id,
+          attemptId: row.attempt_id,
+          resultId: row.result_id,
+          channel: 'WHATSAPP',
+          templateCode,
+          recipient: row.parent_phone_e164,
+          payload: {
+            trigger: 'panel_unviewed_results',
             templateCode,
-            recipient: row.parent_phone_e164,
-            payload: {
-              trigger: 'panel_unviewed_results',
-              templateCode,
-            },
-          }),
-        );
+          },
+        }),
+      );
 
       const created = await Promise.all(jobs);
-
-      ok(res, {
-        action,
-        requested: candidateIds.length,
-        enqueued: created.length,
-        skipped: candidateIds.length - created.length,
-        job_ids: created.map((item) => item.jobId),
-      });
-
       const ctx = readRequestContext(req);
-      await appendAuditLog({
+      const auditEntry = await appendAuditLog({
         ...buildPanelActor(identity),
         action: 'PANEL_UNVIEWED_RESULTS_WA_SEND',
         targetType: 'CANDIDATE_BATCH',
@@ -343,9 +351,22 @@ export default async function handler(req, res) {
         userAgent: ctx.userAgent,
         metadata: {
           candidateIds,
+          deliverableCandidateIds: deliverableRows.map((row) => row.candidate_id),
           templateCode,
           enqueuedJobIds: created.map((item) => item.jobId),
         },
+      });
+
+      ok(res, {
+        action,
+        requested: candidateIds.length,
+        matched: rows.length,
+        enqueued: created.length,
+        skipped: candidateIds.length - created.length,
+        skipped_no_phone: rows.length - deliverableRows.length,
+        job_ids: created.map((item) => item.jobId),
+        audit_log_id: auditEntry?.id || null,
+        audit_log_seq: auditEntry?.seq || null,
       });
       return;
     }
@@ -401,6 +422,7 @@ export default async function handler(req, res) {
         rows,
         trigger: 'ops_unviewed_results_auto_whatsapp',
         mode: 'result_unseen',
+        previewOnly,
       });
     }
 
@@ -414,6 +436,7 @@ export default async function handler(req, res) {
         rows,
         trigger: 'ops_viewed_no_appointment_auto_whatsapp',
         mode: 'viewed_no_appointment',
+        previewOnly,
       });
     }
 
@@ -427,10 +450,10 @@ export default async function handler(req, res) {
         rows,
         trigger: 'ops_appointment_no_show_auto_whatsapp',
         mode: 'appointment_no_show',
+        previewOnly,
       });
     }
-
-    ok(res, {
+    const responsePayload = {
       action,
       campaign_code: campaignCode,
       mode,
@@ -445,14 +468,22 @@ export default async function handler(req, res) {
         enqueued: resultUnseen.enqueued + viewedNoAppointment.enqueued + appointmentNoShow.enqueued,
         skipped_no_phone: resultUnseen.skipped_no_phone + viewedNoAppointment.skipped_no_phone + appointmentNoShow.skipped_no_phone,
       },
-    });
+    };
+
+    if (previewOnly) {
+      ok(res, {
+        ...responsePayload,
+        preview: true,
+      });
+      return;
+    }
 
     const ctx = readRequestContext(req);
-    await appendAuditLog({
+    const auditEntry = await appendAuditLog({
       ...buildPanelActor(identity),
       action: 'PANEL_BOT_FOLLOWUP_SCAN',
       targetType: 'BOT_FOLLOWUP',
-      targetId: `${campaignCode}:${mode}`,
+      targetId: campaignCode + ':' + mode,
       requestId: ctx.requestId,
       ipAddress: ctx.ipAddress,
       userAgent: ctx.userAgent,
@@ -467,6 +498,12 @@ export default async function handler(req, res) {
         viewedNoAppointment,
         appointmentNoShow,
       },
+    });
+
+    ok(res, {
+      ...responsePayload,
+      audit_log_id: auditEntry?.id || null,
+      audit_log_seq: auditEntry?.seq || null,
     });
   });
 }

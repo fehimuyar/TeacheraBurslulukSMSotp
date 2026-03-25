@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { panelFetch } from '../../api/panelApi';
+import { notifyError, notifySuccess } from '../../lib/notifications';
 import { canOperateUnviewed, isReadOnlyPanelRole } from './panelRoleAccess';
 import {
   PanelFeedbackMessage,
@@ -49,8 +50,14 @@ type UnviewedActionResponse = {
   campaign_code?: string;
   mode?: string;
   requested?: number;
+  matched?: number;
   enqueued?: number;
+  enqueueable?: number;
   skipped?: number;
+  skipped_no_phone?: number;
+  preview?: boolean;
+  audit_log_id?: string | number | null;
+  audit_log_seq?: number | null;
   result_unseen?: {
     scanned?: number;
     enqueued?: number;
@@ -114,6 +121,43 @@ function normalizeMessage(payload: { message?: string; error?: string } | null, 
   const error = String(payload?.error || '').trim();
   if (error) return error;
   return fallback;
+}
+
+function readAuditLabel(payload: UnviewedActionResponse | null | undefined) {
+  const auditId = payload?.audit_log_id;
+  if (auditId === null || auditId === undefined || auditId === '') return '';
+  const seq = Number(payload?.audit_log_seq);
+  if (Number.isFinite(seq) && seq > 0) {
+    return ' Audit #' + String(auditId) + ' / Seq ' + String(seq);
+  }
+  return ' Audit #' + String(auditId);
+}
+
+function buildBulkWhatsappPreviewMessage(payload: UnviewedActionResponse) {
+  return 'Dry-run sonucu\nRequested: '
+    + formatNumber(payload.requested)
+    + '\nMatched: '
+    + formatNumber(payload.matched)
+    + '\nEnqueueable: '
+    + formatNumber(payload.enqueueable)
+    + '\nNo phone: '
+    + formatNumber(payload.skipped_no_phone)
+    + '\nSkipped: '
+    + formatNumber(payload.skipped)
+    + '\n\nİşlem uygulansın mı?';
+}
+
+function buildFollowupPreviewMessage(mode: string, payload: UnviewedActionResponse) {
+  const totals = payload.totals || {};
+  return 'Follow-up dry-run ('
+    + mode
+    + ')\nScanned: '
+    + formatNumber(totals.scanned)
+    + '\nEnqueueable: '
+    + formatNumber(totals.enqueued)
+    + '\nNo phone: '
+    + formatNumber(totals.skipped_no_phone)
+    + '\n\nTarama çalıştırılsın mı?';
 }
 
 function buildFiltersPayload(filters: UnviewedFilters) {
@@ -230,6 +274,14 @@ export default function UnviewedResultsPanel({
     };
   }, [active, appliedFilters, appliedQuery, page, perPage]);
 
+  useEffect(() => {
+    if (message) notifySuccess(message);
+  }, [message]);
+
+  useEffect(() => {
+    if (errorMessage) notifyError(errorMessage);
+  }, [errorMessage]);
+
   const sendWhatsapp = async (candidateIds: string[]) => {
     if (!canOperate) {
       setErrorMessage('Bu rol için işlem aksiyonları kapalıdır (READ_ONLY).');
@@ -242,6 +294,32 @@ export default function UnviewedResultsPanel({
     setErrorMessage('');
 
     try {
+      if (candidateIds.length > 1) {
+        const previewResponse = await panelFetch('/api/panel/unviewed-results/actions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'send_whatsapp',
+            candidate_ids: candidateIds,
+            template_code: templateCode,
+            preview: true,
+          }),
+        });
+
+        const previewPayload = (await previewResponse.json()) as UnviewedActionResponse;
+        if (!previewResponse.ok) {
+          throw new Error(normalizeMessage(previewPayload, 'WhatsApp dry-run başarısız.'));
+        }
+
+        const confirmed = window.confirm(buildBulkWhatsappPreviewMessage(previewPayload));
+        if (!confirmed) {
+          return;
+        }
+      }
+
       const response = await panelFetch('/api/panel/unviewed-results/actions', {
         method: 'POST',
         headers: {
@@ -261,7 +339,13 @@ export default function UnviewedResultsPanel({
       }
 
       setMessage(
-        `WhatsApp gönderimi tetiklendi. Requested: ${formatNumber(payload.requested)} • Enqueued: ${formatNumber(payload.enqueued)} • Skipped: ${formatNumber(payload.skipped)}`,
+        'WhatsApp gönderimi tetiklendi. Requested: '
+          + formatNumber(payload.requested)
+          + ' • Enqueued: '
+          + formatNumber(payload.enqueued)
+          + ' • Skipped: '
+          + formatNumber(payload.skipped)
+          + readAuditLabel(payload),
       );
 
       const refresh = await panelFetch(buildUnviewedPath(appliedQuery, appliedFilters, page, perPage), { method: 'GET' });
@@ -297,21 +381,45 @@ export default function UnviewedResultsPanel({
     const noShowDelayValue = Number.parseInt(followupNoShowDelayMinutes, 10);
 
     try {
-      const response = await panelFetch('/api/panel/unviewed-results/actions', {
+      const requestBody = {
+        action: 'run_followup_auto_whatsapp',
+        mode,
+        campaign_code: followupCampaignCode.trim() || undefined,
+        limit: Number.isFinite(limitValue) ? limitValue : undefined,
+        result_unseen_delay_minutes: Number.isFinite(resultUnseenDelayValue) ? resultUnseenDelayValue : undefined,
+        viewed_no_appointment_delay_minutes: Number.isFinite(viewedDelayValue) ? viewedDelayValue : undefined,
+        appointment_no_show_delay_minutes: Number.isFinite(noShowDelayValue) ? noShowDelayValue : undefined,
+      };
+
+      const previewResponse = await panelFetch('/api/panel/unviewed-results/actions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
         body: JSON.stringify({
-          action: 'run_followup_auto_whatsapp',
-          mode,
-          campaign_code: followupCampaignCode.trim() || undefined,
-          limit: Number.isFinite(limitValue) ? limitValue : undefined,
-          result_unseen_delay_minutes: Number.isFinite(resultUnseenDelayValue) ? resultUnseenDelayValue : undefined,
-          viewed_no_appointment_delay_minutes: Number.isFinite(viewedDelayValue) ? viewedDelayValue : undefined,
-          appointment_no_show_delay_minutes: Number.isFinite(noShowDelayValue) ? noShowDelayValue : undefined,
+          ...requestBody,
+          preview: true,
         }),
+      });
+
+      const previewPayload = (await previewResponse.json()) as UnviewedActionResponse;
+      if (!previewResponse.ok) {
+        throw new Error(normalizeMessage(previewPayload, 'Bot follow-up dry-run başarısız.'));
+      }
+
+      const confirmed = window.confirm(buildFollowupPreviewMessage(mode, previewPayload));
+      if (!confirmed) {
+        return;
+      }
+
+      const response = await panelFetch('/api/panel/unviewed-results/actions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(requestBody),
       });
 
       const payload = (await response.json()) as UnviewedActionResponse;
@@ -325,7 +433,26 @@ export default function UnviewedResultsPanel({
       const totals = payload.totals || {};
 
       setMessage(
-        `Bot follow-up taraması tamamlandı (${mode}). ResultUnseen: ${formatNumber(unseen.scanned)} scanned / ${formatNumber(unseen.enqueued)} enqueued • ViewedNoAppointment: ${formatNumber(viewed.scanned)} scanned / ${formatNumber(viewed.enqueued)} enqueued • NoShow: ${formatNumber(noShow.scanned)} scanned / ${formatNumber(noShow.enqueued)} enqueued • Total: ${formatNumber(totals.scanned)} scanned / ${formatNumber(totals.enqueued)} enqueued.`,
+        'Bot follow-up taraması tamamlandı ('
+          + mode
+          + '). ResultUnseen: '
+          + formatNumber(unseen.scanned)
+          + ' scanned / '
+          + formatNumber(unseen.enqueued)
+          + ' enqueued • ViewedNoAppointment: '
+          + formatNumber(viewed.scanned)
+          + ' scanned / '
+          + formatNumber(viewed.enqueued)
+          + ' enqueued • NoShow: '
+          + formatNumber(noShow.scanned)
+          + ' scanned / '
+          + formatNumber(noShow.enqueued)
+          + ' enqueued • Total: '
+          + formatNumber(totals.scanned)
+          + ' scanned / '
+          + formatNumber(totals.enqueued)
+          + ' enqueued.'
+          + readAuditLabel(payload),
       );
 
       const refresh = await panelFetch(buildUnviewedPath(appliedQuery, appliedFilters, page, perPage), { method: 'GET' });

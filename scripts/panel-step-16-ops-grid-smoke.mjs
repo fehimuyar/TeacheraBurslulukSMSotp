@@ -109,6 +109,7 @@ async function run() {
   const unauthGetEndpoints = [
     '/api/panel/candidates',
     '/api/panel/candidates/export?format=csv',
+    '/api/panel/candidates/export?format=xlsx',
     '/api/panel/notifications',
     '/api/panel/dlq',
     '/api/panel/unviewed-results',
@@ -227,6 +228,25 @@ async function run() {
     }
   }
 
+  const candidatePanelSource = await fs.readFile(path.join(rootDir, 'apps/www/src/app/components/panel/CandidateOperationsPanel.tsx'), 'utf8');
+  const candidateExportSource = await fs.readFile(path.join(rootDir, 'apps/panel-api/api/panel/candidates/export.js'), 'utf8');
+
+  const staticMarkers = [
+    ['source_marker_action_xlsx_export', candidatePanelSource, 'XLSX Export'],
+    ['source_marker_build_xlsx_export', candidateExportSource, 'buildXlsxExport'],
+    ['source_marker_content_type_xlsx', candidateExportSource, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+  ];
+
+  for (const [id, source, marker] of staticMarkers) {
+    checks.push(
+      makeCheck(
+        id,
+        source.includes(marker) ? 'PASS' : 'FAIL',
+        source.includes(marker) ? "Marker found: " + marker : "Marker missing: " + marker,
+      ),
+    );
+  }
+
   const totals = checks.reduce(
     (acc, item) => {
       const key = item.status.toLowerCase();
@@ -238,7 +258,7 @@ async function run() {
 
   const report = {
     timestamp: nowIso(),
-    mode: { http: true },
+    mode: { http: true, static: true },
     totals,
     overall_ready_for_step_16: totals.fail === 0,
     checks,

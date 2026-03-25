@@ -1,11 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { panelFetch } from '../../api/panelApi';
-import {
-  createPanelPreviewIdentity,
-  isPanelPreviewRuntimeEnabled,
-  readPanelPreviewIdentity,
-  writePanelPreviewIdentity,
-} from './panelPreviewSession';
+import { readPanelPreviewIdentity } from './panelPreviewSession';
 
 type ApiResponse = {
   ok?: boolean;
@@ -261,17 +256,6 @@ export default function PanelLoginPage() {
     setErrorMessage('');
     setSuccessMessage('');
     setIsSubmitting(true);
-
-    if (isPanelPreviewRuntimeEnabled()) {
-      writePanelPreviewIdentity(createPanelPreviewIdentity(normalizedTckn || normalizedIdentifier));
-      setSuccessMessage('Tasarım önizleme modu açıldı. Panel arayüzüne yönlendiriliyorsunuz...');
-      window.setTimeout(() => {
-        window.location.assign('/panel/dashboard');
-      }, 300);
-      setIsSubmitting(false);
-      return;
-    }
-
     try {
       if (!isOtpStep) {
         await requestOtpChallenge();
@@ -297,17 +281,6 @@ export default function PanelLoginPage() {
       const loginPayload = await readJsonSafe(loginResponse);
       if (!loginResponse.ok || loginPayload?.ok === false) {
         const mismatchMessage = normalizeMessage(loginPayload, 'Panel girişi başarısız.');
-        if (
-          isPanelPreviewRuntimeEnabled() &&
-          /email.*password.*mfacode/i.test(mismatchMessage.replace(/\s+/g, ' '))
-        ) {
-          writePanelPreviewIdentity(createPanelPreviewIdentity(normalizedTckn || normalizedIdentifier));
-          setSuccessMessage('Eski panel auth kontratı algılandı. Tasarım önizleme modu ile devam ediliyor...');
-          window.setTimeout(() => {
-            window.location.assign('/panel/dashboard');
-          }, 300);
-          return;
-        }
         setErrorMessage(mismatchMessage);
         return;
       }

@@ -23,7 +23,7 @@ export function isPanelPreviewRuntimeEnabled() {
   if (typeof window === 'undefined') return false;
   if (isPreviewHost(window.location.hostname)) return true;
 
-  return new URLSearchParams(window.location.search).get('panelPreview') === '1';
+  return false;
 }
 
 export function createPanelPreviewIdentity(tckn?: string): PreviewPanelIdentity {
