@@ -334,7 +334,16 @@ export default function MobileMenu({ onClose, currentSection: _currentSection }:
                                      <span>Academy</span>
                                    </span>
                                  ) : item.id === 'contact' ? (
-                                   <span style={{ fontFamily: '"Avenir Next", "Avenir", "Helvetica Neue", Arial, sans-serif', fontWeight: 300 }}>İletişim</span>
+                                   <span aria-label="İletişim" className="inline-flex items-baseline">
+                                     <span aria-hidden="true" className="relative inline-block">
+                                       <span>I</span>
+                                       <span
+                                         className="pointer-events-none absolute rounded-full bg-current"
+                                         style={{ width: "0.14em", height: "0.14em", left: "50%", top: "0.02em", transform: "translateX(-50%)" }}
+                                       />
+                                     </span>
+                                     <span>letişim</span>
+                                   </span>
                                  ) : (
                                    item.label
                                  )}
