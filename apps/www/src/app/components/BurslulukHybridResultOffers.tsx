@@ -79,21 +79,21 @@ const BUNDLES: BundleItem[] = [
   {
     id: 'b01',
     title: 'Starter Hybrid Paket',
-    includes: ['Seviye tespit', '8 hafta grup', '2 adet mock sınav', 'Aylik ilerleme raporu'],
+    includes: ['Seviye tespit', '8 hafta grup', '2 adet mock sinav', 'Aylik ilerleme raporu'],
     totalPrice: 9800,
     discountRate: 15,
   },
   {
     id: 'b02',
     title: 'Exam Booster Paket',
-    includes: ['12 hafta sınav hazırlık', '4 adet full mock', '1 birebir koçluk', 'Rapor + aksiyon planı'],
+    includes: ['12 hafta sinav hazirlik', '4 adet full mock', '1 birebir kocluk', 'Rapor + aksiyon plani'],
     totalPrice: 16800,
     discountRate: 20,
   },
   {
     id: 'b03',
     title: 'Premium Mentorluk Paket',
-    includes: ['16 hafta hibrit eğitim', 'Haftalık birebir seans', 'Sınırsız deneme havuzu', 'Danışman öncelikli takip'],
+    includes: ['16 hafta hibrit egitim', 'Haftalik birebir seans', 'Sinirsiz deneme havuzu', 'Danisman oncelikli takip'],
     totalPrice: 24900,
     discountRate: 22,
   },
@@ -113,6 +113,23 @@ function modeLabel(mode: ProgramItem['mode']) {
   if (mode === 'YUZ_YUZE') return 'Yuz yuze';
   if (mode === 'HIBRIT') return 'Hibrit';
   return 'Online';
+}
+
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <div className="mb-3 flex items-center gap-2.5 sm:mb-4 sm:gap-3">
+      <span className="h-px w-10 bg-[#4A7067]/44 sm:w-12" />
+      <span className="font-['Neutraface_2_Text:Demi',sans-serif] text-[10px] uppercase tracking-[0.22em] text-[#68232E]/58 sm:text-[11px] sm:tracking-[0.24em]">
+        {children}
+      </span>
+    </div>
+  );
+}
+
+function tabButtonClass(active: boolean) {
+  return active
+    ? 'border-[#68232E] bg-[#68232E] text-white shadow-[0_14px_28px_rgba(104,35,46,0.16)]'
+    : 'border-[#D8CDC0] bg-white/76 text-[#5B4F45] hover:border-[#B8AA9A] hover:bg-white';
 }
 
 export default function BurslulukHybridResultOffers() {
@@ -152,26 +169,21 @@ export default function BurslulukHybridResultOffers() {
     return filteredPrograms.slice(start, start + pageSize);
   }, [filteredPrograms, safePage]);
 
-  const tabButtonClass = (value: HybridTab) =>
-    `rounded-full border px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] transition ${
-      tab === value
-        ? 'border-[#D92E27] bg-[#D92E27]/20 text-[#FFD2CE]'
-        : 'border-white/16 text-white/72 hover:border-white/30'
-    }`;
-
   return (
-    <section className="mt-8 rounded-2xl border border-white/12 bg-[#06101F]/88 p-5 sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <section className="mt-8 rounded-[28px] border border-[#DDD3C7] bg-[linear-gradient(180deg,#FCF8F2_0%,#F7F1E8_100%)] p-5 shadow-[0_22px_54px_rgba(25,20,15,0.05)] sm:p-6 lg:p-7">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-[12px] uppercase tracking-[0.16em] text-white/56">Hibrit Sonuc Paneli</p>
-          <h2 className="mt-2 text-[24px] font-semibold text-white">Program / Fiyat / Paket / Video</h2>
-          <p className="mt-2 max-w-[760px] text-[14px] text-white/70">
-            Sonucunuza gore uygun programlari, fiyat satirlarini, paketleri ve hizli bilgilendirme videolarini tek ekranda gorebilirsiniz.
+          <SectionLabel>Hibrit Sonuc Paneli</SectionLabel>
+          <h2 className="font-['Neutraface_2_Display:Titling',sans-serif] text-[24px] uppercase leading-[1.06] tracking-[0.02em] text-[#68232E] sm:text-[28px]">
+            Program, fiyat ve paket onerileri
+          </h2>
+          <p className="mt-3 max-w-[760px] text-[14px] leading-[1.76] text-[#5B4F45] sm:text-[15px]">
+            Sonucunuza gore uygun programlari, fiyat satirlarini, paketleri ve hizli bilgilendirme videolarini tek ekranda inceleyebilirsiniz.
           </p>
         </div>
         <Link
           to="/iletisim?source=bursluluk_hybrid_result_consult"
-          className="rounded-full border border-[#8BDFC7]/50 px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#D5F6EB]"
+          className="inline-flex min-h-[52px] items-center justify-center rounded-full bg-[#2C5447] px-6 py-3 text-[12px] font-['Neutraface_2_Text:Demi',sans-serif] uppercase tracking-[0.16em] text-white shadow-[0_16px_30px_rgba(44,84,71,0.18)] transition hover:bg-[#23463B] hover:shadow-[0_20px_36px_rgba(44,84,71,0.22)]"
           onClick={() =>
             trackEvent('cta_click', {
               cta_id: 'bursluluk_hybrid_result_danisman',
@@ -186,44 +198,84 @@ export default function BurslulukHybridResultOffers() {
         </Link>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        <button type="button" className={tabButtonClass('programs')} onClick={() => setTab('programs')}>Programlar</button>
-        <button type="button" className={tabButtonClass('prices')} onClick={() => setTab('prices')}>Fiyatlar</button>
-        <button type="button" className={tabButtonClass('packages')} onClick={() => setTab('packages')}>Paketler</button>
-        <button type="button" className={tabButtonClass('video')} onClick={() => setTab('video')}>Video</button>
+      <div className="mt-5 flex flex-wrap gap-2.5">
+        <button
+          type="button"
+          className={`rounded-full border px-4 py-2.5 text-[11px] font-['Neutraface_2_Text:Demi',sans-serif] uppercase tracking-[0.16em] transition ${tabButtonClass(tab === 'programs')}`}
+          onClick={() => setTab('programs')}
+        >
+          Programlar
+        </button>
+        <button
+          type="button"
+          className={`rounded-full border px-4 py-2.5 text-[11px] font-['Neutraface_2_Text:Demi',sans-serif] uppercase tracking-[0.16em] transition ${tabButtonClass(tab === 'prices')}`}
+          onClick={() => setTab('prices')}
+        >
+          Fiyatlar
+        </button>
+        <button
+          type="button"
+          className={`rounded-full border px-4 py-2.5 text-[11px] font-['Neutraface_2_Text:Demi',sans-serif] uppercase tracking-[0.16em] transition ${tabButtonClass(tab === 'packages')}`}
+          onClick={() => setTab('packages')}
+        >
+          Paketler
+        </button>
+        <button
+          type="button"
+          className={`rounded-full border px-4 py-2.5 text-[11px] font-['Neutraface_2_Text:Demi',sans-serif] uppercase tracking-[0.16em] transition ${tabButtonClass(tab === 'video')}`}
+          onClick={() => setTab('video')}
+        >
+          Video
+        </button>
       </div>
 
       {tab === 'programs' ? (
-        <div className="mt-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="mt-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <input
-              className="h-11 w-full rounded-xl border border-white/18 bg-[#071325] px-4 text-white outline-none focus:border-[#D92E27] sm:max-w-[360px]"
+              className="h-12 w-full rounded-[18px] border border-[#D8CDC0] bg-white/86 px-4 text-[14px] text-[#3E342D] outline-none transition focus:border-[#68232E] focus:bg-white sm:max-w-[360px]"
               placeholder="Program ara (dil, seviye, format)"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
-            <p className="text-[12px] text-white/60">Toplam {filteredPrograms.length} program</p>
+            <p className="text-[12px] uppercase tracking-[0.14em] text-[#7A7063]">Toplam {filteredPrograms.length} program</p>
           </div>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {pagedPrograms.map((item) => (
-              <article key={item.id} className="rounded-xl border border-white/12 bg-[#08172A] p-4">
-                <p className="text-[11px] uppercase tracking-[0.14em] text-white/55">{item.category}</p>
-                <h3 className="mt-2 text-[17px] font-semibold text-white">{item.title}</h3>
-                <p className="mt-2 text-[13px] text-white/70">
-                  {item.level} • {modeLabel(item.mode)} • {item.durationWeeks} hafta
+              <article key={item.id} className="rounded-[24px] border border-[#E2D8CC] bg-[#FFFCF8] p-4 shadow-[0_16px_30px_rgba(25,20,15,0.04)] sm:p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <p className="font-['Neutraface_2_Text:Demi',sans-serif] text-[10px] uppercase tracking-[0.18em] text-[#4A7067]">
+                    {item.category}
+                  </p>
+                  <span className="rounded-full border border-[#D8DED7] bg-[#F5FAF7] px-3 py-1 text-[10px] font-['Neutraface_2_Text:Demi',sans-serif] uppercase tracking-[0.14em] text-[#2C5447]">
+                    {modeLabel(item.mode)}
+                  </span>
+                </div>
+                <h3 className="mt-3 font-['Neutraface_2_Display:Titling',sans-serif] text-[20px] uppercase leading-[1.08] tracking-[0.02em] text-[#68232E]">
+                  {item.title}
+                </h3>
+                <p className="mt-3 text-[14px] leading-[1.7] text-[#5B4F45]">
+                  {item.level} seviye • {item.durationWeeks} hafta sureli plan
                 </p>
-                <p className="mt-3 text-[18px] font-semibold text-[#D5F6EB]">{formatMoney(item.monthlyPrice)} / ay</p>
+                <div className="mt-5 flex flex-wrap items-end justify-between gap-3">
+                  <p className="font-['Neutraface_2_Display:Titling',sans-serif] text-[28px] uppercase leading-none tracking-[0.02em] text-[#2C5447]">
+                    {formatMoney(item.monthlyPrice)}
+                  </p>
+                  <span className="text-[11px] uppercase tracking-[0.14em] text-[#7A7063]">Aylik plan</span>
+                </div>
               </article>
             ))}
           </div>
-          <div className="mt-4 flex items-center justify-between">
-            <p className="text-[12px] text-white/58">Sayfa {safePage} / {totalPages}</p>
+
+          <div className="mt-5 flex items-center justify-between gap-3">
+            <p className="text-[12px] uppercase tracking-[0.14em] text-[#7A7063]">Sayfa {safePage} / {totalPages}</p>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                 disabled={safePage <= 1}
-                className="rounded-full border border-white/16 px-4 py-2 text-[11px] uppercase tracking-[0.12em] text-white/75 disabled:opacity-50"
+                className="rounded-full border border-[#D8CDC0] bg-white/78 px-4 py-2 text-[11px] font-['Neutraface_2_Text:Demi',sans-serif] uppercase tracking-[0.14em] text-[#5B4F45] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Geri
               </button>
@@ -231,7 +283,7 @@ export default function BurslulukHybridResultOffers() {
                 type="button"
                 onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
                 disabled={safePage >= totalPages}
-                className="rounded-full border border-white/16 px-4 py-2 text-[11px] uppercase tracking-[0.12em] text-white/75 disabled:opacity-50"
+                className="rounded-full border border-[#D8CDC0] bg-white/78 px-4 py-2 text-[11px] font-['Neutraface_2_Text:Demi',sans-serif] uppercase tracking-[0.14em] text-[#5B4F45] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Ileri
               </button>
@@ -241,23 +293,23 @@ export default function BurslulukHybridResultOffers() {
       ) : null}
 
       {tab === 'prices' ? (
-        <div className="mt-4 overflow-x-auto">
+        <div className="mt-5 overflow-x-auto rounded-[24px] border border-[#E2D8CC] bg-[#FFFCF8] shadow-[0_16px_30px_rgba(25,20,15,0.04)]">
           <table className="min-w-full border-collapse text-left text-[13px]">
             <thead>
-              <tr className="text-white/60">
-                <th className="border-b border-white/12 px-3 py-2">Kalem</th>
-                <th className="border-b border-white/12 px-3 py-2">Kapsam</th>
-                <th className="border-b border-white/12 px-3 py-2">Aylik</th>
-                <th className="border-b border-white/12 px-3 py-2">Baslangic</th>
+              <tr className="text-[#7A7063]">
+                <th className="border-b border-[#E7DED2] px-4 py-3 font-['Neutraface_2_Text:Demi',sans-serif] text-[10px] uppercase tracking-[0.16em]">Kalem</th>
+                <th className="border-b border-[#E7DED2] px-4 py-3 font-['Neutraface_2_Text:Demi',sans-serif] text-[10px] uppercase tracking-[0.16em]">Kapsam</th>
+                <th className="border-b border-[#E7DED2] px-4 py-3 font-['Neutraface_2_Text:Demi',sans-serif] text-[10px] uppercase tracking-[0.16em]">Aylik</th>
+                <th className="border-b border-[#E7DED2] px-4 py-3 font-['Neutraface_2_Text:Demi',sans-serif] text-[10px] uppercase tracking-[0.16em]">Baslangic</th>
               </tr>
             </thead>
             <tbody>
               {PRICE_ROWS.map((row) => (
                 <tr key={row.id}>
-                  <td className="border-b border-white/8 px-3 py-2 text-white">{row.title}</td>
-                  <td className="border-b border-white/8 px-3 py-2 text-white/70">{row.scope}</td>
-                  <td className="border-b border-white/8 px-3 py-2 text-[#D5F6EB]">{formatMoney(row.monthlyPrice)}</td>
-                  <td className="border-b border-white/8 px-3 py-2 text-white/80">{formatMoney(row.startFee)}</td>
+                  <td className="border-b border-[#F0E8DE] px-4 py-3 text-[#3E342D]">{row.title}</td>
+                  <td className="border-b border-[#F0E8DE] px-4 py-3 text-[#5B4F45]">{row.scope}</td>
+                  <td className="border-b border-[#F0E8DE] px-4 py-3 text-[#2C5447]">{formatMoney(row.monthlyPrice)}</td>
+                  <td className="border-b border-[#F0E8DE] px-4 py-3 text-[#68232E]">{formatMoney(row.startFee)}</td>
                 </tr>
               ))}
             </tbody>
@@ -266,25 +318,34 @@ export default function BurslulukHybridResultOffers() {
       ) : null}
 
       {tab === 'packages' ? (
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
           {BUNDLES.map((bundle) => (
-            <article key={bundle.id} className="rounded-xl border border-white/12 bg-[#08172A] p-4">
-              <p className="text-[11px] uppercase tracking-[0.14em] text-[#FFD2CE]">%{bundle.discountRate} indirim</p>
-              <h3 className="mt-2 text-[17px] font-semibold text-white">{bundle.title}</h3>
-              <ul className="mt-3 space-y-1 text-[13px] text-white/72">
+            <article key={bundle.id} className="rounded-[24px] border border-[#E2D8CC] bg-[#FFFCF8] p-5 shadow-[0_16px_30px_rgba(25,20,15,0.04)]">
+              <p className="font-['Neutraface_2_Text:Demi',sans-serif] text-[10px] uppercase tracking-[0.16em] text-[#4A7067]">
+                %{bundle.discountRate} indirim
+              </p>
+              <h3 className="mt-3 font-['Neutraface_2_Display:Titling',sans-serif] text-[20px] uppercase leading-[1.08] tracking-[0.02em] text-[#68232E]">
+                {bundle.title}
+              </h3>
+              <ul className="mt-4 space-y-2 text-[14px] leading-[1.68] text-[#5B4F45]">
                 {bundle.includes.map((line) => (
-                  <li key={line}>• {line}</li>
+                  <li key={line} className="flex gap-2">
+                    <span className="pt-[1px] text-[#2C5447]">•</span>
+                    <span>{line}</span>
+                  </li>
                 ))}
               </ul>
-              <p className="mt-4 text-[20px] font-semibold text-[#D5F6EB]">{formatMoney(bundle.totalPrice)}</p>
+              <p className="mt-5 font-['Neutraface_2_Display:Titling',sans-serif] text-[28px] uppercase leading-none tracking-[0.02em] text-[#2C5447]">
+                {formatMoney(bundle.totalPrice)}
+              </p>
             </article>
           ))}
         </div>
       ) : null}
 
       {tab === 'video' ? (
-        <div className="mt-4 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="overflow-hidden rounded-2xl border border-white/12">
+        <div className="mt-5 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+          <div className="overflow-hidden rounded-[26px] border border-[#E2D8CC] bg-[#FFFCF8] shadow-[0_18px_34px_rgba(25,20,15,0.04)]">
             <video className="h-[300px] w-full object-cover sm:h-[360px]" autoPlay muted loop playsInline preload="metadata">
               <source src={homeHeroVideoWebm} type="video/webm" />
               <source src={homeHeroVideo} type="video/mp4" />
@@ -292,20 +353,22 @@ export default function BurslulukHybridResultOffers() {
           </div>
           <div className="space-y-3">
             {VIDEOS.map((video) => (
-              <article key={video.id} className="rounded-xl border border-white/12 bg-[#08172A] p-4">
-                <p className="text-[11px] uppercase tracking-[0.14em] text-white/55">{video.durationLabel}</p>
-                <h3 className="mt-2 text-[16px] font-semibold text-white">{video.title}</h3>
-                <p className="mt-2 text-[13px] text-white/70">{video.summary}</p>
+              <article key={video.id} className="rounded-[22px] border border-[#E2D8CC] bg-[#FFFCF8] p-4 shadow-[0_16px_30px_rgba(25,20,15,0.04)]">
+                <p className="font-['Neutraface_2_Text:Demi',sans-serif] text-[10px] uppercase tracking-[0.16em] text-[#4A7067]">{video.durationLabel}</p>
+                <h3 className="mt-3 font-['Neutraface_2_Display:Titling',sans-serif] text-[18px] uppercase leading-[1.08] tracking-[0.02em] text-[#68232E]">
+                  {video.title}
+                </h3>
+                <p className="mt-2 text-[14px] leading-[1.7] text-[#5B4F45]">{video.summary}</p>
               </article>
             ))}
           </div>
         </div>
       ) : null}
 
-      <div className="mt-5 flex flex-wrap gap-2">
-        <Link to="/fiyatlar" className="rounded-full border border-white/16 px-4 py-2 text-[11px] uppercase tracking-[0.12em] text-white/75">Tum Fiyatlar</Link>
-        <Link to="/egitimlerimiz" className="rounded-full border border-white/16 px-4 py-2 text-[11px] uppercase tracking-[0.12em] text-white/75">Tum Programlar</Link>
-        <Link to="/academy" className="rounded-full border border-white/16 px-4 py-2 text-[11px] uppercase tracking-[0.12em] text-white/75">Akademi Icerikleri</Link>
+      <div className="mt-6 flex flex-wrap gap-2.5">
+        <Link to="/fiyatlar" className="rounded-full border border-[#D8CDC0] bg-white/78 px-4 py-2 text-[11px] font-['Neutraface_2_Text:Demi',sans-serif] uppercase tracking-[0.14em] text-[#5B4F45] transition hover:bg-white">Tum Fiyatlar</Link>
+        <Link to="/egitimlerimiz" className="rounded-full border border-[#D8CDC0] bg-white/78 px-4 py-2 text-[11px] font-['Neutraface_2_Text:Demi',sans-serif] uppercase tracking-[0.14em] text-[#5B4F45] transition hover:bg-white">Tum Programlar</Link>
+        <Link to="/academy" className="rounded-full border border-[#D8CDC0] bg-white/78 px-4 py-2 text-[11px] font-['Neutraface_2_Text:Demi',sans-serif] uppercase tracking-[0.14em] text-[#5B4F45] transition hover:bg-white">Akademi Icerikleri</Link>
       </div>
     </section>
   );

@@ -1,12 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import {
-  bookAppointmentSlot,
-  getAppointmentSlots,
-  resolveExamEndpoint,
-  trackResultAppointmentIntent,
-  type AppointmentSlotItem,
-} from '../api/examApi';
+import { resolveExamEndpoint, trackResultAppointmentIntent } from '../api/examApi';
 import { trackEvent } from '../lib/analytics';
 import { readCandidateSession } from './bursluluk/burslulukFlowSession';
 import BurslulukHybridResultOffers from './BurslulukHybridResultOffers';
@@ -34,19 +28,6 @@ interface ResultPayload {
   message?: string;
 }
 
-type LatestAppointment = {
-  event_type: string;
-  occurred_at: string | null;
-  appointment_at: string | null;
-} | null;
-
-type CandidateSchoolSchedule = {
-  school_name: string | null;
-  school_shift_type: string | null;
-  class_start_local: string | null;
-  class_end_local: string | null;
-} | null;
-
 async function readJsonSafe(response: Response) {
   try {
     return (await response.json()) as ResultPayload;
@@ -55,17 +36,109 @@ async function readJsonSafe(response: Response) {
   }
 }
 
-function formatAppointmentDate(value: string | null | undefined) {
-  if (!value) return '-';
+function formatDateTime(value: string | null | undefined) {
+  if (!value) return 'Belirtilmedi';
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return value;
   return date.toLocaleString('tr-TR', {
-    weekday: 'short',
     day: '2-digit',
-    month: '2-digit',
+    month: 'long',
+    year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function formatStatusLabel(value: string | null | undefined) {
+  const normalized = String(value || '').trim().toUpperCase();
+  if (!normalized) return 'Hazirlaniyor';
+  if (normalized === 'VIEWED') return 'Goruntulendi';
+  if (normalized === 'PUBLISHED') return 'Yayinlandi';
+  if (normalized === 'READY') return 'Hazir';
+  return normalized;
+}
+
+function formatLanguageLabel(value: string | null | undefined) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'en') return 'Ingilizce';
+  if (normalized === 'de') return 'Almanca';
+  if (normalized === 'fr') return 'Fransizca';
+  if (normalized === 'es') return 'Ispanyolca';
+  if (normalized === 'it') return 'Italyanca';
+  return normalized ? normalized.toUpperCase() : 'Belirtilmedi';
+}
+
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <div className="mb-3 flex items-center gap-2.5 sm:mb-4 sm:gap-3">
+      <span className="h-px w-10 bg-[#4A7067]/44 sm:w-12" />
+      <span className="font-['Neutraface_2_Text:Demi',sans-serif] text-[10px] uppercase tracking-[0.22em] text-[#68232E]/58 sm:text-[11px] sm:tracking-[0.24em]">
+        {children}
+      </span>
+    </div>
+  );
+}
+
+function MetricCard({
+  label,
+  value,
+  accent = 'default',
+}: {
+  label: string;
+  value: string;
+  accent?: 'default' | 'green' | 'burgundy';
+}) {
+  const valueClassName =
+    accent === 'green'
+      ? 'text-[#2C5447]'
+      : accent === 'burgundy'
+        ? 'text-[#68232E]'
+        : 'text-[#3E342D]';
+
+  return (
+    <div className="rounded-[24px] border border-[#E2D8CC] bg-[#FCFAF7] px-5 py-5 shadow-[0_18px_34px_rgba(25,20,15,0.04)]">
+      <p className="font-['Neutraface_2_Text:Demi',sans-serif] text-[10px] uppercase tracking-[0.18em] text-[#4A7067]/82">
+        {label}
+      </p>
+      <p className={`mt-3 font-['Neutraface_2_Display:Titling',sans-serif] text-[34px] uppercase leading-none tracking-[0.02em] sm:text-[40px] ${valueClassName}`}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function DetailCard({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-[26px] border border-[#E2D8CC] bg-[#FCFAF7] p-5 sm:p-6">
+      <p className="font-['Neutraface_2_Text:Demi',sans-serif] text-[10px] uppercase tracking-[0.18em] text-[#4A7067]">
+        {title}
+      </p>
+      <div className="mt-4 space-y-3">{children}</div>
+    </div>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1 rounded-[18px] border border-[#E7DED2] bg-white/78 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <span className="font-['Neutraface_2_Text:Demi',sans-serif] text-[10px] uppercase tracking-[0.16em] text-[#7A7063]">
+        {label}
+      </span>
+      <span className="text-[14px] leading-[1.65] text-[#3E342D] sm:text-right">{value}</span>
+    </div>
+  );
 }
 
 export default function BurslulukSonucPage() {
@@ -80,16 +153,6 @@ export default function BurslulukSonucPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [payload, setPayload] = useState<ResultPayload | null>(null);
-  const [isSlotsVisible, setIsSlotsVisible] = useState(false);
-  const [isSlotsLoading, setIsSlotsLoading] = useState(false);
-  const [slotsErrorMessage, setSlotsErrorMessage] = useState('');
-  const [appointmentSlots, setAppointmentSlots] = useState<AppointmentSlotItem[]>([]);
-  const [candidateSchoolSchedule, setCandidateSchoolSchedule] = useState<CandidateSchoolSchedule>(null);
-  const [candidateLatestAppointment, setCandidateLatestAppointment] = useState<LatestAppointment>(null);
-  const [isBookingSubmitting, setIsBookingSubmitting] = useState(false);
-  const [bookingSlotAt, setBookingSlotAt] = useState('');
-  const [bookingMessage, setBookingMessage] = useState('');
-  const [bookingErrorMessage, setBookingErrorMessage] = useState('');
   const [isIntentTracked, setIsIntentTracked] = useState(false);
   const [isResultTracked, setIsResultTracked] = useState(false);
 
@@ -168,39 +231,7 @@ export default function BurslulukSonucPage() {
     setIsResultTracked(true);
   }, [isResultTracked, result, session?.ageRange, session?.language]);
 
-  const loadAppointmentSlots = async (options?: { silent?: boolean }) => {
-    if (!attemptId || !session?.sessionToken) return;
-    if (!options?.silent) {
-      setIsSlotsLoading(true);
-    }
-    setSlotsErrorMessage('');
-    try {
-      const response = await getAppointmentSlots(session.sessionToken, attemptId, 24);
-      const slots = Array.isArray(response.slots) ? response.slots : [];
-      slots.sort((left, right) => {
-        const leftPriority = left.recommended ? 0 : left.school_friendly === false ? 2 : 1;
-        const rightPriority = right.recommended ? 0 : right.school_friendly === false ? 2 : 1;
-        if (leftPriority !== rightPriority) return leftPriority - rightPriority;
-        return String(left.appointment_at).localeCompare(String(right.appointment_at));
-      });
-      setAppointmentSlots(slots);
-      setCandidateSchoolSchedule(response.candidate_school_schedule || null);
-      setCandidateLatestAppointment(response.candidate_latest_appointment || null);
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : 'Randevu saatleri alinamadi.';
-      setSlotsErrorMessage(reason || 'Randevu saatleri alinamadi.');
-    } finally {
-      if (!options?.silent) {
-        setIsSlotsLoading(false);
-      }
-    }
-  };
-
-  const handleAppointmentClick = async () => {
-    if (isSlotsLoading) return;
-    setIsSlotsVisible(true);
-    setBookingErrorMessage('');
-    setBookingMessage('');
+  const handleAppointmentIntent = async () => {
     trackEvent('cta_click', {
       cta_id: 'bursluluk_result_randevu_al',
       cta_location: 'bursluluk_sonuc',
@@ -208,144 +239,170 @@ export default function BurslulukSonucPage() {
       source: 'result_page_cta',
       cta_type: 'button',
     });
+
+    if (isIntentTracked || !attemptId || !session?.sessionToken) return;
+
     try {
-      if (!isIntentTracked && attemptId && session?.sessionToken) {
-        await trackResultAppointmentIntent(session.sessionToken, {
-          attemptId,
-          source: 'result_page_cta',
-          destinationUrl: appointmentHref,
-        });
-        setIsIntentTracked(true);
-      }
+      await trackResultAppointmentIntent(session.sessionToken, {
+        attemptId,
+        source: 'result_page_cta',
+        destinationUrl: appointmentHref,
+      });
     } catch {
-      // Intent tracking should not block slot opening.
+      // Intent telemetry should never block navigation.
+    } finally {
       setIsIntentTracked(true);
     }
-
-    if (appointmentSlots.length === 0) {
-      await loadAppointmentSlots();
-    }
   };
 
-  const handleBookSlot = async (slot: AppointmentSlotItem) => {
-    if (!attemptId || !session?.sessionToken) return;
-    if (!slot?.is_available) return;
+  const placementLabel = result?.placement_label || result?.cefr_band || 'Hazirlaniyor';
+  const candidateDisplayCode = session?.candidateCode || session?.applicationNo || '-';
+  const candidateDisplayName = session?.studentFullName || 'Aday ogrenci';
+  const schoolDisplay = session?.schoolName || 'Okul bilgisi bekleniyor';
+  const classDisplay = session?.grade ? `${session.grade}. Sinif` : 'Sinif bilgisi bekleniyor';
 
-    setIsBookingSubmitting(true);
-    setBookingSlotAt(slot.appointment_at);
-    setBookingErrorMessage('');
-    setBookingMessage('');
-    try {
-      const response = await bookAppointmentSlot(session.sessionToken, {
-        attemptId,
-        appointmentAt: slot.appointment_at,
-        source: 'result_page_slot_booking',
-      });
-      const bookedAt = response?.appointment_booking?.appointment_at || slot.appointment_at;
-      setBookingMessage(`Randevunuz olusturuldu: ${formatAppointmentDate(bookedAt)}`);
-      trackEvent('cta_click', {
-        cta_id: 'bursluluk_result_slot_booked',
-        cta_location: 'bursluluk_sonuc',
-        cta_destination: bookedAt,
-        source: 'result_page_slot_booking',
-        cta_type: 'button',
-      });
-      setCandidateLatestAppointment({
-        event_type: 'APPOINTMENT_BOOKED',
-        occurred_at: response?.appointment_booking?.occurred_at || new Date().toISOString(),
-        appointment_at: bookedAt,
-      });
-      await loadAppointmentSlots({ silent: true });
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : 'Randevu olusturulamadi.';
-      setBookingErrorMessage(reason || 'Randevu olusturulamadi.');
-    } finally {
-      setIsBookingSubmitting(false);
-      setBookingSlotAt('');
-    }
-  };
-
-  const hasActiveBooking = useMemo(() => {
-    const eventType = String(candidateLatestAppointment?.event_type || '').toUpperCase();
-    return eventType === 'APPOINTMENT_BOOKED' && Boolean(candidateLatestAppointment?.appointment_at);
-  }, [candidateLatestAppointment]);
+  if (!session) {
+    return (
+      <section className="relative min-h-screen overflow-hidden bg-[#F7F3ED] px-4 pb-16 pt-[118px] sm:px-6 lg:px-12 lg:pb-20 lg:pt-[142px]">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(244,235,209,0.76),transparent_34%),radial-gradient(circle_at_86%_12%,rgba(74,112,103,0.06),transparent_26%),linear-gradient(180deg,#FBF8F3_0%,#F5EFE7_28%,#F7F3ED_54%,#F1E9DE_100%)]" />
+        <div className="pointer-events-none absolute left-[-8%] top-[8%] h-72 w-72 rounded-full bg-[#F4EBD1]/80 blur-3xl" />
+        <div className="relative mx-auto max-w-[860px] rounded-[30px] border border-[#DDD3C7] bg-white/88 p-6 shadow-[0_24px_64px_rgba(25,20,15,0.08)] sm:p-8">
+          <SectionLabel>Sonuc Ekrani</SectionLabel>
+          <h1 className="max-w-[12ch] font-['Neutraface_2_Display:Titling',sans-serif] text-[28px] uppercase leading-[1.02] tracking-[0.018em] text-[#68232E] sm:text-[34px]">
+            Aday oturumu bulunamadi
+          </h1>
+          <p className="mt-4 max-w-[56ch] text-[15px] leading-[1.8] text-[#5B4F45]">
+            Sonuc ekranini acmak icin once bursluluk giris akisindan aday oturumu baslatilmis olmalidir.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              to="/bursluluk/giris"
+              className="inline-flex min-h-[52px] items-center justify-center rounded-full bg-[#E70000] px-7 py-3 font-['Neutraface_2_Text:Demi',sans-serif] text-[12px] uppercase tracking-[0.16em] text-white shadow-[0_16px_32px_rgba(231,0,0,0.14)] transition hover:bg-[#C50000] hover:shadow-[0_20px_38px_rgba(231,0,0,0.2)]"
+            >
+              Girise Don
+            </Link>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
-    <section className="relative min-h-screen overflow-hidden px-4 pb-16 pt-[118px] sm:px-6 lg:px-12 lg:pt-[142px]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_22%,rgba(146,11,35,0.32),transparent_42%),radial-gradient(circle_at_86%_12%,rgba(18,86,94,0.22),transparent_34%),linear-gradient(138deg,#05050D_0%,#0A0C16_52%,#05070F_100%)]" />
-      <div className="relative mx-auto w-full max-w-[920px] rounded-[26px] border border-white/12 bg-[#091427]/86 p-7 sm:p-9">
-        <p className="text-[12px] uppercase tracking-[0.16em] text-white/54">Bursluluk Sonuc Ekrani</p>
-        <h1 className="mt-3 text-[36px] font-semibold text-white sm:text-[44px]">Sinav Sonucu</h1>
-        <p className="mt-2 text-[15px] text-white/60">Aday Kodu: {session?.candidateCode || session?.applicationNo || '-'}</p>
+    <section className="relative min-h-screen overflow-hidden bg-[#F7F3ED] px-4 pb-16 pt-[118px] sm:px-6 lg:px-12 lg:pb-20 lg:pt-[142px]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(244,235,209,0.76),transparent_34%),radial-gradient(circle_at_86%_12%,rgba(74,112,103,0.06),transparent_26%),linear-gradient(180deg,#FBF8F3_0%,#F5EFE7_28%,#F7F3ED_54%,#F1E9DE_100%)]" />
+      <div className="pointer-events-none absolute left-[-8%] top-[8%] h-72 w-72 rounded-full bg-[#F4EBD1]/80 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-[12%] right-[-10%] h-80 w-80 rounded-full bg-[#324D47]/[0.06] blur-3xl" />
+
+      <div className="relative mx-auto max-w-[1080px] rounded-[30px] border border-[#DDD3C7] bg-white/88 p-5 shadow-[0_24px_58px_rgba(25,20,15,0.06)] sm:p-7 lg:p-8">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.08fr)_minmax(300px,0.92fr)]">
+          <div className="rounded-[28px] border border-[#DDD3C7] bg-[linear-gradient(180deg,#FCF8F2_0%,#F5EDE3_100%)] p-5 sm:p-6 lg:p-7">
+            <SectionLabel>Sonuc Ekrani</SectionLabel>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h1 className="font-['Neutraface_2_Display:Titling',sans-serif] text-[30px] uppercase leading-[1.02] tracking-[0.02em] text-[#68232E] sm:text-[36px] lg:text-[40px]">
+                  Bursluluk Sonucunuz
+                </h1>
+                <p className="mt-4 max-w-[58ch] text-[15px] leading-[1.82] text-[#5B4F45] sm:text-[16px] sm:leading-[1.88]">
+                  Sinav performansiniz, burs orani ve yerlesim bandiniz bu ekranda tek bir ozet halinde sunulur. Danisman gorusmesine gecmeden once tum sonuclari ayni sayfada inceleyebilirsiniz.
+                </p>
+              </div>
+              <div className="rounded-full border border-[#D8CDC0] bg-white/78 px-4 py-2 text-[11px] font-['Neutraface_2_Text:Demi',sans-serif] uppercase tracking-[0.16em] text-[#4A7067]">
+                {formatStatusLabel(result?.status)}
+              </div>
+            </div>
+
+            <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <MetricCard label="Skor" value={String(Number(result?.score || 0))} accent="burgundy" />
+              <MetricCard label="Yuzde" value={`%${Number(result?.percentage || 0)}`} />
+              <MetricCard label="Burs Orani" value={`%${Number(result?.discount_rate || 0)}`} accent="green" />
+              <MetricCard label="Sinif Sirasi" value={String(result?.class_rank || '-')} />
+            </div>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              <MetricCard label="Dogru" value={String(Number(result?.correct_count || 0))} />
+              <MetricCard label="Yanlis" value={String(Number(result?.wrong_count || 0))} />
+              <MetricCard label="Bos" value={String(Number(result?.unanswered_count || 0))} />
+            </div>
+
+            <div className="mt-6 rounded-[24px] border border-[#E2D8CC] bg-[#FFFCF8] px-5 py-5 shadow-[0_18px_34px_rgba(25,20,15,0.04)]">
+              <p className="font-['Neutraface_2_Text:Demi',sans-serif] text-[10px] uppercase tracking-[0.18em] text-[#4A7067]">
+                Yerlesim Bandi
+              </p>
+              <p className="mt-3 font-['Neutraface_2_Display:Titling',sans-serif] text-[28px] uppercase leading-[1.02] tracking-[0.02em] text-[#68232E] sm:text-[32px]">
+                {placementLabel}
+              </p>
+              <p className="mt-2 text-[14px] leading-[1.72] text-[#5B4F45]">
+                Sonuc durumunuz {formatStatusLabel(result?.status).toLowerCase()} olarak isaretlendi. Danisman gorusmesi icin uygun adima bu sayfadan devam edebilirsiniz.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <DetailCard title="Aday Ozeti">
+              <DetailRow label="Aday Kodu" value={candidateDisplayCode} />
+              <DetailRow label="Ogrenci" value={candidateDisplayName} />
+              <DetailRow label="Okul" value={schoolDisplay} />
+              <DetailRow label="Sinif" value={classDisplay} />
+            </DetailCard>
+
+            <DetailCard title="Sinav Bilgisi">
+              <DetailRow label="Sinav Dili" value={formatLanguageLabel(result?.exam_language || session.language)} />
+              <DetailRow label="Yas / Grup" value={String(result?.exam_age_range || session.ageRange || 'Belirtilmedi')} />
+              <DetailRow label="Yayinlanma" value={formatDateTime(result?.published_at)} />
+              <DetailRow label="Goruntulenme" value={formatDateTime(result?.viewed_at)} />
+            </DetailCard>
+
+            <div className="rounded-[28px] border border-[#D8DED7] bg-[linear-gradient(180deg,#F6FAF7_0%,#EDF4EF_100%)] p-5 shadow-[0_20px_42px_rgba(44,84,71,0.08)] sm:p-6">
+              <SectionLabel>Sonraki Adim</SectionLabel>
+              <h2 className="font-['Neutraface_2_Display:Titling',sans-serif] text-[24px] uppercase leading-[1.06] tracking-[0.02em] text-[#2C5447]">
+                Danisman Gorusmesi
+              </h2>
+              <p className="mt-3 text-[14px] leading-[1.76] text-[#4C5D56]">
+                Uygun burs ve program seceneklerini netlestirmek icin egitim danismanimizla gorusme planlayabilirsiniz.
+              </p>
+
+              {result && result.status === 'VIEWED' ? (
+                <Link
+                  to="/bursluluk/randevu"
+                  onClick={() => {
+                    void handleAppointmentIntent();
+                  }}
+                  className="mt-5 inline-flex min-h-[54px] w-full items-center justify-center rounded-full bg-[#2C5447] px-7 py-3.5 font-['Neutraface_2_Text:Demi',sans-serif] text-[12px] uppercase tracking-[0.16em] text-white shadow-[0_16px_30px_rgba(44,84,71,0.18)] transition hover:bg-[#23463B] hover:shadow-[0_20px_36px_rgba(44,84,71,0.22)]"
+                >
+                  Randevu Al
+                </Link>
+              ) : (
+                <div className="mt-5 rounded-[20px] border border-[#D8DED7] bg-white/75 px-4 py-4 text-[13px] leading-[1.7] text-[#5B6D65]">
+                  Sonucunuz tam olarak goruntulendiginde randevu adimi burada aktif olur.
+                </div>
+              )}
+
+              <p className="mt-3 text-[12px] text-[#5B6D65]/86">
+                Kayit, program ve odeme akisina gecmeden once en uygun rota size birebir aktarilir.
+              </p>
+            </div>
+          </div>
+        </div>
 
         {isLoading ? (
-          <p className="mt-8 rounded-xl border border-white/12 bg-[#071021]/88 px-4 py-4 text-white/72">Sonuc yukleniyor...</p>
+          <p className="mt-6 rounded-[22px] border border-[#E2D8CC] bg-[#FCFAF7] px-4 py-4 text-[14px] leading-[1.72] text-[#5B4F45]">
+            Sonuc yukleniyor...
+          </p>
         ) : null}
 
         {errorMessage ? (
-          <p className="mt-8 rounded-xl border border-[#6F2824] bg-[#2B1214]/80 px-4 py-4 text-[#FFB8B1]">{errorMessage}</p>
-        ) : null}
-
-        {!isLoading && result ? (
-          <div className="mt-8 grid gap-4 sm:grid-cols-2">
-            <div className="rounded-2xl border border-white/12 bg-[#071021]/88 p-5">
-              <p className="text-[12px] uppercase tracking-[0.16em] text-white/52">Skor</p>
-              <p className="mt-3 text-[40px] font-semibold text-white">{Number(result.score || 0)}</p>
-            </div>
-            <div className="rounded-2xl border border-white/12 bg-[#071021]/88 p-5">
-              <p className="text-[12px] uppercase tracking-[0.16em] text-white/52">Yuzde</p>
-              <p className="mt-3 text-[40px] font-semibold text-white">%{Number(result.percentage || 0)}</p>
-            </div>
-            <div className="rounded-2xl border border-white/12 bg-[#071021]/88 p-5">
-              <p className="text-[12px] uppercase tracking-[0.16em] text-white/52">Burs Orani</p>
-              <p className="mt-3 text-[40px] font-semibold text-white">%{Number(result.discount_rate || 0)}</p>
-            </div>
-            <div className="rounded-2xl border border-white/12 bg-[#071021]/88 p-5">
-              <p className="text-[12px] uppercase tracking-[0.16em] text-white/52">Sinif Sirasi</p>
-              <p className="mt-3 text-[40px] font-semibold text-white">{result.class_rank || '-'}</p>
-            </div>
-            <div className="rounded-2xl border border-white/12 bg-[#071021]/88 p-5">
-              <p className="text-[12px] uppercase tracking-[0.16em] text-white/52">Dogru</p>
-              <p className="mt-3 text-[36px] font-semibold text-white">{Number(result.correct_count || 0)}</p>
-            </div>
-            <div className="rounded-2xl border border-white/12 bg-[#071021]/88 p-5">
-              <p className="text-[12px] uppercase tracking-[0.16em] text-white/52">Yanlis</p>
-              <p className="mt-3 text-[36px] font-semibold text-white">{Number(result.wrong_count || 0)}</p>
-            </div>
-            <div className="rounded-2xl border border-white/12 bg-[#071021]/88 p-5">
-              <p className="text-[12px] uppercase tracking-[0.16em] text-white/52">Bos</p>
-              <p className="mt-3 text-[36px] font-semibold text-white">{Number(result.unanswered_count || 0)}</p>
-            </div>
-            <div className="rounded-2xl border border-white/12 bg-[#071021]/88 p-5 sm:col-span-2">
-              <p className="text-[12px] uppercase tracking-[0.16em] text-white/52">Yerlesim Bandi</p>
-              <p className="mt-3 text-[24px] font-semibold text-white">{result.placement_label || result.cefr_band || 'Hazirlaniyor'}</p>
-              <p className="mt-2 text-[14px] text-white/62">Durum: {result.status || '-'}</p>
-            </div>
-          </div>
+          <p className="mt-6 rounded-[22px] border border-[#E5B8B1] bg-[#FFF3F1] px-4 py-4 text-[14px] leading-[1.72] text-[#8E3530]">
+            {errorMessage}
+          </p>
         ) : null}
 
         {result ? <BurslulukHybridResultOffers /> : null}
 
-        {/* Randevu Al CTA */}
-        {result && result.status === 'VIEWED' && (
-          <div className="mt-8 rounded-3xl border border-[#2C5447]/30 bg-[#2C5447] p-6 text-center shadow-[0_12px_40px_rgba(44,84,71,0.3)]">
-            <p className="text-[14px] leading-[1.6] text-white/80">
-              Eğitim danışmanımızla ücretsiz görüşme randevusu alın
-            </p>
-            <Link
-              to="/bursluluk/randevu"
-              className="mt-4 inline-block rounded-full bg-white px-10 py-4 text-[14px] font-semibold uppercase tracking-[0.14em] text-[#2C5447] shadow-[0_8px_24px_rgba(255,255,255,0.2)] transition hover:shadow-[0_12px_32px_rgba(255,255,255,0.3)] active:scale-[0.97]"
-            >
-              Randevu Al
-            </Link>
-            <p className="mt-3 text-[12px] text-white/50">
-              Size uygun bir tarih ve saat seçin
-            </p>
-          </div>
-        )}
-
         <div className="mt-6 flex flex-wrap gap-3">
-          <Link to="/bursluluk/giris" className="rounded-full border border-white/18 px-6 py-3 text-[12px] uppercase tracking-[0.16em] text-white/74">
+          <Link
+            to="/bursluluk/giris"
+            className="inline-flex min-h-[52px] items-center justify-center rounded-full border border-[#D8CDC0] bg-white/76 px-6 py-3 text-[12px] font-['Neutraface_2_Text:Demi',sans-serif] uppercase tracking-[0.16em] text-[#5B4F45] transition hover:bg-white"
+          >
             Girise Don
           </Link>
         </div>
