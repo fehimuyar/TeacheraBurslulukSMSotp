@@ -1039,11 +1039,21 @@ export default function Bursluluk2026Page() {
                   <div className="relative overflow-hidden rounded-[18px] border border-[#D8CDC0] bg-[#E5DBCE] sm:rounded-[24px]">
                     <div className="aspect-[5/4]">
                       {isVideoReady ? null : (
-                        <div className="pointer-events-none absolute inset-0 z-[1] flex flex-col items-center justify-center gap-3 bg-[linear-gradient(180deg,#E9DFD2_0%,#DDD2C3_100%)] px-6 text-center">
-                          <img src="/teachera-logo.svg" alt="Teachera" className="h-auto w-[62%] max-w-[270px]" />
-                          <p className="text-[11px] uppercase tracking-[0.16em] text-[#5B4F45] sm:text-[12px]">
-                            Video yukleniyor...
-                          </p>
+                        <div className="pointer-events-none absolute inset-0 z-[1] overflow-hidden">
+                          <img
+                            src="/media/bursluluk-2026-hero-poster.jpg"
+                            alt=""
+                            aria-hidden="true"
+                            className="h-full w-full object-cover object-center"
+                            loading="eager"
+                            decoding="async"
+                          />
+                          <div className="absolute inset-x-0 bottom-0 h-[42%] bg-[linear-gradient(180deg,rgba(20,14,10,0)_0%,rgba(20,14,10,0.62)_100%)]" />
+                          <div className="absolute inset-x-0 bottom-0 flex items-end justify-center p-4 sm:p-5">
+                            <span className="rounded-full border border-white/18 bg-[#100B09]/46 px-3 py-1.5 font-['Neutraface_2_Text:Demi',sans-serif] text-[9px] uppercase tracking-[0.16em] text-white/92 backdrop-blur-[6px] sm:text-[10px]">
+                              Video yukleniyor...
+                            </span>
+                          </div>
                         </div>
                       )}
                       <video
