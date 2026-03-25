@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import { query, withTransaction } from '../../_lib/db.js';
 import { readDefaultCampaignCode } from '../../_lib/env.js';
 import { HttpError } from '../../_lib/errors.js';
@@ -16,6 +16,7 @@ import { writeExamSessionCache } from '../../_lib/redisExamSession.js';
 import { requireExamSession } from '../../_lib/sessionAuth.js';
 
 const DEFAULT_EXAM_LOGIN_URL = 'https://teachera.com.tr/bursluluk/giris';
+const CREDENTIAL_PASSWORD_CHARSET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 function readSessionTokenFromRequest(req) {
   const fromHeader = safeTrim(req.headers?.['x-exam-session-token']);
@@ -31,6 +32,24 @@ function readSessionTokenFromRequest(req) {
 
 function normalizeApplicationNo(value) {
   return safeTrim(value).toUpperCase().slice(0, 60);
+}
+
+function createCandidatePassword(length = 8) {
+  let value = '';
+  for (let i = 0; i < length; i += 1) {
+    value += CREDENTIAL_PASSWORD_CHARSET[randomInt(0, CREDENTIAL_PASSWORD_CHARSET.length)];
+  }
+  return value;
+}
+
+async function hashCredentialPassword(client, plainPassword) {
+  const hashed = await client.query(
+    `
+      SELECT crypt($1, gen_salt('bf', 8)) AS password_hash
+    `,
+    [plainPassword],
+  );
+  return hashed.rows[0]?.password_hash || null;
 }
 
 function readOpsNotificationWorkerBaseUrl() {
@@ -93,7 +112,7 @@ async function enqueueCredentialsSmsInTransaction(client, payload) {
     applicationNo,
     candidateCode,
     credentialUsername,
-    sessionToken,
+    credentialPassword,
     expiresAt,
     trigger,
   } = payload;
@@ -131,7 +150,7 @@ async function enqueueCredentialsSmsInTransaction(client, payload) {
         credential: {
           username: credentialUsername || candidateCode || applicationNo,
           candidateCode: candidateCode || null,
-          password: sessionToken,
+          password: credentialPassword,
           expiresAt,
         },
         trigger,
@@ -183,6 +202,7 @@ async function loadAttemptStateByAttemptId(attemptId) {
   return query(
     `
       SELECT
+        a.id AS application_id,
         a.application_no,
         a.candidate_code,
         a.campaign_code,
@@ -205,6 +225,7 @@ async function loadAttemptStateByApplicationNo(applicationNo, campaignCode) {
   return query(
     `
       SELECT
+        a.id AS application_id,
         a.application_no,
         a.candidate_code,
         a.campaign_code,
@@ -246,8 +267,10 @@ async function rotateCredentials({
   const nextTokenHash = hashSessionToken(nextSessionToken);
   const nextExpiresAt = buildSessionExpiry();
   const revokedAt = new Date().toISOString();
+  const credentialPasswordForSms = createCandidatePassword(8);
 
   const { sessionId, jobId } = await withTransaction(async (client) => {
+    const credentialPasswordHash = await hashCredentialPassword(client, credentialPasswordForSms);
     const inserted = await client.query(
       `
         INSERT INTO exam_session_tokens (attempt_id, token_hash, expires_at)
@@ -268,6 +291,18 @@ async function rotateCredentials({
       [attemptId, nextTokenHash],
     );
 
+    await client.query(
+      `
+        UPDATE applications
+        SET
+          credential_password_hash = $2,
+          credential_password_updated_at = NOW(),
+          updated_at = NOW()
+        WHERE id = $1
+      `,
+      [row.application_id, credentialPasswordHash],
+    );
+
     const smsJob = await enqueueCredentialsSmsInTransaction(client, {
       campaignCode: row.campaign_code,
       candidateId: row.candidate_id,
@@ -276,7 +311,7 @@ async function rotateCredentials({
       applicationNo: row.application_no,
       candidateCode: row.candidate_code || null,
       credentialUsername: row.candidate_code || row.application_no,
-      sessionToken: nextSessionToken,
+      credentialPassword: credentialPasswordForSms,
       expiresAt: nextExpiresAt,
       trigger,
     });

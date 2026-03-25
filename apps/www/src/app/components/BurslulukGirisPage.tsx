@@ -125,6 +125,7 @@ export default function BurslulukGirisPage() {
   const [showRenewFlow, setShowRenewFlow] = useState(false);
   const [renewApplicationNo, setRenewApplicationNo] = useState(sessionContext?.applicationNo || '');
   const [renewPhone, setRenewPhone] = useState(fromE164ToTrMobile(sessionContext?.parentPhoneE164 || ''));
+  const [isAutoRenewSubmitting, setIsAutoRenewSubmitting] = useState(false);
   const [isRenewSubmitting, setIsRenewSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [renewMessage, setRenewMessage] = useState('');
@@ -169,7 +170,7 @@ export default function BurslulukGirisPage() {
     const run = async () => {
       setErrorMessage('');
       setRenewMessage('');
-      setIsRenewSubmitting(true);
+      setIsAutoRenewSubmitting(true);
 
       try {
         const response = await requestCredentialsSms({
@@ -199,7 +200,7 @@ export default function BurslulukGirisPage() {
         setErrorMessage(message);
       } finally {
         if (!cancelled) {
-          setIsRenewSubmitting(false);
+          setIsAutoRenewSubmitting(false);
         }
       }
     };
@@ -285,7 +286,7 @@ export default function BurslulukGirisPage() {
       setErrorMessage(TR_MOBILE_TITLE);
       return;
     }
-    if (cooldownRemaining > 0 || isRenewSubmitting) {
+    if (cooldownRemaining > 0 || isRenewSubmitting || isAutoRenewSubmitting) {
       return;
     }
 
@@ -437,14 +438,16 @@ export default function BurslulukGirisPage() {
 
                   <button
                     type="submit"
-                    disabled={isRenewSubmitting || cooldownRemaining > 0}
+                    disabled={isRenewSubmitting || isAutoRenewSubmitting || cooldownRemaining > 0}
                     className="mt-5 inline-flex min-h-[52px] w-full items-center justify-center rounded-full bg-[#324D47] px-6 py-3.5 font-['Neutraface_2_Text:Demi',sans-serif] text-[12px] uppercase tracking-[0.16em] text-white shadow-[0_16px_32px_rgba(50,77,71,0.16)] transition-[background-color,box-shadow,opacity] duration-200 hover:bg-[#3D5E56] hover:shadow-[0_20px_38px_rgba(50,77,71,0.2)] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isRenewSubmitting
                       ? 'Gönderiliyor...'
-                      : cooldownRemaining > 0
-                        ? `Tekrar Gönder ${formatCooldown(cooldownRemaining)}`
-                        : 'Şifreyi Tekrar Gönder'}
+                      : isAutoRenewSubmitting
+                        ? 'Şifre Hazırlanıyor...'
+                        : cooldownRemaining > 0
+                          ? `Tekrar Gönder ${formatCooldown(cooldownRemaining)}`
+                          : 'Şifreyi Tekrar Gönder'}
                   </button>
 
                   {cooldownRemaining > 0 ? (
