@@ -1,3 +1,4 @@
+// AUTO-GENERATED FROM apps/*/api (legacy root runtime mirror). DO NOT EDIT DIRECTLY.
 import { randomInt, randomUUID } from 'node:crypto';
 import { query, withTransaction } from '../../_lib/db.js';
 import { readDefaultCampaignCode } from '../../_lib/env.js';
