@@ -25,7 +25,7 @@ export default async function handler(req, res) {
     }
 
     ok(res, {
-      service: 'teachera-exam-backend',
+      service: 'teachera-exam-api',
       db: 'up',
       redis,
       redis_error_code: redisErrorCode,

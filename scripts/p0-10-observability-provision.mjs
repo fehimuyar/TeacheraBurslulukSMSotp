@@ -21,6 +21,20 @@ const SERVICE_CONFIG = {
 
 const SERVICE_ORDER = ['www', 'exam', 'panel', 'ops'];
 
+const MISSING_DATA_POLICY_BY_METRIC = Object.freeze({
+  ApiLatencyP95Ms: 'notBreaching',
+  ApiLatencyP99Ms: 'notBreaching',
+  ApiErrorRatePct: 'notBreaching',
+  QueueDepth: 'missing',
+  QueueLagSeconds: 'missing',
+  WorkerFailRatePct15m: 'missing',
+  DbHealth: 'missing',
+  RedisHealth: 'missing',
+  NotificationSuccessRatePct60m: 'missing',
+});
+
+const CLOUDWATCH_DELETE_BATCH_SIZE = 100;
+
 function trim(value) {
   return String(value || '').trim();
 }
@@ -93,6 +107,36 @@ function resolveAlarmPrefix(basePrefix, service) {
 
 function resolveAlarmTopic(defaultTopic, service) {
   return readEnv(`OBSERVABILITY_ALARM_SNS_TOPIC_ARN_${serviceUpper(service)}`) || defaultTopic;
+}
+
+function resolveTreatMissingData(metricName) {
+  return MISSING_DATA_POLICY_BY_METRIC[metricName] || 'missing';
+}
+
+function expectedAlarmNames(prefix, endpointKeys, includeOpsMetrics) {
+  const names = [];
+
+  for (const endpointKey of endpointKeys) {
+    names.push(
+      `${prefix}-${endpointKey}-latency-p95`,
+      `${prefix}-${endpointKey}-latency-p99`,
+      `${prefix}-${endpointKey}-error-rate`,
+    );
+  }
+
+  if (includeOpsMetrics) {
+    names.push(
+      `${prefix}-queue-depth`,
+      `${prefix}-queue-lag`,
+      `${prefix}-worker-fail-rate`,
+      `${prefix}-db-health`,
+      `${prefix}-redis-health`,
+      `${prefix}-sms-success-rate`,
+      `${prefix}-wa-success-rate`,
+    );
+  }
+
+  return names;
 }
 
 function buildDashboard({ namespace, endpointKeys, region, service, includeOpsMetrics }) {
@@ -336,6 +380,7 @@ function buildAlarmDefinitions({
     ...alarm,
     namespace,
     statistic: 'Average',
+    treatMissingData: resolveTreatMissingData(alarm.metricName),
   }));
 }
 
@@ -351,7 +396,7 @@ function putMetricAlarm({ region, alarm, alarmActions }) {
     '--evaluation-periods', String(alarm.evaluationPeriods),
     '--threshold', String(alarm.threshold),
     '--comparison-operator', alarm.comparisonOperator,
-    '--treat-missing-data', 'breaching',
+    '--treat-missing-data', alarm.treatMissingData || 'missing',
   ];
 
   if (alarm.dimensions.length > 0) {
@@ -368,6 +413,40 @@ function putMetricAlarm({ region, alarm, alarmActions }) {
   runAws(region, args, false);
 }
 
+function listMetricAlarmsByPrefix(region, alarmNamePrefix) {
+  const alarms = [];
+  let nextToken = '';
+
+  do {
+    const args = [
+      'cloudwatch',
+      'describe-alarms',
+      '--alarm-name-prefix',
+      alarmNamePrefix,
+      '--max-records',
+      String(CLOUDWATCH_DELETE_BATCH_SIZE),
+    ];
+
+    if (nextToken) {
+      args.push('--next-token', nextToken);
+    }
+
+    const response = runAws(region, args);
+    alarms.push(...(Array.isArray(response?.MetricAlarms) ? response.MetricAlarms : []));
+    nextToken = trim(response?.NextToken);
+  } while (nextToken);
+
+  return alarms;
+}
+
+function deleteMetricAlarms(region, alarmNames) {
+  for (let index = 0; index < alarmNames.length; index += CLOUDWATCH_DELETE_BATCH_SIZE) {
+    const batch = alarmNames.slice(index, index + CLOUDWATCH_DELETE_BATCH_SIZE);
+    if (batch.length === 0) continue;
+    runAws(region, ['cloudwatch', 'delete-alarms', '--alarm-names', ...batch], false);
+  }
+}
+
 function main() {
   const region = readEnv('AWS_REGION', 'AWS_DEFAULT_REGION', 'OBSERVABILITY_AWS_REGION');
   if (!region) {
@@ -379,6 +458,7 @@ function main() {
   const alarmBasePrefix = readEnv('OBSERVABILITY_ALARM_PREFIX') || 'teachera-p0-10';
   const defaultAlarmTopic = readEnv('OBSERVABILITY_ALARM_SNS_TOPIC_ARN', 'OBSERVABILITY_ALARM_SNS_TOPIC_ARN_ALL');
   const requireAlarmActions = readBoolEnv('OBSERVABILITY_ALARM_ACTIONS_REQUIRED', true);
+  const deleteStaleAlarms = readBoolEnv('OBSERVABILITY_DELETE_STALE_ALARMS', true);
 
   const thresholds = {
     p95: readFloatEnv('OBS_SLO_P95_MS', 1200, 50, 60000),
@@ -392,6 +472,7 @@ function main() {
   };
 
   const serviceSummaries = [];
+  const expectedAlarmNameSet = new Set();
   let totalAlarmCount = 0;
 
   for (const service of SERVICE_ORDER) {
@@ -433,6 +514,7 @@ function main() {
     });
 
     for (const alarm of alarms) {
+      expectedAlarmNameSet.add(alarm.alarmName);
       putMetricAlarm({
         region,
         alarm,
@@ -451,6 +533,16 @@ function main() {
     });
   }
 
+  const staleAlarms = listMetricAlarmsByPrefix(region, alarmBasePrefix)
+    .map((alarm) => trim(alarm?.AlarmName))
+    .filter((alarmName) => alarmName && alarmName.startsWith(`${alarmBasePrefix}-`))
+    .filter((alarmName) => !expectedAlarmNameSet.has(alarmName))
+    .sort();
+
+  if (deleteStaleAlarms && staleAlarms.length > 0) {
+    deleteMetricAlarms(region, staleAlarms);
+  }
+
   console.log(JSON.stringify({
     ok: true,
     region,
@@ -458,6 +550,12 @@ function main() {
     require_alarm_actions: requireAlarmActions,
     dashboard_count: serviceSummaries.length,
     alarm_count: totalAlarmCount,
+    stale_alarm_cleanup: {
+      enabled: deleteStaleAlarms,
+      stale_alarm_count: staleAlarms.length,
+      deleted_alarm_count: deleteStaleAlarms ? staleAlarms.length : 0,
+      stale_alarms: staleAlarms,
+    },
     services: serviceSummaries,
     thresholds,
   }, null, 2));
