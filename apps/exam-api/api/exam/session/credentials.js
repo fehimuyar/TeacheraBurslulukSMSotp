@@ -91,6 +91,8 @@ async function enqueueCredentialsSmsInTransaction(client, payload) {
     attemptId,
     recipient,
     applicationNo,
+    candidateCode,
+    credentialUsername,
     sessionToken,
     expiresAt,
     trigger,
@@ -124,9 +126,11 @@ async function enqueueCredentialsSmsInTransaction(client, payload) {
       recipient,
       JSON.stringify({
         applicationNo,
+        candidateCode: candidateCode || null,
         loginUrl,
         credential: {
-          username: applicationNo,
+          username: credentialUsername || candidateCode || applicationNo,
+          candidateCode: candidateCode || null,
           password: sessionToken,
           expiresAt,
         },
@@ -180,6 +184,7 @@ async function loadAttemptStateByAttemptId(attemptId) {
     `
       SELECT
         a.application_no,
+        a.candidate_code,
         a.campaign_code,
         c.id AS candidate_id,
         ea.id AS attempt_id,
@@ -201,6 +206,7 @@ async function loadAttemptStateByApplicationNo(applicationNo, campaignCode) {
     `
       SELECT
         a.application_no,
+        a.candidate_code,
         a.campaign_code,
         c.id AS candidate_id,
         ea.id AS attempt_id,
@@ -216,7 +222,7 @@ async function loadAttemptStateByApplicationNo(applicationNo, campaignCode) {
         ORDER BY created_at DESC
         LIMIT 1
       ) ea ON TRUE
-      WHERE a.application_no = $1
+      WHERE (a.application_no = $1 OR a.candidate_code = $1)
         AND ($2::text = '' OR a.campaign_code = $2)
       LIMIT 1
     `,
@@ -268,6 +274,8 @@ async function rotateCredentials({
       attemptId: row.attempt_id,
       recipient: parentPhoneE164,
       applicationNo: row.application_no,
+      candidateCode: row.candidate_code || null,
+      credentialUsername: row.candidate_code || row.application_no,
       sessionToken: nextSessionToken,
       expiresAt: nextExpiresAt,
       trigger,

@@ -348,13 +348,13 @@ export default function BurslulukGirisPage() {
 
               <label className="block">
                 <span className="mb-2.5 block font-['Neutraface_2_Text:Demi',sans-serif] text-[11px] uppercase tracking-[0.16em] text-[#5B4F45]">
-                  Başvuru No
+                  Kullanıcı Adı / Başvuru No
                 </span>
                 <input
                   className="min-h-[54px] w-full rounded-[18px] border border-[#D8CDC0] bg-white px-4 text-[15px] text-[#2F2621] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#8F8173] focus:border-[#4A7067]/55 focus:shadow-[0_0_0_4px_rgba(74,112,103,0.08)]"
                   value={loginApplicationNo}
                   onChange={(event) => setLoginApplicationNo(event.target.value.toUpperCase())}
-                  placeholder="Örn. 20260320-100001"
+                  placeholder="Örn. AD101895 veya 20260320-100001"
                   autoComplete="username"
                   required
                 />
@@ -389,7 +389,7 @@ export default function BurslulukGirisPage() {
                 SMS gelmediyse tekrar gönderin
               </h2>
               <p className="mt-3 text-[14px] leading-[1.76] text-[#5B4F45] sm:text-[15px]">
-                Başvuru numaranız ve veli telefonunuz ile şifreyi kayıtlı numaraya tekrar gönderebilirsiniz.
+                Kullanıcı adınız veya başvuru numaranız ve veli telefonunuz ile şifreyi kayıtlı numaraya tekrar gönderebilirsiniz.
               </p>
 
               <button
@@ -408,13 +408,13 @@ export default function BurslulukGirisPage() {
                 <form onSubmit={handleRenewSubmit} className="mt-5 border-t border-[#E2D8CC] pt-5">
                   <label className="block">
                     <span className="mb-2.5 block font-['Neutraface_2_Text:Demi',sans-serif] text-[11px] uppercase tracking-[0.16em] text-[#5B4F45]">
-                      Başvuru No
+                      Kullanıcı Adı / Başvuru No
                     </span>
                     <input
                       className="min-h-[52px] w-full rounded-[18px] border border-[#D8CDC0] bg-white px-4 text-[15px] text-[#2F2621] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#8F8173] focus:border-[#4A7067]/55 focus:shadow-[0_0_0_4px_rgba(74,112,103,0.08)]"
                       value={renewApplicationNo}
                       onChange={(event) => setRenewApplicationNo(event.target.value.toUpperCase())}
-                      placeholder="Örn. 20260320-100001"
+                      placeholder="Örn. AD101895 veya 20260320-100001"
                       required
                     />
                   </label>
