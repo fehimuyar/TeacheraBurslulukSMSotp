@@ -1,0 +1,1981 @@
+{
+  "examVersionKey": "bursluluk-2026-v1",
+  "grade": "grade-06",
+  "gradeNumber": 6,
+  "title": "GRADE 6 ENGLISH TEST",
+  "ui": {
+    "referenceTheme": "grade2-vintage",
+    "sectionOrder": [
+      "vocabulary",
+      "grammar",
+      "reading",
+      "listening",
+      "speaking"
+    ],
+    "keepLetterLabels": true,
+    "deterministicShuffle": true
+  },
+  "scoring": {
+    "totalPoints": 100,
+    "sectionPoints": {
+      "vocabulary": 20,
+      "grammar": 20,
+      "reading": 20,
+      "listening": 20,
+      "speaking": 20
+    },
+    "difficultyWeights": {
+      "easy": 1,
+      "medium": 2,
+      "hard": 3
+    },
+    "speaking": {
+      "promptCount": 5,
+      "maxDurationSeconds": 180,
+      "rubricMaxPerPrompt": 4,
+      "totalPoints": 20
+    }
+  },
+  "stimuli": {
+    "readingPassage": "Hi! My name is Sally. On weekdays, I wake up at 7:30. I have a yummy breakfast with eggs, cheese and olives. Then I go to school by bus. My classes start at 8:30. In the afternoon, I go to the city center. Downtown is usually crowded, and there are many skyscrapers. Today the weather is rainy and cool, so I feel a bit sad. On sunny days, I feel happy.",
+    "audioTranscript": "Hello! My name is Tom. Today is Monday. I am in the city center now. It is very crowded. The weather is rainy and cool. I feel a bit sad because I can't play in the park. Now, I am sitting in a cafe. I am drinking hot chocolate and eating a muffin. It is delicious!",
+    "listeningAsset": "assets/listening/grade-06-listening.mp3"
+  },
+  "questions": [
+    {
+      "id": "g06-vocabulary-q01",
+      "questionNo": 1,
+      "displayQuestionNo": 1,
+      "sourceQuestionNo": 1,
+      "section": "vocabulary",
+      "sectionQuestionNo": 1,
+      "type": "visual",
+      "prompt": "I ____ at seven o'clock every morning.",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "go to bed"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "wake up"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "watch TV"
+        }
+      ],
+      "difficulty": "easy",
+      "difficultyWeight": 1,
+      "visualAsset": "assets/visuals/grade-06-q01.png",
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_b"
+    },
+    {
+      "id": "g06-vocabulary-q02",
+      "questionNo": 2,
+      "displayQuestionNo": 2,
+      "sourceQuestionNo": 2,
+      "section": "vocabulary",
+      "sectionQuestionNo": 2,
+      "type": "objective",
+      "prompt": "It is a dance. People wear traditional clothes. It is a ____.",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "folk dance"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "modern dance"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "ballet class"
+        }
+      ],
+      "difficulty": "easy",
+      "difficultyWeight": 1,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-vocabulary-q03",
+      "questionNo": 3,
+      "displayQuestionNo": 3,
+      "sourceQuestionNo": 3,
+      "section": "vocabulary",
+      "sectionQuestionNo": 3,
+      "type": "objective",
+      "prompt": "I brush my teeth and wash my face in the morning. This is my ____.",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "daily routine"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "hobby"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "homework"
+        }
+      ],
+      "difficulty": "easy",
+      "difficultyWeight": 1,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-vocabulary-q04",
+      "questionNo": 4,
+      "displayQuestionNo": 4,
+      "sourceQuestionNo": 4,
+      "section": "vocabulary",
+      "sectionQuestionNo": 4,
+      "type": "objective",
+      "prompt": "I do my homework. Then I end it. I ____ my homework.",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "start"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "finish"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "forget"
+        }
+      ],
+      "difficulty": "easy",
+      "difficultyWeight": 1,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_b"
+    },
+    {
+      "id": "g06-vocabulary-q05",
+      "questionNo": 5,
+      "displayQuestionNo": 5,
+      "sourceQuestionNo": 6,
+      "section": "vocabulary",
+      "sectionQuestionNo": 5,
+      "type": "objective",
+      "prompt": "I have a ____ breakfast with my family.",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "stormy"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "yummy"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "crowded"
+        }
+      ],
+      "difficulty": "easy",
+      "difficultyWeight": 1,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_b"
+    },
+    {
+      "id": "g06-vocabulary-q06",
+      "questionNo": 6,
+      "displayQuestionNo": 6,
+      "sourceQuestionNo": 7,
+      "section": "vocabulary",
+      "sectionQuestionNo": 6,
+      "type": "objective",
+      "prompt": "I eat it at breakfast. It is small and black or green. What is it?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "olive"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "cheese"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "tomato"
+        }
+      ],
+      "difficulty": "easy",
+      "difficultyWeight": 1,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-vocabulary-q07",
+      "questionNo": 7,
+      "displayQuestionNo": 7,
+      "sourceQuestionNo": 8,
+      "section": "vocabulary",
+      "sectionQuestionNo": 7,
+      "type": "visual",
+      "prompt": "Do you want some ____?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "honey"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "eggs"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "olives"
+        }
+      ],
+      "difficulty": "easy",
+      "difficultyWeight": 1,
+      "visualAsset": "assets/visuals/grade-06-q08.png",
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-vocabulary-q08",
+      "questionNo": 8,
+      "displayQuestionNo": 8,
+      "sourceQuestionNo": 9,
+      "section": "vocabulary",
+      "sectionQuestionNo": 8,
+      "type": "objective",
+      "prompt": "Junk food is ____ for our bodies.",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "healthy"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "unhealthy"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "fresh"
+        }
+      ],
+      "difficulty": "easy",
+      "difficultyWeight": 1,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_b"
+    },
+    {
+      "id": "g06-vocabulary-q09",
+      "questionNo": 9,
+      "displayQuestionNo": 9,
+      "sourceQuestionNo": 10,
+      "section": "vocabulary",
+      "sectionQuestionNo": 9,
+      "type": "objective",
+      "prompt": "\"Nutritious\" means ____.",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "healthy"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "salty"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "expensive"
+        }
+      ],
+      "difficulty": "easy",
+      "difficultyWeight": 1,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-vocabulary-q10",
+      "questionNo": 10,
+      "displayQuestionNo": 10,
+      "sourceQuestionNo": 11,
+      "section": "vocabulary",
+      "sectionQuestionNo": 10,
+      "type": "visual",
+      "prompt": "Downtown is very ____ today.",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "quiet"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "crowded"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "empty"
+        }
+      ],
+      "difficulty": "medium",
+      "difficultyWeight": 2,
+      "visualAsset": "assets/visuals/grade-06-q11.png",
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_b"
+    },
+    {
+      "id": "g06-vocabulary-q11",
+      "questionNo": 11,
+      "displayQuestionNo": 11,
+      "sourceQuestionNo": 12,
+      "section": "vocabulary",
+      "sectionQuestionNo": 11,
+      "type": "objective",
+      "prompt": "A very tall building is a ____.",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "skyscraper"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "village"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "house"
+        }
+      ],
+      "difficulty": "medium",
+      "difficultyWeight": 2,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-vocabulary-q12",
+      "questionNo": 12,
+      "displayQuestionNo": 12,
+      "sourceQuestionNo": 13,
+      "section": "vocabulary",
+      "sectionQuestionNo": 12,
+      "type": "objective",
+      "prompt": "A ____ is smaller than a city.",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "town"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "traffic jam"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "country"
+        }
+      ],
+      "difficulty": "medium",
+      "difficultyWeight": 2,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-vocabulary-q13",
+      "questionNo": 13,
+      "displayQuestionNo": 13,
+      "sourceQuestionNo": 14,
+      "section": "vocabulary",
+      "sectionQuestionNo": 13,
+      "type": "objective",
+      "prompt": "The bus is not here. You stand at the bus stop. What do you do?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "Wait for the bus"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "Drive the bus"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "Wash the bus"
+        }
+      ],
+      "difficulty": "medium",
+      "difficultyWeight": 2,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-vocabulary-q14",
+      "questionNo": 14,
+      "displayQuestionNo": 14,
+      "sourceQuestionNo": 15,
+      "section": "vocabulary",
+      "sectionQuestionNo": 14,
+      "type": "objective",
+      "prompt": "People live in ____ in the city.",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "flats"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "farms"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "parks"
+        }
+      ],
+      "difficulty": "medium",
+      "difficultyWeight": 2,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-vocabulary-q15",
+      "questionNo": 15,
+      "displayQuestionNo": 15,
+      "sourceQuestionNo": 16,
+      "section": "vocabulary",
+      "sectionQuestionNo": 15,
+      "type": "visual",
+      "prompt": "The weather is ____.",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "sunny"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "stormy"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "happy"
+        }
+      ],
+      "difficulty": "medium",
+      "difficultyWeight": 2,
+      "visualAsset": "assets/visuals/grade-06-q16.png",
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_b"
+    },
+    {
+      "id": "g06-vocabulary-q16",
+      "questionNo": 16,
+      "displayQuestionNo": 16,
+      "sourceQuestionNo": 17,
+      "section": "vocabulary",
+      "sectionQuestionNo": 16,
+      "type": "objective",
+      "prompt": "\"Freezing\" means ____.",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "very cold"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "very hot"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "a little warm"
+        }
+      ],
+      "difficulty": "medium",
+      "difficultyWeight": 2,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-vocabulary-q17",
+      "questionNo": 17,
+      "displayQuestionNo": 17,
+      "sourceQuestionNo": 18,
+      "section": "vocabulary",
+      "sectionQuestionNo": 17,
+      "type": "objective",
+      "prompt": "I feel ____ on sunny days.",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "sad"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "happy"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "bored"
+        }
+      ],
+      "difficulty": "medium",
+      "difficultyWeight": 2,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_b"
+    },
+    {
+      "id": "g06-vocabulary-q18",
+      "questionNo": 18,
+      "displayQuestionNo": 18,
+      "sourceQuestionNo": 19,
+      "section": "vocabulary",
+      "sectionQuestionNo": 18,
+      "type": "objective",
+      "prompt": "\"Scared\" means ____.",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "afraid"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "hungry"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "relaxed"
+        }
+      ],
+      "difficulty": "medium",
+      "difficultyWeight": 2,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-vocabulary-q19",
+      "questionNo": 19,
+      "displayQuestionNo": 19,
+      "sourceQuestionNo": 21,
+      "section": "vocabulary",
+      "sectionQuestionNo": 19,
+      "type": "visual",
+      "prompt": "He feels ____.",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "energetic"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "sad"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "cheerful"
+        }
+      ],
+      "difficulty": "hard",
+      "difficultyWeight": 3,
+      "visualAsset": "assets/visuals/grade-06-q21.png",
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_b"
+    },
+    {
+      "id": "g06-vocabulary-q20",
+      "questionNo": 20,
+      "displayQuestionNo": 20,
+      "sourceQuestionNo": 22,
+      "section": "vocabulary",
+      "sectionQuestionNo": 20,
+      "type": "objective",
+      "prompt": "You see a bright flash in the sky in a storm. What is it?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "lightning"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "snow"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "rain"
+        }
+      ],
+      "difficulty": "hard",
+      "difficultyWeight": 3,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-vocabulary-q21",
+      "questionNo": 21,
+      "displayQuestionNo": 21,
+      "sourceQuestionNo": 23,
+      "section": "vocabulary",
+      "sectionQuestionNo": 21,
+      "type": "objective",
+      "prompt": "You can't see the blue sky today. What is the weather like?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "cloudy"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "sunny"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "clear"
+        }
+      ],
+      "difficulty": "hard",
+      "difficultyWeight": 3,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-vocabulary-q22",
+      "questionNo": 22,
+      "displayQuestionNo": 22,
+      "sourceQuestionNo": 24,
+      "section": "vocabulary",
+      "sectionQuestionNo": 22,
+      "type": "visual",
+      "prompt": "Which one is an emotion?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "rainy"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "excited"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "windy"
+        }
+      ],
+      "difficulty": "hard",
+      "difficultyWeight": 3,
+      "visualAsset": "assets/visuals/grade-06-q24.png",
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_b"
+    },
+    {
+      "id": "g06-vocabulary-q23",
+      "questionNo": 23,
+      "displayQuestionNo": 23,
+      "sourceQuestionNo": 25,
+      "section": "vocabulary",
+      "sectionQuestionNo": 23,
+      "type": "objective",
+      "prompt": "The air and the trees move. What is the weather like?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "sunny"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "windy"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "snowy"
+        }
+      ],
+      "difficulty": "hard",
+      "difficultyWeight": 3,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_b"
+    },
+    {
+      "id": "g06-grammar-q24",
+      "questionNo": 24,
+      "displayQuestionNo": 24,
+      "sourceQuestionNo": 26,
+      "section": "grammar",
+      "sectionQuestionNo": 1,
+      "type": "objective",
+      "prompt": "I go to school ____ Mondays.",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "at"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "on"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "in"
+        }
+      ],
+      "difficulty": "easy",
+      "difficultyWeight": 1,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_b"
+    },
+    {
+      "id": "g06-grammar-q25",
+      "questionNo": 25,
+      "displayQuestionNo": 25,
+      "sourceQuestionNo": 27,
+      "section": "grammar",
+      "sectionQuestionNo": 2,
+      "type": "objective",
+      "prompt": "My father ____ work at 8 a.m.",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "starts"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "starting"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "start"
+        }
+      ],
+      "difficulty": "easy",
+      "difficultyWeight": 1,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-grammar-q26",
+      "questionNo": 26,
+      "displayQuestionNo": 26,
+      "sourceQuestionNo": 29,
+      "section": "grammar",
+      "sectionQuestionNo": 3,
+      "type": "objective",
+      "prompt": "Does Mary like cereal? / No, she ____.",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "don't"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "doesn't"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "isn't"
+        }
+      ],
+      "difficulty": "easy",
+      "difficultyWeight": 1,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_b"
+    },
+    {
+      "id": "g06-grammar-q27",
+      "questionNo": 27,
+      "displayQuestionNo": 27,
+      "sourceQuestionNo": 30,
+      "section": "grammar",
+      "sectionQuestionNo": 4,
+      "type": "objective",
+      "prompt": "Look! He ____ the flowers now.",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "waters"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "is watering"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "water"
+        }
+      ],
+      "difficulty": "easy",
+      "difficultyWeight": 1,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_b"
+    },
+    {
+      "id": "g06-grammar-q28",
+      "questionNo": 28,
+      "displayQuestionNo": 28,
+      "sourceQuestionNo": 31,
+      "section": "grammar",
+      "sectionQuestionNo": 5,
+      "type": "objective",
+      "prompt": "What ____ they doing at the moment?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "are"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "do"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "is"
+        }
+      ],
+      "difficulty": "medium",
+      "difficultyWeight": 2,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-grammar-q29",
+      "questionNo": 29,
+      "displayQuestionNo": 29,
+      "sourceQuestionNo": 32,
+      "section": "grammar",
+      "sectionQuestionNo": 6,
+      "type": "objective",
+      "prompt": "I ____ drinking milk now.",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "am"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "is"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "are"
+        }
+      ],
+      "difficulty": "medium",
+      "difficultyWeight": 2,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-grammar-q30",
+      "questionNo": 30,
+      "displayQuestionNo": 30,
+      "sourceQuestionNo": 33,
+      "section": "grammar",
+      "sectionQuestionNo": 7,
+      "type": "visual",
+      "prompt": "A skyscraper is ____ than a house.",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "taller"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "tallest"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "tall"
+        }
+      ],
+      "difficulty": "medium",
+      "difficultyWeight": 2,
+      "visualAsset": "assets/visuals/grade-06-q33.png",
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-grammar-q31",
+      "questionNo": 31,
+      "displayQuestionNo": 31,
+      "sourceQuestionNo": 34,
+      "section": "grammar",
+      "sectionQuestionNo": 8,
+      "type": "objective",
+      "prompt": "City life is ____ than country life.",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "busy"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "busier"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "busiest"
+        }
+      ],
+      "difficulty": "medium",
+      "difficultyWeight": 2,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_b"
+    },
+    {
+      "id": "g06-grammar-q32",
+      "questionNo": 32,
+      "displayQuestionNo": 32,
+      "sourceQuestionNo": 35,
+      "section": "grammar",
+      "sectionQuestionNo": 9,
+      "type": "objective",
+      "prompt": "The watermelon is ____ than the apple.",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "big"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "bigger"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "biggest"
+        }
+      ],
+      "difficulty": "medium",
+      "difficultyWeight": 2,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_b"
+    },
+    {
+      "id": "g06-grammar-q33",
+      "questionNo": 33,
+      "displayQuestionNo": 33,
+      "sourceQuestionNo": 36,
+      "section": "grammar",
+      "sectionQuestionNo": 10,
+      "type": "objective",
+      "prompt": "____ is the weather like? / It is rainy.",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "Where"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "What"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "How"
+        }
+      ],
+      "difficulty": "hard",
+      "difficultyWeight": 3,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_b"
+    },
+    {
+      "id": "g06-grammar-q34",
+      "questionNo": 34,
+      "displayQuestionNo": 34,
+      "sourceQuestionNo": 37,
+      "section": "grammar",
+      "sectionQuestionNo": 11,
+      "type": "objective",
+      "prompt": "How ____ you feel on rainy days?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "are"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "do"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "is"
+        }
+      ],
+      "difficulty": "hard",
+      "difficultyWeight": 3,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_b"
+    },
+    {
+      "id": "g06-grammar-q35",
+      "questionNo": 35,
+      "displayQuestionNo": 35,
+      "sourceQuestionNo": 39,
+      "section": "grammar",
+      "sectionQuestionNo": 12,
+      "type": "objective",
+      "prompt": "Can I ____ some muffins? / Sure.",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "have"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "having"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "has"
+        }
+      ],
+      "difficulty": "hard",
+      "difficultyWeight": 3,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": null,
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-reading-q36",
+      "questionNo": 36,
+      "displayQuestionNo": 36,
+      "sourceQuestionNo": 41,
+      "section": "reading",
+      "sectionQuestionNo": 1,
+      "type": "reading",
+      "prompt": "What time does Sally wake up?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "7:30"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "8:30"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "6:30"
+        }
+      ],
+      "difficulty": "easy",
+      "difficultyWeight": 1,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": "Hi! My name is Sally. On weekdays, I wake up at 7:30. I have a yummy breakfast with eggs, cheese and olives. Then I go to school by bus. My classes start at 8:30. In the afternoon, I go to the city center. Downtown is usually crowded, and there are many skyscrapers. Today the weather is rainy and cool, so I feel a bit sad. On sunny days, I feel happy.",
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-reading-q37",
+      "questionNo": 37,
+      "displayQuestionNo": 37,
+      "sourceQuestionNo": 42,
+      "section": "reading",
+      "sectionQuestionNo": 2,
+      "type": "reading",
+      "prompt": "What does she have for breakfast?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "eggs and cheese"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "junk food"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "cake and cola"
+        }
+      ],
+      "difficulty": "easy",
+      "difficultyWeight": 1,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": "Hi! My name is Sally. On weekdays, I wake up at 7:30. I have a yummy breakfast with eggs, cheese and olives. Then I go to school by bus. My classes start at 8:30. In the afternoon, I go to the city center. Downtown is usually crowded, and there are many skyscrapers. Today the weather is rainy and cool, so I feel a bit sad. On sunny days, I feel happy.",
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-reading-q38",
+      "questionNo": 38,
+      "displayQuestionNo": 38,
+      "sourceQuestionNo": 43,
+      "section": "reading",
+      "sectionQuestionNo": 3,
+      "type": "reading",
+      "prompt": "How does she go to school?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "by bus"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "by car"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "on foot"
+        }
+      ],
+      "difficulty": "easy",
+      "difficultyWeight": 1,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": "Hi! My name is Sally. On weekdays, I wake up at 7:30. I have a yummy breakfast with eggs, cheese and olives. Then I go to school by bus. My classes start at 8:30. In the afternoon, I go to the city center. Downtown is usually crowded, and there are many skyscrapers. Today the weather is rainy and cool, so I feel a bit sad. On sunny days, I feel happy.",
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-reading-q39",
+      "questionNo": 39,
+      "displayQuestionNo": 39,
+      "sourceQuestionNo": 44,
+      "section": "reading",
+      "sectionQuestionNo": 4,
+      "type": "reading",
+      "prompt": "What time do her classes start?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "8:30"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "7:30"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "9:00"
+        }
+      ],
+      "difficulty": "easy",
+      "difficultyWeight": 1,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": "Hi! My name is Sally. On weekdays, I wake up at 7:30. I have a yummy breakfast with eggs, cheese and olives. Then I go to school by bus. My classes start at 8:30. In the afternoon, I go to the city center. Downtown is usually crowded, and there are many skyscrapers. Today the weather is rainy and cool, so I feel a bit sad. On sunny days, I feel happy.",
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-reading-q40",
+      "questionNo": 40,
+      "displayQuestionNo": 40,
+      "sourceQuestionNo": 45,
+      "section": "reading",
+      "sectionQuestionNo": 5,
+      "type": "reading",
+      "prompt": "Where does she go in the afternoon?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "city center"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "village"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "museum"
+        }
+      ],
+      "difficulty": "easy",
+      "difficultyWeight": 1,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": "Hi! My name is Sally. On weekdays, I wake up at 7:30. I have a yummy breakfast with eggs, cheese and olives. Then I go to school by bus. My classes start at 8:30. In the afternoon, I go to the city center. Downtown is usually crowded, and there are many skyscrapers. Today the weather is rainy and cool, so I feel a bit sad. On sunny days, I feel happy.",
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-reading-q41",
+      "questionNo": 41,
+      "displayQuestionNo": 41,
+      "sourceQuestionNo": 46,
+      "section": "reading",
+      "sectionQuestionNo": 6,
+      "type": "reading",
+      "prompt": "How is downtown?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "crowded"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "quiet"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "empty"
+        }
+      ],
+      "difficulty": "easy",
+      "difficultyWeight": 1,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": "Hi! My name is Sally. On weekdays, I wake up at 7:30. I have a yummy breakfast with eggs, cheese and olives. Then I go to school by bus. My classes start at 8:30. In the afternoon, I go to the city center. Downtown is usually crowded, and there are many skyscrapers. Today the weather is rainy and cool, so I feel a bit sad. On sunny days, I feel happy.",
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-reading-q42",
+      "questionNo": 42,
+      "displayQuestionNo": 42,
+      "sourceQuestionNo": 47,
+      "section": "reading",
+      "sectionQuestionNo": 7,
+      "type": "reading",
+      "prompt": "What can you see downtown?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "skyscrapers"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "forests"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "farms"
+        }
+      ],
+      "difficulty": "medium",
+      "difficultyWeight": 2,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": "Hi! My name is Sally. On weekdays, I wake up at 7:30. I have a yummy breakfast with eggs, cheese and olives. Then I go to school by bus. My classes start at 8:30. In the afternoon, I go to the city center. Downtown is usually crowded, and there are many skyscrapers. Today the weather is rainy and cool, so I feel a bit sad. On sunny days, I feel happy.",
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-reading-q43",
+      "questionNo": 43,
+      "displayQuestionNo": 43,
+      "sourceQuestionNo": 48,
+      "section": "reading",
+      "sectionQuestionNo": 8,
+      "type": "reading",
+      "prompt": "What is the weather today?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "rainy and cool"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "sunny and hot"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "snowy and windy"
+        }
+      ],
+      "difficulty": "medium",
+      "difficultyWeight": 2,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": "Hi! My name is Sally. On weekdays, I wake up at 7:30. I have a yummy breakfast with eggs, cheese and olives. Then I go to school by bus. My classes start at 8:30. In the afternoon, I go to the city center. Downtown is usually crowded, and there are many skyscrapers. Today the weather is rainy and cool, so I feel a bit sad. On sunny days, I feel happy.",
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-reading-q44",
+      "questionNo": 44,
+      "displayQuestionNo": 44,
+      "sourceQuestionNo": 49,
+      "section": "reading",
+      "sectionQuestionNo": 9,
+      "type": "reading",
+      "prompt": "How does Sally feel today?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "sad"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "excited"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "angry"
+        }
+      ],
+      "difficulty": "medium",
+      "difficultyWeight": 2,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": "Hi! My name is Sally. On weekdays, I wake up at 7:30. I have a yummy breakfast with eggs, cheese and olives. Then I go to school by bus. My classes start at 8:30. In the afternoon, I go to the city center. Downtown is usually crowded, and there are many skyscrapers. Today the weather is rainy and cool, so I feel a bit sad. On sunny days, I feel happy.",
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-reading-q45",
+      "questionNo": 45,
+      "displayQuestionNo": 45,
+      "sourceQuestionNo": 50,
+      "section": "reading",
+      "sectionQuestionNo": 10,
+      "type": "reading",
+      "prompt": "How does she feel on sunny days?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "happy"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "scared"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "bored"
+        }
+      ],
+      "difficulty": "medium",
+      "difficultyWeight": 2,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": "Hi! My name is Sally. On weekdays, I wake up at 7:30. I have a yummy breakfast with eggs, cheese and olives. Then I go to school by bus. My classes start at 8:30. In the afternoon, I go to the city center. Downtown is usually crowded, and there are many skyscrapers. Today the weather is rainy and cool, so I feel a bit sad. On sunny days, I feel happy.",
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-reading-q46",
+      "questionNo": 46,
+      "displayQuestionNo": 46,
+      "sourceQuestionNo": 51,
+      "section": "reading",
+      "sectionQuestionNo": 11,
+      "type": "reading",
+      "prompt": "Choose the correct sentence.",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "Sally goes to school by bus."
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "Sally wakes up at 8:30."
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "Sally eats junk food every day."
+        }
+      ],
+      "difficulty": "medium",
+      "difficultyWeight": 2,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": "Hi! My name is Sally. On weekdays, I wake up at 7:30. I have a yummy breakfast with eggs, cheese and olives. Then I go to school by bus. My classes start at 8:30. In the afternoon, I go to the city center. Downtown is usually crowded, and there are many skyscrapers. Today the weather is rainy and cool, so I feel a bit sad. On sunny days, I feel happy.",
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-reading-q47",
+      "questionNo": 47,
+      "displayQuestionNo": 47,
+      "sourceQuestionNo": 52,
+      "section": "reading",
+      "sectionQuestionNo": 12,
+      "type": "reading",
+      "prompt": "Which food is in the text?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "olives"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "chocolate"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "butter"
+        }
+      ],
+      "difficulty": "medium",
+      "difficultyWeight": 2,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": "Hi! My name is Sally. On weekdays, I wake up at 7:30. I have a yummy breakfast with eggs, cheese and olives. Then I go to school by bus. My classes start at 8:30. In the afternoon, I go to the city center. Downtown is usually crowded, and there are many skyscrapers. Today the weather is rainy and cool, so I feel a bit sad. On sunny days, I feel happy.",
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-reading-q48",
+      "questionNo": 48,
+      "displayQuestionNo": 48,
+      "sourceQuestionNo": 53,
+      "section": "reading",
+      "sectionQuestionNo": 13,
+      "type": "reading",
+      "prompt": "Which word is about the city?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "downtown"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "honey"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "muffin"
+        }
+      ],
+      "difficulty": "hard",
+      "difficultyWeight": 3,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": "Hi! My name is Sally. On weekdays, I wake up at 7:30. I have a yummy breakfast with eggs, cheese and olives. Then I go to school by bus. My classes start at 8:30. In the afternoon, I go to the city center. Downtown is usually crowded, and there are many skyscrapers. Today the weather is rainy and cool, so I feel a bit sad. On sunny days, I feel happy.",
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-reading-q49",
+      "questionNo": 49,
+      "displayQuestionNo": 49,
+      "sourceQuestionNo": 54,
+      "section": "reading",
+      "sectionQuestionNo": 14,
+      "type": "reading",
+      "prompt": "Which word is about weather?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "rainy"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "uncle"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "breakfast"
+        }
+      ],
+      "difficulty": "hard",
+      "difficultyWeight": 3,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": "Hi! My name is Sally. On weekdays, I wake up at 7:30. I have a yummy breakfast with eggs, cheese and olives. Then I go to school by bus. My classes start at 8:30. In the afternoon, I go to the city center. Downtown is usually crowded, and there are many skyscrapers. Today the weather is rainy and cool, so I feel a bit sad. On sunny days, I feel happy.",
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-reading-q50",
+      "questionNo": 50,
+      "displayQuestionNo": 50,
+      "sourceQuestionNo": 55,
+      "section": "reading",
+      "sectionQuestionNo": 15,
+      "type": "reading",
+      "prompt": "Which word is an emotion?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "sad"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "stormy"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "cloudy"
+        }
+      ],
+      "difficulty": "hard",
+      "difficultyWeight": 3,
+      "visualAsset": null,
+      "listeningAsset": null,
+      "readingPassage": "Hi! My name is Sally. On weekdays, I wake up at 7:30. I have a yummy breakfast with eggs, cheese and olives. Then I go to school by bus. My classes start at 8:30. In the afternoon, I go to the city center. Downtown is usually crowded, and there are many skyscrapers. Today the weather is rainy and cool, so I feel a bit sad. On sunny days, I feel happy.",
+      "audioTranscript": null,
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-listening-q51",
+      "questionNo": 51,
+      "displayQuestionNo": 51,
+      "sourceQuestionNo": 56,
+      "section": "listening",
+      "sectionQuestionNo": 1,
+      "type": "listening",
+      "prompt": "What day is it today?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "Sunday"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "Monday"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "Friday"
+        }
+      ],
+      "difficulty": "easy",
+      "difficultyWeight": 1,
+      "visualAsset": null,
+      "listeningAsset": "assets/listening/grade-06-listening.mp3",
+      "readingPassage": null,
+      "audioTranscript": "Hello! My name is Tom. Today is Monday. I am in the city center now. It is very crowded. The weather is rainy and cool. I feel a bit sad because I can't play in the park. Now, I am sitting in a cafe. I am drinking hot chocolate and eating a muffin. It is delicious!",
+      "correctOptionId": "opt_b"
+    },
+    {
+      "id": "g06-listening-q52",
+      "questionNo": 52,
+      "displayQuestionNo": 52,
+      "sourceQuestionNo": 57,
+      "section": "listening",
+      "sectionQuestionNo": 2,
+      "type": "listening",
+      "prompt": "Where is Tom now?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "At the park"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "In the city center"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "At school"
+        }
+      ],
+      "difficulty": "easy",
+      "difficultyWeight": 1,
+      "visualAsset": null,
+      "listeningAsset": "assets/listening/grade-06-listening.mp3",
+      "readingPassage": null,
+      "audioTranscript": "Hello! My name is Tom. Today is Monday. I am in the city center now. It is very crowded. The weather is rainy and cool. I feel a bit sad because I can't play in the park. Now, I am sitting in a cafe. I am drinking hot chocolate and eating a muffin. It is delicious!",
+      "correctOptionId": "opt_b"
+    },
+    {
+      "id": "g06-listening-q53",
+      "questionNo": 53,
+      "displayQuestionNo": 53,
+      "sourceQuestionNo": 58,
+      "section": "listening",
+      "sectionQuestionNo": 3,
+      "type": "listening",
+      "prompt": "What is the weather like?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "Sunny and hot"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "Rainy and cool"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "Cold and snowy"
+        }
+      ],
+      "difficulty": "medium",
+      "difficultyWeight": 2,
+      "visualAsset": null,
+      "listeningAsset": "assets/listening/grade-06-listening.mp3",
+      "readingPassage": null,
+      "audioTranscript": "Hello! My name is Tom. Today is Monday. I am in the city center now. It is very crowded. The weather is rainy and cool. I feel a bit sad because I can't play in the park. Now, I am sitting in a cafe. I am drinking hot chocolate and eating a muffin. It is delicious!",
+      "correctOptionId": "opt_b"
+    },
+    {
+      "id": "g06-listening-q54",
+      "questionNo": 54,
+      "displayQuestionNo": 54,
+      "sourceQuestionNo": 59,
+      "section": "listening",
+      "sectionQuestionNo": 4,
+      "type": "listening",
+      "prompt": "How does Tom feel?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "Happy"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "Sad"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "Angry"
+        }
+      ],
+      "difficulty": "medium",
+      "difficultyWeight": 2,
+      "visualAsset": null,
+      "listeningAsset": "assets/listening/grade-06-listening.mp3",
+      "readingPassage": null,
+      "audioTranscript": "Hello! My name is Tom. Today is Monday. I am in the city center now. It is very crowded. The weather is rainy and cool. I feel a bit sad because I can't play in the park. Now, I am sitting in a cafe. I am drinking hot chocolate and eating a muffin. It is delicious!",
+      "correctOptionId": "opt_b"
+    },
+    {
+      "id": "g06-listening-q55",
+      "questionNo": 55,
+      "displayQuestionNo": 55,
+      "sourceQuestionNo": 60,
+      "section": "listening",
+      "sectionQuestionNo": 5,
+      "type": "listening",
+      "prompt": "What is Tom eating?",
+      "options": [
+        {
+          "optionId": "opt_a",
+          "originalLetter": "A",
+          "label": "A muffin"
+        },
+        {
+          "optionId": "opt_b",
+          "originalLetter": "B",
+          "label": "An apple"
+        },
+        {
+          "optionId": "opt_c",
+          "originalLetter": "C",
+          "label": "A sandwich"
+        }
+      ],
+      "difficulty": "hard",
+      "difficultyWeight": 3,
+      "visualAsset": null,
+      "listeningAsset": "assets/listening/grade-06-listening.mp3",
+      "readingPassage": null,
+      "audioTranscript": "Hello! My name is Tom. Today is Monday. I am in the city center now. It is very crowded. The weather is rainy and cool. I feel a bit sad because I can't play in the park. Now, I am sitting in a cafe. I am drinking hot chocolate and eating a muffin. It is delicious!",
+      "correctOptionId": "opt_a"
+    },
+    {
+      "id": "g06-speaking-q01",
+      "questionNo": 56,
+      "displayQuestionNo": 56,
+      "sourceQuestionNo": null,
+      "section": "speaking",
+      "sectionQuestionNo": 1,
+      "type": "speaking",
+      "prompt": "What do you usually eat for breakfast?",
+      "visualAsset": null,
+      "maxDurationSeconds": 180,
+      "rubricMaxScore": 4
+    },
+    {
+      "id": "g06-speaking-q02",
+      "questionNo": 57,
+      "displayQuestionNo": 57,
+      "sourceQuestionNo": null,
+      "section": "speaking",
+      "sectionQuestionNo": 2,
+      "type": "speaking",
+      "prompt": "Do you like eggs and cheese?",
+      "visualAsset": null,
+      "maxDurationSeconds": 180,
+      "rubricMaxScore": 4
+    },
+    {
+      "id": "g06-speaking-q03",
+      "questionNo": 58,
+      "displayQuestionNo": 58,
+      "sourceQuestionNo": null,
+      "section": "speaking",
+      "sectionQuestionNo": 3,
+      "type": "speaking",
+      "prompt": "What do you drink at breakfast?",
+      "visualAsset": null,
+      "maxDurationSeconds": 180,
+      "rubricMaxScore": 4
+    },
+    {
+      "id": "g06-speaking-q04",
+      "questionNo": 59,
+      "displayQuestionNo": 59,
+      "sourceQuestionNo": null,
+      "section": "speaking",
+      "sectionQuestionNo": 4,
+      "type": "speaking",
+      "prompt": "What time do you wake up?",
+      "visualAsset": null,
+      "maxDurationSeconds": 180,
+      "rubricMaxScore": 4
+    },
+    {
+      "id": "g06-speaking-q05",
+      "questionNo": 60,
+      "displayQuestionNo": 60,
+      "sourceQuestionNo": null,
+      "section": "speaking",
+      "sectionQuestionNo": 5,
+      "type": "speaking",
+      "prompt": "How do you go to school?",
+      "visualAsset": null,
+      "maxDurationSeconds": 180,
+      "rubricMaxScore": 4
+    }
+  ]
+}

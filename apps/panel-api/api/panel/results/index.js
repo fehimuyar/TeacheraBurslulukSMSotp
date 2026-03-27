@@ -31,6 +31,13 @@ const RESULT_REVIEW_COLUMNS = [
   'cefr_band',
   'published_at',
   'viewed_at',
+  'scholarship_submission_status',
+  'objective_score',
+  'speaking_score',
+  'final_score',
+  'speaking_uploaded_count',
+  'speaking_expected_count',
+  'finalized_at',
   'override_count',
   'last_override_at',
   'updated_at',
@@ -52,6 +59,13 @@ const SORT_COLUMN_MAP = {
   cefr_band: 'cefr_band',
   published_at: 'published_at',
   viewed_at: 'viewed_at',
+  scholarship_submission_status: 'scholarship_submission_status',
+  objective_score: 'objective_score',
+  speaking_score: 'speaking_score',
+  final_score: 'final_score',
+  speaking_uploaded_count: 'speaking_uploaded_count',
+  speaking_expected_count: 'speaking_expected_count',
+  finalized_at: 'finalized_at',
   override_count: 'override_count',
   last_override_at: 'last_override_at',
   updated_at: 'updated_at',
@@ -188,12 +202,20 @@ function buildResultRowsCte(includeOverrideTable) {
         r.cefr_band,
         r.published_at,
         r.viewed_at,
+        ses.status AS scholarship_submission_status,
+        ses.objective_score,
+        ses.speaking_score,
+        ses.final_score,
+        ses.speaking_uploaded_count,
+        ses.speaking_expected_count,
+        ses.finalized_at,
         ${overrideSelect}
         r.updated_at
       FROM results r
       JOIN candidates c ON c.id = r.candidate_id
       LEFT JOIN schools s ON s.id = c.school_id
       LEFT JOIN guardians g ON g.id = c.guardian_id
+      LEFT JOIN scholarship_exam_submissions ses ON ses.attempt_id = r.attempt_id
       LEFT JOIN LATERAL (
         SELECT a2.application_no
         FROM applications a2
@@ -248,6 +270,13 @@ async function runListQueries({ listQuery, whereClause, params, includeOverrideT
           cefr_band,
           published_at,
           viewed_at,
+          scholarship_submission_status,
+          objective_score,
+          speaking_score,
+          final_score,
+          speaking_uploaded_count,
+          speaking_expected_count,
+          finalized_at,
           override_count,
           last_override_at,
           last_override_reason,
@@ -278,6 +307,10 @@ async function runListQueries({ listQuery, whereClause, params, includeOverrideT
           COUNT(*) FILTER (WHERE published_at IS NOT NULL)::int AS published_results,
           COUNT(*) FILTER (WHERE viewed_at IS NOT NULL)::int AS viewed_results,
           COUNT(*) FILTER (WHERE published_at IS NULL OR result_status = 'NOT_READY')::int AS pending_publish,
+          COUNT(*) FILTER (
+            WHERE scholarship_submission_status IS NOT NULL
+              AND scholarship_submission_status <> 'FINALIZED'
+          )::int AS scholarship_pending_finalize,
           COUNT(*) FILTER (WHERE override_count > 0)::int AS overridden_results
         FROM result_rows
         ${whereClause}

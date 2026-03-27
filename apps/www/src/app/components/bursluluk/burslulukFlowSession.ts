@@ -1,3 +1,5 @@
+import type { ScholarshipExamSession } from '../../api/examApi';
+
 export interface BurslulukCandidateSession {
   applicationNo: string;
   candidateCode?: string;
@@ -27,12 +29,16 @@ export interface BurslulukCandidateSession {
   campaignCode: string;
   examOpenAt: string;
   examSlotLabel?: string;
+  scholarshipExam?: ScholarshipExamSession;
   createdAt: string;
 }
 
 export interface BurslulukExamDraft {
   attemptId: string;
   answers: Record<string, string>;
+  objectiveAnswers?: Record<string, string | null>;
+  speakingResponses?: Record<string, unknown>;
+  currentQuestionIndex?: number;
   remainingSeconds: number;
   updatedAt: string;
 }
@@ -112,7 +118,7 @@ export function readCandidateSession() {
       ...parsed,
       grade: normalizeGrade(parsed.grade),
       ageRange: parsed.ageRange || deriveAgeRangeFromGrade(normalizeGrade(parsed.grade)),
-      questionCount: Number(parsed.questionCount || 40),
+      questionCount: Number(parsed.questionCount || parsed.scholarshipExam?.questionCount || 40),
       examOpenAt: parsed.examOpenAt || resolveDefaultExamOpenAt(),
     } as BurslulukCandidateSession;
   } catch {

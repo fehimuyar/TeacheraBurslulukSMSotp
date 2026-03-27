@@ -588,7 +588,6 @@ export default function Bursluluk2026Page() {
         language: APPLICATION_LANGUAGE,
         source: 'bursluluk_2026_landing_form',
         campaignCode: CAMPAIGN_CODE,
-        questionCount: QUESTION_COUNT,
         attribution: attribution,
         consent: {
           kvkkApproved: true,
@@ -602,6 +601,7 @@ export default function Bursluluk2026Page() {
       const session = response.session;
       saveCandidateSession({
         applicationNo: session.applicationNo,
+        candidateCode: session.candidateCode,
         attemptId: session.attemptId,
         sessionToken: session.sessionToken,
         candidateId: session.candidateId,
@@ -624,9 +624,11 @@ export default function Bursluluk2026Page() {
         selectedSessionLabel: selectedSession?.label || undefined,
         ageRange,
         language: APPLICATION_LANGUAGE,
-        questionCount: QUESTION_COUNT,
+        questionCount: Number(session.scholarshipExam?.questionCount || QUESTION_COUNT),
         campaignCode: CAMPAIGN_CODE,
         examOpenAt,
+        examSlotLabel: session.examSlotLabel,
+        scholarshipExam: session.scholarshipExam,
       });
 
       savePlacementExamLead({

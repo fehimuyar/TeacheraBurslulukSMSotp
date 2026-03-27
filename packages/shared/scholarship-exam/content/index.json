@@ -1,0 +1,335 @@
+{
+  "examVersionKey": "bursluluk-2026-v1",
+  "grades": [
+    {
+      "examVersionKey": "bursluluk-2026-v1",
+      "grade": "grade-02",
+      "files": {
+        "publicAssessment": "assessment.public.json",
+        "fullAssessment": "assessment.full.json",
+        "answerKey": "answer-key.csv"
+      },
+      "counts": {
+        "questions": 60,
+        "objectiveQuestions": 55,
+        "speakingQuestions": 5,
+        "visualQuestions": 12,
+        "speakingVisuals": 3
+      },
+      "assets": {
+        "visuals": [
+          "assets/visuals/grade-02-q01.png",
+          "assets/visuals/grade-02-q03.png",
+          "assets/visuals/grade-02-q05.png",
+          "assets/visuals/grade-02-q06.png",
+          "assets/visuals/grade-02-q08.png",
+          "assets/visuals/grade-02-q11.png",
+          "assets/visuals/grade-02-q14.png",
+          "assets/visuals/grade-02-q16.png",
+          "assets/visuals/grade-02-q20.png",
+          "assets/visuals/grade-02-q26.png",
+          "assets/visuals/grade-02-q31.png",
+          "assets/visuals/grade-02-q36.png"
+        ],
+        "listening": [
+          "assets/listening/grade-02-listening.mp3"
+        ],
+        "speaking": [
+          "assets/speaking/grade-02-speaking-garfield-shirt.png",
+          "assets/speaking/grade-02-speaking-minnie-angry.png",
+          "assets/speaking/grade-02-speaking-schoolbag.png"
+        ]
+      }
+    },
+    {
+      "examVersionKey": "bursluluk-2026-v1",
+      "grade": "grade-03",
+      "files": {
+        "publicAssessment": "assessment.public.json",
+        "fullAssessment": "assessment.full.json",
+        "answerKey": "answer-key.csv"
+      },
+      "counts": {
+        "questions": 60,
+        "objectiveQuestions": 55,
+        "speakingQuestions": 5,
+        "visualQuestions": 9,
+        "speakingVisuals": 1
+      },
+      "assets": {
+        "visuals": [
+          "assets/visuals/grade-03-q04.png",
+          "assets/visuals/grade-03-q06.png",
+          "assets/visuals/grade-03-q08.png",
+          "assets/visuals/grade-03-q11.png",
+          "assets/visuals/grade-03-q14.png",
+          "assets/visuals/grade-03-q21.png",
+          "assets/visuals/grade-03-q23.png",
+          "assets/visuals/grade-03-q26.png",
+          "assets/visuals/grade-03-q35.png"
+        ],
+        "listening": [
+          "assets/listening/grade-03-listening.mp3"
+        ],
+        "speaking": [
+          "assets/speaking/grade-03-speaking-garfield-happy.png"
+        ]
+      }
+    },
+    {
+      "examVersionKey": "bursluluk-2026-v1",
+      "grade": "grade-04",
+      "files": {
+        "publicAssessment": "assessment.public.json",
+        "fullAssessment": "assessment.full.json",
+        "answerKey": "answer-key.csv"
+      },
+      "counts": {
+        "questions": 60,
+        "objectiveQuestions": 55,
+        "speakingQuestions": 5,
+        "visualQuestions": 10,
+        "speakingVisuals": 2
+      },
+      "assets": {
+        "visuals": [
+          "assets/visuals/grade-04-q01.png",
+          "assets/visuals/grade-04-q04.png",
+          "assets/visuals/grade-04-q09.png",
+          "assets/visuals/grade-04-q11.png",
+          "assets/visuals/grade-04-q14.png",
+          "assets/visuals/grade-04-q16.png",
+          "assets/visuals/grade-04-q21.png",
+          "assets/visuals/grade-04-q26.png",
+          "assets/visuals/grade-04-q30.png",
+          "assets/visuals/grade-04-q35.png"
+        ],
+        "listening": [
+          "assets/listening/grade-04-listening.mp3"
+        ],
+        "speaking": [
+          "assets/speaking/grade-04-speaking-superman.png",
+          "assets/speaking/grade-04-speaking-batman-bicycle.png"
+        ]
+      }
+    },
+    {
+      "examVersionKey": "bursluluk-2026-v1",
+      "grade": "grade-05",
+      "files": {
+        "publicAssessment": "assessment.public.json",
+        "fullAssessment": "assessment.full.json",
+        "answerKey": "answer-key.csv"
+      },
+      "counts": {
+        "questions": 60,
+        "objectiveQuestions": 55,
+        "speakingQuestions": 5,
+        "visualQuestions": 7,
+        "speakingVisuals": 0
+      },
+      "assets": {
+        "visuals": [
+          "assets/visuals/grade-05-q01.png",
+          "assets/visuals/grade-05-q06.png",
+          "assets/visuals/grade-05-q11.png",
+          "assets/visuals/grade-05-q16.png",
+          "assets/visuals/grade-05-q21.png",
+          "assets/visuals/grade-05-q26.png",
+          "assets/visuals/grade-05-q30.png"
+        ],
+        "listening": [
+          "assets/listening/grade-05-listening.mp3"
+        ],
+        "speaking": []
+      }
+    },
+    {
+      "examVersionKey": "bursluluk-2026-v1",
+      "grade": "grade-06",
+      "files": {
+        "publicAssessment": "assessment.public.json",
+        "fullAssessment": "assessment.full.json",
+        "answerKey": "answer-key.csv"
+      },
+      "counts": {
+        "questions": 60,
+        "objectiveQuestions": 55,
+        "speakingQuestions": 5,
+        "visualQuestions": 7,
+        "speakingVisuals": 0
+      },
+      "assets": {
+        "visuals": [
+          "assets/visuals/grade-06-q01.png",
+          "assets/visuals/grade-06-q08.png",
+          "assets/visuals/grade-06-q11.png",
+          "assets/visuals/grade-06-q16.png",
+          "assets/visuals/grade-06-q21.png",
+          "assets/visuals/grade-06-q24.png",
+          "assets/visuals/grade-06-q33.png"
+        ],
+        "listening": [
+          "assets/listening/grade-06-listening.mp3"
+        ],
+        "speaking": []
+      }
+    },
+    {
+      "examVersionKey": "bursluluk-2026-v1",
+      "grade": "grade-07",
+      "files": {
+        "publicAssessment": "assessment.public.json",
+        "fullAssessment": "assessment.full.json",
+        "answerKey": "answer-key.csv"
+      },
+      "counts": {
+        "questions": 60,
+        "objectiveQuestions": 55,
+        "speakingQuestions": 5,
+        "visualQuestions": 8,
+        "speakingVisuals": 0
+      },
+      "assets": {
+        "visuals": [
+          "assets/visuals/grade-07-q01.png",
+          "assets/visuals/grade-07-q05.png",
+          "assets/visuals/grade-07-q10.png",
+          "assets/visuals/grade-07-q16.png",
+          "assets/visuals/grade-07-q20.png",
+          "assets/visuals/grade-07-q26.png",
+          "assets/visuals/grade-07-q31.png",
+          "assets/visuals/grade-07-q35.png"
+        ],
+        "listening": [
+          "assets/listening/grade-07-listening.mp3"
+        ],
+        "speaking": []
+      }
+    },
+    {
+      "examVersionKey": "bursluluk-2026-v1",
+      "grade": "grade-08",
+      "files": {
+        "publicAssessment": "assessment.public.json",
+        "fullAssessment": "assessment.full.json",
+        "answerKey": "answer-key.csv"
+      },
+      "counts": {
+        "questions": 60,
+        "objectiveQuestions": 55,
+        "speakingQuestions": 5,
+        "visualQuestions": 9,
+        "speakingVisuals": 0
+      },
+      "assets": {
+        "visuals": [
+          "assets/visuals/grade-08-q01.png",
+          "assets/visuals/grade-08-q06.png",
+          "assets/visuals/grade-08-q10.png",
+          "assets/visuals/grade-08-q14.png",
+          "assets/visuals/grade-08-q17.png",
+          "assets/visuals/grade-08-q20.png",
+          "assets/visuals/grade-08-q26.png",
+          "assets/visuals/grade-08-q31.png",
+          "assets/visuals/grade-08-q39.png"
+        ],
+        "listening": [
+          "assets/listening/grade-08-listening.mp3"
+        ],
+        "speaking": []
+      }
+    },
+    {
+      "examVersionKey": "bursluluk-2026-v1",
+      "grade": "grade-09",
+      "files": {
+        "publicAssessment": "assessment.public.json",
+        "fullAssessment": "assessment.full.json",
+        "answerKey": "answer-key.csv"
+      },
+      "counts": {
+        "questions": 60,
+        "objectiveQuestions": 55,
+        "speakingQuestions": 5,
+        "visualQuestions": 6,
+        "speakingVisuals": 0
+      },
+      "assets": {
+        "visuals": [
+          "assets/visuals/grade-09-q01.png",
+          "assets/visuals/grade-09-q05.png",
+          "assets/visuals/grade-09-q15.png",
+          "assets/visuals/grade-09-q18.png",
+          "assets/visuals/grade-09-q24.png",
+          "assets/visuals/grade-09-q30.png"
+        ],
+        "listening": [
+          "assets/listening/grade-09-listening.mp3"
+        ],
+        "speaking": []
+      }
+    },
+    {
+      "examVersionKey": "bursluluk-2026-v1",
+      "grade": "grade-10",
+      "files": {
+        "publicAssessment": "assessment.public.json",
+        "fullAssessment": "assessment.full.json",
+        "answerKey": "answer-key.csv"
+      },
+      "counts": {
+        "questions": 60,
+        "objectiveQuestions": 55,
+        "speakingQuestions": 5,
+        "visualQuestions": 9,
+        "speakingVisuals": 0
+      },
+      "assets": {
+        "visuals": [
+          "assets/visuals/grade-10-q01.png",
+          "assets/visuals/grade-10-q05.png",
+          "assets/visuals/grade-10-q09.png",
+          "assets/visuals/grade-10-q13.png",
+          "assets/visuals/grade-10-q15.png",
+          "assets/visuals/grade-10-q18.png",
+          "assets/visuals/grade-10-q23.png",
+          "assets/visuals/grade-10-q26.png",
+          "assets/visuals/grade-10-q31.png"
+        ],
+        "listening": [
+          "assets/listening/grade-10-listening.mp3"
+        ],
+        "speaking": []
+      }
+    },
+    {
+      "examVersionKey": "bursluluk-2026-v1",
+      "grade": "grade-11",
+      "files": {
+        "publicAssessment": "assessment.public.json",
+        "fullAssessment": "assessment.full.json",
+        "answerKey": "answer-key.csv"
+      },
+      "counts": {
+        "questions": 60,
+        "objectiveQuestions": 55,
+        "speakingQuestions": 5,
+        "visualQuestions": 4,
+        "speakingVisuals": 0
+      },
+      "assets": {
+        "visuals": [
+          "assets/visuals/grade-11-q01.png",
+          "assets/visuals/grade-11-q21.png",
+          "assets/visuals/grade-11-q25.png",
+          "assets/visuals/grade-11-q35.png"
+        ],
+        "listening": [
+          "assets/listening/grade-11-listening.mp3"
+        ],
+        "speaking": []
+      }
+    }
+  ]
+}

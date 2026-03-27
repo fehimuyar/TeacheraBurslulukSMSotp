@@ -49,6 +49,20 @@ export interface StartExamSessionPayload {
   contactConsent?: boolean;
 }
 
+export interface ScholarshipExamSession {
+  enabled?: boolean;
+  examVersionKey: string;
+  contentGrade: string;
+  gradeNumber?: number | null;
+  bankKey: string;
+  questionCount: number;
+  objectiveQuestionCount: number;
+  speakingQuestionCount: number;
+  publicContentPath: string;
+  assetBaseUrl: string;
+  sharedShellBaseUrl?: string;
+}
+
 export interface StartExamSessionResponse {
   session: {
     candidateId: string;
@@ -65,6 +79,7 @@ export interface StartExamSessionResponse {
     credentialsSmsStatus?: string;
     credentialsSmsJobId?: string;
     consentVersion?: string;
+    scholarshipExam?: ScholarshipExamSession;
   };
 }
 
@@ -102,6 +117,7 @@ export interface CandidateLoginResponse {
     section?: string | null;
     scheduledExamAt?: string | null;
     examSlotLabel?: string | null;
+    scholarshipExam?: ScholarshipExamSession;
   };
   candidate: {
     studentFullName?: string | null;
@@ -150,6 +166,7 @@ export interface ExamSessionStatusResponse {
     scheduledExamAt?: string | null;
     examSlotLabel?: string | null;
     expiresAt: string;
+    scholarshipExam?: ScholarshipExamSession;
   };
   gate: {
     exam_open: boolean;
@@ -230,6 +247,79 @@ export interface SaveExamAnswersPayload {
 export interface SaveExamAnswersResponse {
   attempt_id: string;
   answered_count: number;
+}
+
+export interface ScholarshipObjectiveAnswerState {
+  questionId: string;
+  selectedOptionId: string | null;
+  savedAt?: string;
+}
+
+export interface ScholarshipSaveExamAnswersPayload {
+  attemptId: string;
+  examVersionKey: string;
+  answers: ScholarshipObjectiveAnswerState[];
+}
+
+export interface ScholarshipSpeakingUploadInitPayload {
+  attemptId: string;
+  examVersionKey: string;
+  questionId: string;
+  mimeType: string;
+  byteSize: number;
+}
+
+export interface ScholarshipSpeakingUploadInitResponse {
+  responseId: string;
+  uploadUrl: string;
+  uploadMethod?: 'PUT' | 'POST';
+  uploadHeaders?: Record<string, string>;
+  expiresAt?: string;
+}
+
+export interface ScholarshipSpeakingUploadTarget {
+  uploadUrl: string;
+  uploadMethod?: 'PUT' | 'POST';
+  uploadHeaders?: Record<string, string>;
+}
+
+export interface ScholarshipSpeakingUploadCompletePayload {
+  attemptId: string;
+  examVersionKey: string;
+  questionId: string;
+  responseId: string;
+  durationSeconds: number;
+  mimeType: string;
+  byteSize: number;
+}
+
+export interface ScholarshipSpeakingUploadCompleteResponse {
+  responseId: string;
+  storageKey: string;
+  status: 'uploaded';
+}
+
+export interface ScholarshipSubmitExamPayload {
+  attemptId: string;
+  examVersionKey: string;
+  objectiveAnswers: Array<{
+    questionId: string;
+    selectedOptionId: string | null;
+  }>;
+  speakingResponses: Array<{
+    questionId: string;
+    responseId: string;
+  }>;
+}
+
+export interface ScholarshipSubmitExamResponse {
+  status: 'evaluation_pending' | 'finalized';
+  finalScore?: number;
+}
+
+export interface ScholarshipResultStatusResponse {
+  status: 'started' | 'evaluation_pending' | 'finalized' | 'timeout';
+  finalScore?: number;
 }
 
 export interface TrackExamRuntimeEventPayload {
@@ -462,6 +552,24 @@ export async function getExamSessionStatus(sessionToken: string, attemptId: stri
   return parseApiResponse<ExamSessionStatusResponse>(response);
 }
 
+export async function getScholarshipResultStatus(
+  sessionToken: string,
+  attemptId: string,
+): Promise<ScholarshipResultStatusResponse> {
+  const endpoint = new URL(resolveExamEndpoint('/api/exam/session/result-status'));
+  endpoint.searchParams.set('attemptId', String(attemptId || '').trim());
+
+  const response = await fetch(endpoint.toString(), {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+      'x-exam-session-token': sessionToken,
+    },
+  });
+
+  return parseApiResponse<ScholarshipResultStatusResponse>(response);
+}
+
 export async function renewCandidateCredentials(
   sessionToken: string | null | undefined,
   payload: RenewCandidateCredentialsPayload,
@@ -514,6 +622,93 @@ export async function saveExamAnswers(
   });
 
   return parseApiResponse<SaveExamAnswersResponse>(response);
+}
+
+export async function saveScholarshipExamAnswers(
+  sessionToken: string,
+  payload: ScholarshipSaveExamAnswersPayload,
+): Promise<SaveExamAnswersResponse> {
+  const response = await fetch(resolveExamEndpoint('/api/exam/session/answer'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'x-exam-session-token': sessionToken,
+    },
+    body: JSON.stringify(payload),
+    keepalive: true,
+  });
+
+  return parseApiResponse<SaveExamAnswersResponse>(response);
+}
+
+export async function initScholarshipSpeakingUpload(
+  sessionToken: string,
+  payload: ScholarshipSpeakingUploadInitPayload,
+): Promise<ScholarshipSpeakingUploadInitResponse> {
+  const response = await fetch(resolveExamEndpoint('/api/exam/session/speaking/init'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'x-exam-session-token': sessionToken,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return parseApiResponse<ScholarshipSpeakingUploadInitResponse>(response);
+}
+
+export async function uploadScholarshipSpeakingBlob(
+  target: ScholarshipSpeakingUploadTarget,
+  blob: Blob,
+): Promise<void> {
+  const response = await fetch(target.uploadUrl, {
+    method: target.uploadMethod || 'PUT',
+    headers: target.uploadHeaders,
+    body: blob,
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    const reason = typeof payload === 'object' && payload && 'message' in payload ? String(payload.message) : `HTTP ${response.status}`;
+    throw new Error(reason);
+  }
+}
+
+export async function completeScholarshipSpeakingUpload(
+  sessionToken: string,
+  payload: ScholarshipSpeakingUploadCompletePayload,
+): Promise<ScholarshipSpeakingUploadCompleteResponse> {
+  const response = await fetch(resolveExamEndpoint('/api/exam/session/speaking/complete'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'x-exam-session-token': sessionToken,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return parseApiResponse<ScholarshipSpeakingUploadCompleteResponse>(response);
+}
+
+export async function submitScholarshipExam(
+  sessionToken: string,
+  payload: ScholarshipSubmitExamPayload,
+): Promise<ScholarshipSubmitExamResponse> {
+  const response = await fetch(resolveExamEndpoint('/api/exam/session/submit'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'x-exam-session-token': sessionToken,
+    },
+    body: JSON.stringify(payload),
+    keepalive: true,
+  });
+
+  return parseApiResponse<ScholarshipSubmitExamResponse>(response);
 }
 
 export function saveExamAnswersOnUnload(sessionToken: string, payload: SaveExamAnswersPayload): boolean {

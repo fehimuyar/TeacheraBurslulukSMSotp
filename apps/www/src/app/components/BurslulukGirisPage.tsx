@@ -75,6 +75,7 @@ function updateStoredSession(
     campaignCode: patch.campaignCode || current.campaignCode,
     examOpenAt: patch.examOpenAt || current.examOpenAt,
     examSlotLabel: patch.examSlotLabel ?? current.examSlotLabel,
+    scholarshipExam: patch.scholarshipExam ?? current.scholarshipExam,
   });
 }
 
@@ -256,9 +257,11 @@ export default function BurslulukGirisPage() {
           || (isSameCandidate ? sessionContext?.ageRange : undefined)
           || deriveAgeRangeFromGrade(normalizeGrade(candidate.grade ?? sessionContext?.grade ?? 8)),
         language: session.examLanguage || (isSameCandidate ? sessionContext?.language : undefined) || 'en',
-        questionCount: Number(session.questionCount || QUESTION_COUNT),
+        questionCount: Number(session.questionCount || session.scholarshipExam?.questionCount || QUESTION_COUNT),
         campaignCode: CAMPAIGN_CODE,
         examOpenAt: response.gate?.exam_open_at || sessionContext?.examOpenAt || resolveDefaultExamOpenAt(),
+        examSlotLabel: session.examSlotLabel || sessionContext?.examSlotLabel,
+        scholarshipExam: session.scholarshipExam || sessionContext?.scholarshipExam,
       });
       setSessionContext(savedSession);
 

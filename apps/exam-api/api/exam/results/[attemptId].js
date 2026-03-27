@@ -230,7 +230,14 @@ export default async function handler(req, res) {
       }
 
       const row = resultLookup.rows[0];
-      if (!loadTestMode && !isPanelRequest && !row.viewed_at) {
+      const normalizedResultStatus = safeTrim(row.status).toUpperCase();
+      const isCandidateViewable = Boolean(row.published_at) || ['PUBLISHED', 'VIEWED'].includes(normalizedResultStatus);
+
+      if (!loadTestMode && !isPanelRequest && !isCandidateViewable) {
+        throw new HttpError(404, 'Result is not published yet.', 'result_not_published');
+      }
+
+      if (!loadTestMode && !isPanelRequest && isCandidateViewable && !row.viewed_at) {
         await client.query(
           `
             UPDATE results

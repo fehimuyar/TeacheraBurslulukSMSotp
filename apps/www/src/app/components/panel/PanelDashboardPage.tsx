@@ -10,7 +10,7 @@ import NotificationCenterPanel from './NotificationCenterPanel';
 import OperationsCenterPanel from './OperationsCenterPanel';
 import PanelAuditTrailPanel from './PanelAuditTrailPanel';
 import ReportsPanel from './ReportsPanel';
-import ResultsScholarshipPanel from './ResultsScholarshipPanel';
+import ResultReviewPanel from './ResultReviewPanel';
 import SystemStatusPanel from './SystemStatusPanel';
 import UserPermissionPanel from './UserPermissionPanel';
 import PanelSidebar from './PanelSidebar';
@@ -216,7 +216,7 @@ export default function PanelDashboardPage() {
           : <CandidateOperationsPanel active seedQuery={appliedGlobalSearch} seedCampaignCode={appliedCampaign} role={identity?.role} permissions={identity?.permissions} />}
       </div>
     );
-    if (activeView === 'results') return <ResultsScholarshipPanel role={identity?.role} />;
+    if (activeView === 'results') return <ResultReviewPanel active role={identity?.role} permissions={identity?.permissions} />;
     if (activeView === 'operations') return <OperationsCenterPanel role={identity?.role} permissions={identity?.permissions} focus={activeFocus || 'exam-assign'} campaignCode={appliedCampaign} />;
     if (activeView === 'reports') return <ReportsPanel role={identity?.role} focus={activeFocus || 'sales'} />;
     if (activeView === 'appointments') return <AppointmentsPanel role={identity?.role} focus={activeFocus || 'schedule'} />;

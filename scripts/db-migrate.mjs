@@ -16,6 +16,53 @@ async function listMigrationFiles(migrationsDir) {
     .sort();
 }
 
+function parseCliArgs(argv) {
+  const options = {
+    from: '',
+    files: [],
+  };
+
+  for (const arg of argv) {
+    const value = String(arg || '').trim();
+    if (!value) continue;
+    if (value.startsWith('--from=')) {
+      options.from = value.slice('--from='.length).trim();
+      continue;
+    }
+    if (value.startsWith('--files=')) {
+      options.files = value
+        .slice('--files='.length)
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+  }
+
+  return options;
+}
+
+function filterMigrationFiles(migrationFiles, options) {
+  if (Array.isArray(options.files) && options.files.length > 0) {
+    const allowed = new Set(options.files);
+    const selected = migrationFiles.filter((fileName) => allowed.has(fileName));
+    const missing = options.files.filter((fileName) => !migrationFiles.includes(fileName));
+    if (missing.length > 0) {
+      throw new Error(`Requested migration files were not found: ${missing.join(', ')}`);
+    }
+    return selected;
+  }
+
+  if (options.from) {
+    const startIndex = migrationFiles.indexOf(options.from);
+    if (startIndex === -1) {
+      throw new Error(`Migration file not found for --from: ${options.from}`);
+    }
+    return migrationFiles.slice(startIndex);
+  }
+
+  return migrationFiles;
+}
+
 async function main() {
   const connectionString = resolveDatabaseUrl();
   if (!connectionString) {
@@ -26,7 +73,9 @@ async function main() {
   const currentFile = fileURLToPath(import.meta.url);
   const rootDir = path.resolve(path.dirname(currentFile), '..');
   const migrationsDir = path.join(rootDir, 'db', 'migrations');
-  const migrationFiles = await listMigrationFiles(migrationsDir);
+  const allMigrationFiles = await listMigrationFiles(migrationsDir);
+  const options = parseCliArgs(process.argv.slice(2));
+  const migrationFiles = filterMigrationFiles(allMigrationFiles, options);
 
   if (migrationFiles.length === 0) {
     console.log('Migration dosyası bulunamadı.');

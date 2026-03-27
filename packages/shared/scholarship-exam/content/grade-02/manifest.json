@@ -1,0 +1,40 @@
+{
+  "examVersionKey": "bursluluk-2026-v1",
+  "grade": "grade-02",
+  "files": {
+    "publicAssessment": "assessment.public.json",
+    "fullAssessment": "assessment.full.json",
+    "answerKey": "answer-key.csv"
+  },
+  "counts": {
+    "questions": 60,
+    "objectiveQuestions": 55,
+    "speakingQuestions": 5,
+    "visualQuestions": 12,
+    "speakingVisuals": 3
+  },
+  "assets": {
+    "visuals": [
+      "assets/visuals/grade-02-q01.png",
+      "assets/visuals/grade-02-q03.png",
+      "assets/visuals/grade-02-q05.png",
+      "assets/visuals/grade-02-q06.png",
+      "assets/visuals/grade-02-q08.png",
+      "assets/visuals/grade-02-q11.png",
+      "assets/visuals/grade-02-q14.png",
+      "assets/visuals/grade-02-q16.png",
+      "assets/visuals/grade-02-q20.png",
+      "assets/visuals/grade-02-q26.png",
+      "assets/visuals/grade-02-q31.png",
+      "assets/visuals/grade-02-q36.png"
+    ],
+    "listening": [
+      "assets/listening/grade-02-listening.mp3"
+    ],
+    "speaking": [
+      "assets/speaking/grade-02-speaking-garfield-shirt.png",
+      "assets/speaking/grade-02-speaking-minnie-angry.png",
+      "assets/speaking/grade-02-speaking-schoolbag.png"
+    ]
+  }
+}

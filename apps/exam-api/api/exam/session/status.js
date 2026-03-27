@@ -6,6 +6,7 @@ import { enqueueExamOpenSmsIfNeeded } from '../../_lib/examOpenSms.js';
 import { handleRequest, methodGuard, ok, safeTrim } from '../../_lib/http.js';
 import { decryptPii } from '../../_lib/piiCrypto.js';
 import { requireExamSession } from '../../_lib/sessionAuth.js';
+import { resolveScholarshipExamContext } from '../../_lib/scholarshipExam.js';
 
 function resolveCandidateGateStatus(gate, scheduledExamAtRaw) {
   const scheduledAt = scheduledExamAtRaw instanceof Date
@@ -77,7 +78,10 @@ export default async function handler(req, res) {
           ea.exam_slot_label,
           ea.campaign_code,
           ea.candidate_id,
+          ea.bank_key,
+          ea.source AS attempt_source,
           a.application_no,
+          c.grade,
           g.phone_e164 AS parent_phone_e164_legacy,
           g.phone_e164_enc AS parent_phone_e164_enc
         FROM exam_attempts ea
@@ -99,6 +103,11 @@ export default async function handler(req, res) {
     const gate = resolveCandidateGateStatus(baseGate, row.scheduled_exam_at);
     const runtime = resolveExamRuntimeWindow(row.started_at);
     const parentPhoneE164 = await decryptPii(row.parent_phone_e164_enc, row.parent_phone_e164_legacy);
+    const scholarshipExam = resolveScholarshipExamContext({
+      grade: row.grade,
+      bankKey: row.bank_key,
+      source: row.attempt_source,
+    });
 
     let examStatus = row.exam_status;
     if (runtime.timed_out && ['STARTED', 'OPEN'].includes(examStatus)) {
@@ -148,6 +157,7 @@ export default async function handler(req, res) {
         scheduledExamAt: row.scheduled_exam_at || null,
         examSlotLabel: row.exam_slot_label || null,
         expiresAt: session.expires_at,
+        scholarshipExam: scholarshipExam || undefined,
       },
       gate,
       runtime,

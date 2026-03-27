@@ -1,0 +1,88 @@
+name: Scholarship Exam E2E Smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 3 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scholarship-exam-e2e-smoke-prod
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Scholarship Exam Mini E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NODE_ENV: production
+      DATABASE_URL: ${{ secrets.DATABASE_URL || secrets.POSTGRES_URL }}
+      POSTGRES_URL: ${{ secrets.POSTGRES_URL || secrets.DATABASE_URL }}
+      REDIS_URL: ${{ secrets.REDIS_URL || secrets.UPSTASH_REDIS_URL }}
+      UPSTASH_REDIS_URL: ${{ secrets.UPSTASH_REDIS_URL || secrets.REDIS_URL }}
+      PANEL_SESSION_SECRET: ${{ secrets.PANEL_SESSION_SECRET }}
+      LOAD_TEST_BYPASS_KEY: ${{ secrets.LOAD_TEST_BYPASS_KEY || secrets.CRON_SECRET || secrets.NOTIFICATION_WORKER_SECRET }}
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      NOTIFICATION_WORKER_SECRET: ${{ secrets.NOTIFICATION_WORKER_SECRET }}
+      EXAM_API_BASE_URL: ${{ vars.EXAM_API_BASE_URL || 'https://exam-api.teachera.com.tr' }}
+      PANEL_API_BASE_URL: ${{ vars.PANEL_API_BASE_URL || 'https://panel-api.teachera.com.tr' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Preflight required secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+
+          required_vars=(
+            DATABASE_URL
+            REDIS_URL
+            PANEL_SESSION_SECRET
+            LOAD_TEST_BYPASS_KEY
+          )
+
+          for key in "${required_vars[@]}"; do
+            if [[ -z "${!key:-}" ]]; then
+              missing+=("$key")
+            fi
+          done
+
+          if (( ${#missing[@]} > 0 )); then
+            printf 'Missing required smoke env/secrets: %s\n' "${missing[*]}"
+            exit 1
+          fi
+
+      - name: Run scholarship exam mini E2E smoke
+        run: pnpm run scholarship:exam:e2e:smoke
+
+      - name: Upload smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scholarship-exam-e2e-smoke-artifacts
+          path: |
+            guidelines/scholarship-exam-e2e-smoke-latest.json
+            guidelines/scholarship-exam-e2e-smoke-latest.md
+          if-no-files-found: warn
+          retention-days: 14

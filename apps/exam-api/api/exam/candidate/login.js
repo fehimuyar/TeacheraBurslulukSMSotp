@@ -12,6 +12,7 @@ import { enqueueExamOpenSmsIfNeeded } from '../../_lib/examOpenSms.js';
 import { handleRequest, methodGuard, ok, parseBody, safeTrim } from '../../_lib/http.js';
 import { decryptPii } from '../../_lib/piiCrypto.js';
 import { enforceRateLimit, getRequestIp } from '../../_lib/redisRateLimit.js';
+import { resolveScholarshipExamContext } from '../../_lib/scholarshipExam.js';
 
 function normalizeUsername(value) {
   return safeTrim(value).toUpperCase().slice(0, 60);
@@ -221,7 +222,9 @@ export default async function handler(req, res) {
           ea.status AS exam_status,
           ea.exam_language,
           ea.exam_age_range,
+          ea.bank_key,
           ea.question_count,
+          ea.source AS attempt_source,
           ea.scheduled_exam_at,
           ea.exam_slot_label,
           st.token_hash,
@@ -282,6 +285,11 @@ export default async function handler(req, res) {
     const baseGate = await resolveExamGateStatus(row.campaign_code);
     const gate = resolveCandidateGateStatus(baseGate, row.scheduled_exam_at);
     const parentPhoneE164 = await decryptPii(row.parent_phone_e164_enc, row.parent_phone_e164_legacy);
+    const scholarshipExam = resolveScholarshipExamContext({
+      grade: row.grade,
+      bankKey: row.bank_key,
+      source: row.attempt_source,
+    });
 
     if (gate.exam_open) {
       try {
@@ -313,6 +321,7 @@ export default async function handler(req, res) {
         scheduledExamAt: row.scheduled_exam_at || null,
         examSlotLabel: row.exam_slot_label || null,
         section: row.section || null,
+        scholarshipExam: scholarshipExam || undefined,
       },
       candidate: {
         studentFullName: safeTrim(row.student_full_name_legacy) || null,

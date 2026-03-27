@@ -1,3 +1,4 @@
+// AUTO-GENERATED FROM packages/shared/backend. DO NOT EDIT DIRECTLY.
 import { PANEL_PERMISSIONS, ROLES } from './constants.js';
 import { safeTrim } from './http.js';
 

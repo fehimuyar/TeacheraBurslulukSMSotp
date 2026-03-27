@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { panelFetch } from '../../api/panelApi';
+import { panelApiHref, panelFetch } from '../../api/panelApi';
 import { canOverrideResults, canPublishResults, isReadOnlyPanelRole } from './panelRoleAccess';
 
 type ResultRow = {
@@ -20,6 +20,13 @@ type ResultRow = {
   cefr_band: string | null;
   published_at: string | null;
   viewed_at: string | null;
+  scholarship_submission_status?: string | null;
+  objective_score?: number | null;
+  speaking_score?: number | null;
+  final_score?: number | null;
+  speaking_uploaded_count?: number | null;
+  speaking_expected_count?: number | null;
+  finalized_at?: string | null;
   override_count: number | null;
   last_override_at: string | null;
   last_override_reason: string | null;
@@ -32,6 +39,7 @@ type ResultsSummary = {
   published_results?: number;
   viewed_results?: number;
   pending_publish?: number;
+  scholarship_pending_finalize?: number;
   overridden_results?: number;
 };
 
@@ -46,14 +54,71 @@ type ResultsListResponse = {
 };
 
 type ResultsActionResponse = {
-  action?: 'override' | 'publish' | string;
+  action?: 'override' | 'publish' | 'finalize' | string;
   requested?: number;
   updated?: number;
   published?: number;
+  finalized?: number;
   notifications_enqueued?: number;
   sms_notifications_enqueued?: number;
   whatsapp_fallback_enabled?: boolean;
   notifications_skipped_no_recipient?: number;
+  item?: ResultRow;
+  message?: string;
+  error?: string;
+};
+
+type ScholarshipSpeakingQuestion = {
+  question_id: string;
+  question_no: number;
+  prompt: string;
+  visual_asset?: string | null;
+  visual_url?: string | null;
+  max_duration_seconds: number;
+  rubric_max_score: number;
+  rubric_score?: number | null;
+  response?: {
+    response_id: string;
+    mime_type?: string | null;
+    byte_size?: number | null;
+    duration_seconds?: number | null;
+    status?: string | null;
+    audio_url?: string | null;
+  } | null;
+};
+
+type ScholarshipDetailResponse = {
+  result?: ResultRow & {
+    application_no?: string | null;
+    parent_full_name?: string | null;
+    parent_phone_e164?: string | null;
+    exam_language?: string | null;
+    exam_age_range?: string | null;
+  };
+  scholarship?: {
+    submission_status?: string | null;
+    exam_version_key?: string | null;
+    content_grade?: string | null;
+    objective_score?: number | null;
+    objective_percentage?: number | null;
+    objective_question_count?: number | null;
+    objective_answered_count?: number | null;
+    objective_correct_count?: number | null;
+    objective_wrong_count?: number | null;
+    objective_unanswered_count?: number | null;
+    speaking_expected_count?: number | null;
+    speaking_uploaded_count?: number | null;
+    speaking_score?: number | null;
+    final_score?: number | null;
+    submitted_at?: string | null;
+    finalized_at?: string | null;
+    speaking_rubric?: Array<{
+      questionId: string;
+      score: number;
+      maxScore?: number;
+    }>;
+  };
+  speaking_questions?: ScholarshipSpeakingQuestion[];
   message?: string;
   error?: string;
 };
@@ -147,6 +212,22 @@ function toViewedState(value: string | null | undefined) {
   return value ? 'Görüntülendi' : 'Görüntülenmedi';
 }
 
+function toScholarshipStatusLabel(value: string | null | undefined) {
+  const normalized = String(value || '').trim().toUpperCase();
+  if (!normalized) return '-';
+  if (normalized === 'EVALUATION_PENDING') return 'Rubric Bekliyor';
+  if (normalized === 'FINALIZED') return 'Finalize Edildi';
+  return normalized;
+}
+
+function formatDurationSeconds(value: number | null | undefined) {
+  if (!Number.isFinite(value)) return '-';
+  const safe = Math.max(0, Math.trunc(Number(value)));
+  const minutes = Math.floor(safe / 60);
+  const seconds = safe % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
 function buildFiltersPayload(filters: ResultFilters) {
   const payload: Record<string, unknown> = {};
   const campaignCode = filters.campaignCode.trim();
@@ -231,6 +312,11 @@ export default function ResultReviewPanel({
   const [isActionRunning, setIsActionRunning] = useState(false);
   const [message, setMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [detailResultId, setDetailResultId] = useState('');
+  const [detailPayload, setDetailPayload] = useState<ScholarshipDetailResponse | null>(null);
+  const [detailError, setDetailError] = useState('');
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [rubricDraft, setRubricDraft] = useState<Record<string, string>>({});
 
   const canOverride = canOverrideResults(role, permissions);
   const canPublish = canPublishResults(role, permissions);
@@ -298,6 +384,39 @@ export default function ResultReviewPanel({
     setTotal(Number(payload.total || 0));
     setSummary(payload.summary || {});
     setSelectedResultIds((prev) => prev.filter((id) => nextItems.some((item) => item.result_id === id)));
+  };
+
+  const loadScholarshipDetail = async (resultId: string) => {
+    if (!resultId) return;
+    setIsDetailLoading(true);
+    setDetailError('');
+
+    try {
+      const response = await panelFetch(`/api/panel/results/${encodeURIComponent(resultId)}`, {
+        method: 'GET',
+      });
+      const payload = (await response.json()) as ScholarshipDetailResponse;
+      if (!response.ok) {
+        throw new Error(normalizeMessage(payload, 'Scholarship detaylari alinamadi.'));
+      }
+
+      setDetailResultId(resultId);
+      setDetailPayload(payload);
+      setRubricDraft(
+        Object.fromEntries(
+          (payload.speaking_questions || []).map((question) => [
+            question.question_id,
+            String(question.rubric_score ?? 0),
+          ]),
+        ),
+      );
+    } catch (error) {
+      setDetailResultId(resultId);
+      setDetailPayload(null);
+      setDetailError(error instanceof Error ? error.message : 'Scholarship detaylari alinamadi.');
+    } finally {
+      setIsDetailLoading(false);
+    }
   };
 
   const runOverride = async (resultIds: string[]) => {
@@ -404,6 +523,66 @@ export default function ResultReviewPanel({
     }
   };
 
+  const runFinalize = async (resultId: string) => {
+    if (!canOverride) {
+      setErrorMessage('PANEL_RESULTS_OVERRIDE izni olmadan finalize islemi yapilamaz.');
+      return;
+    }
+    if (!detailPayload?.speaking_questions || detailResultId !== resultId || isActionRunning) return;
+
+    setIsActionRunning(true);
+    setMessage('');
+    setErrorMessage('');
+    setDetailError('');
+
+    try {
+      const rubric = detailPayload.speaking_questions.map((question) => {
+        const rawValue = String(rubricDraft[question.question_id] || '').trim();
+        const score = rawValue === '' ? 0 : Number.parseInt(rawValue, 10);
+        if (!Number.isFinite(score)) {
+          throw new Error(`${question.question_no}. soru rubric puani sayisal olmalidir.`);
+        }
+        if (score < 0 || score > Number(question.rubric_max_score || 0)) {
+          throw new Error(
+            `${question.question_no}. soru rubric puani 0 ile ${question.rubric_max_score} arasinda olmalidir.`,
+          );
+        }
+        return {
+          questionId: question.question_id,
+          score,
+        };
+      });
+
+      const response = await panelFetch('/api/panel/results/actions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'finalize',
+          result_ids: [resultId],
+          rubric,
+        }),
+      });
+
+      const payload = (await response.json()) as ResultsActionResponse;
+      if (!response.ok) {
+        throw new Error(normalizeMessage(payload, 'Finalize islemi basarisiz.'));
+      }
+
+      setMessage(
+        `Finalize tamamlandi. Finalized: ${formatNumber(payload.finalized ?? 0)} • Result: ${formatNumber(Number(payload.item?.result_score || 0))}`,
+      );
+      await refreshList();
+      await loadScholarshipDetail(resultId);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Finalize islemi tamamlanamadi.');
+    } finally {
+      setIsActionRunning(false);
+    }
+  };
+
   return (
     <section className="rounded-[22px] border border-[#1A273A] bg-[#071021]/82 p-5 shadow-[0_14px_38px_rgba(0,0,0,0.28)] lg:col-span-2">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -436,6 +615,10 @@ export default function ResultReviewPanel({
         <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
           <p className="text-[12px] text-white/50">Override Edilen</p>
           <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary.overridden_results)}</p>
+        </div>
+        <div className="rounded-xl border border-[#1A273A] bg-[#071021]/92 p-3">
+          <p className="text-[12px] text-white/50">Finalize Bekleyen</p>
+          <p className="mt-1 text-[22px] font-semibold text-white">{formatNumber(summary.scholarship_pending_finalize)}</p>
         </div>
       </div>
 
@@ -672,6 +855,20 @@ export default function ResultReviewPanel({
         >
           Toplu Publish ({selectedResultIds.length})
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (selectedResultIds.length !== 1) {
+              setErrorMessage('Rubric inceleme icin tek bir sonuc secin.');
+              return;
+            }
+            void loadScholarshipDetail(selectedResultIds[0]);
+          }}
+          disabled={isActionRunning || selectedResultIds.length !== 1}
+          className="rounded-xl border border-[#1A273A] bg-[#0A192B]/90 px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+        >
+          Rubric Incele
+        </button>
       </div>
 
       {message ? (
@@ -680,12 +877,154 @@ export default function ResultReviewPanel({
       {errorMessage ? (
         <p className="mt-3 rounded-lg border border-[#6F2824] bg-[#2B1214]/80 px-3 py-2 text-[12px] text-[#FFB8B1]">{errorMessage}</p>
       ) : null}
+      {detailError ? (
+        <p className="mt-3 rounded-lg border border-[#6F2824] bg-[#2B1214]/80 px-3 py-2 text-[12px] text-[#FFB8B1]">{detailError}</p>
+      ) : null}
+
+      {(isDetailLoading || detailPayload || detailError) ? (
+        <section className="mt-4 rounded-xl border border-[#1A273A] bg-[#071021]/92 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-white/58">Scholarship Review</p>
+              <h4 className="mt-1 text-[18px] font-semibold text-white">
+                {detailPayload?.result?.student_full_name || 'Rubric detayi'}
+              </h4>
+              <p className="mt-1 text-[12px] text-white/58">
+                {detailPayload?.scholarship?.content_grade || '-'} • {toScholarshipStatusLabel(detailPayload?.scholarship?.submission_status)}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              {detailPayload?.result?.result_id ? (
+                <button
+                  type="button"
+                  onClick={() => void runFinalize(detailPayload.result?.result_id || '')}
+                  disabled={!canOverride || isActionRunning || isDetailLoading}
+                  className="rounded-xl bg-[#D92E27] px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.11em] text-white transition hover:bg-[#bf251f] disabled:cursor-not-allowed disabled:opacity-55"
+                >
+                  Finalize Et
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => {
+                  setDetailResultId('');
+                  setDetailPayload(null);
+                  setRubricDraft({});
+                  setDetailError('');
+                }}
+                className="rounded-xl border border-[#1A273A] bg-[#0A192B]/90 px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.11em] text-white/78 transition hover:border-[#2D4363]"
+              >
+                Kapat
+              </button>
+            </div>
+          </div>
+
+          {isDetailLoading ? (
+            <p className="mt-4 text-[13px] text-white/65">Scholarship detaylari yukleniyor...</p>
+          ) : null}
+
+          {detailPayload ? (
+            <div className="mt-4 space-y-4">
+              <div className="grid gap-3 lg:grid-cols-2">
+                <article className="rounded-xl border border-[#1A273A] bg-[#030B18] p-3">
+                  <p className="text-[11px] uppercase tracking-[0.1em] text-white/56">Aday</p>
+                  <div className="mt-2 space-y-1 text-[12px] text-white/78">
+                    <p>Ogrenci: {detailPayload.result?.student_full_name || '-'}</p>
+                    <p>Veli: {detailPayload.result?.parent_full_name || '-'}</p>
+                    <p>Telefon: {detailPayload.result?.parent_phone_e164 || '-'}</p>
+                    <p>Okul: {detailPayload.result?.school_name || '-'}</p>
+                    <p>Sinif: {detailPayload.result?.grade ?? '-'}</p>
+                  </div>
+                </article>
+                <article className="rounded-xl border border-[#1A273A] bg-[#030B18] p-3">
+                  <p className="text-[11px] uppercase tracking-[0.1em] text-white/56">Objective Ozet</p>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2 text-[12px] text-white/78">
+                    <p>Skor: {formatNumber(Number(detailPayload.scholarship?.objective_score || 0))}</p>
+                    <p>Yuzde: {formatPercent(detailPayload.scholarship?.objective_percentage)}</p>
+                    <p>Dogru: {formatNumber(Number(detailPayload.scholarship?.objective_correct_count || 0))}</p>
+                    <p>Yanlis: {formatNumber(Number(detailPayload.scholarship?.objective_wrong_count || 0))}</p>
+                    <p>Bos: {formatNumber(Number(detailPayload.scholarship?.objective_unanswered_count || 0))}</p>
+                    <p>Speaking Upload: {formatNumber(Number(detailPayload.scholarship?.speaking_uploaded_count || 0))} / {formatNumber(Number(detailPayload.scholarship?.speaking_expected_count || 0))}</p>
+                  </div>
+                </article>
+              </div>
+
+              <div className="space-y-3">
+                {(detailPayload.speaking_questions || []).map((question) => (
+                  <article key={question.question_id} className="rounded-xl border border-[#1A273A] bg-[#030B18] p-3">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.1em] text-white/56">
+                          Speaking {question.question_no}
+                        </p>
+                        <p className="mt-2 text-[14px] font-semibold text-white">{question.prompt}</p>
+                        <p className="mt-1 text-[12px] text-white/58">
+                          Maks sure: {formatDurationSeconds(question.max_duration_seconds)} • Maks rubric: {question.rubric_max_score}
+                        </p>
+                      </div>
+                      <div className="min-w-[140px]">
+                        <label className="text-[11px] uppercase tracking-[0.1em] text-white/56">Rubric</label>
+                        <select
+                          value={rubricDraft[question.question_id] ?? String(question.rubric_score ?? 0)}
+                          onChange={(event) =>
+                            setRubricDraft((prev) => ({
+                              ...prev,
+                              [question.question_id]: event.target.value,
+                            }))
+                          }
+                          disabled={!canOverride || isActionRunning}
+                          className="mt-2 h-[40px] w-full rounded-lg border border-[#1A273A] bg-[#071021] px-3 text-[12px] text-white outline-none focus:border-[#2D4363]"
+                        >
+                          {Array.from({ length: Number(question.rubric_max_score || 0) + 1 }, (_, index) => (
+                            <option key={`${question.question_id}-${index}`} value={String(index)}>
+                              {index}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {question.visual_url ? (
+                      <img
+                        src={question.visual_url}
+                        alt={`Speaking visual ${question.question_no}`}
+                        className="mt-3 max-h-[220px] rounded-lg border border-[#1A273A] object-contain"
+                      />
+                    ) : null}
+
+                    <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px]">
+                      <div className="space-y-1 text-[12px] text-white/70">
+                        <p>Upload durum: {question.response?.status || 'Yanit yok'}</p>
+                        <p>Sure: {formatDurationSeconds(question.response?.duration_seconds)}</p>
+                        <p>MIME: {question.response?.mime_type || '-'}</p>
+                      </div>
+                      {question.response?.audio_url ? (
+                        <audio
+                          controls
+                          src={panelApiHref(question.response.audio_url)}
+                          className="w-full"
+                        >
+                          Tarayici ses oynatmayi desteklemiyor.
+                        </audio>
+                      ) : (
+                        <div className="rounded-lg border border-dashed border-[#1A273A] px-3 py-3 text-[12px] text-white/52">
+                          Bu prompt icin yuklenmis ses kaydi yok.
+                        </div>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       {isLoading ? <p className="mt-3 text-[13px] text-white/65">Sonuç kayıtları yükleniyor...</p> : null}
 
       {!isLoading ? (
         <div className="mt-4 overflow-x-auto">
-          <table className="min-w-[1680px] text-left text-[12px] text-white/80">
+          <table className="min-w-[1860px] text-left text-[12px] text-white/80">
             <thead>
               <tr className="border-b border-white/12 text-white/56">
                 <th className="px-2 py-2">
@@ -712,9 +1051,11 @@ export default function ResultReviewPanel({
                 <th className="px-2 py-2">Okul</th>
                 <th className="px-2 py-2">Sınıf</th>
                 <th className="px-2 py-2">Durum</th>
+                <th className="px-2 py-2">Scholarship</th>
                 <th className="px-2 py-2">Publish</th>
                 <th className="px-2 py-2">Viewed</th>
                 <th className="px-2 py-2">Skor / Yüzde</th>
+                <th className="px-2 py-2">Objective / Speaking</th>
                 <th className="px-2 py-2">Placement / CEFR</th>
                 <th className="px-2 py-2">Override</th>
                 <th className="px-2 py-2">Güncelleme</th>
@@ -724,7 +1065,7 @@ export default function ResultReviewPanel({
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={15} className="px-2 py-6 text-center text-white/55">
+                  <td colSpan={17} className="px-2 py-6 text-center text-white/55">
                     Filtreye uygun sonuç kaydı bulunamadı.
                   </td>
                 </tr>
@@ -759,11 +1100,23 @@ export default function ResultReviewPanel({
                   <td className="px-2 py-2">{item.school_name || '-'}</td>
                   <td className="px-2 py-2">{item.grade ? String(item.grade) : '-'}</td>
                   <td className="px-2 py-2">{toResultStatusLabel(item.result_status)}</td>
+                  <td className="px-2 py-2">
+                    <p>{toScholarshipStatusLabel(item.scholarship_submission_status)}</p>
+                    <p className="text-[11px] text-white/56">
+                      {formatNumber(Number(item.speaking_uploaded_count || 0))} / {formatNumber(Number(item.speaking_expected_count || 0))}
+                    </p>
+                  </td>
                   <td className="px-2 py-2">{toPublishState(item.published_at)}</td>
                   <td className="px-2 py-2">{toViewedState(item.viewed_at)}</td>
                   <td className="px-2 py-2">
                     {Number.isFinite(item.result_score) ? Number(item.result_score).toFixed(2) : '-'} /{' '}
                     {formatPercent(item.result_percentage)}
+                  </td>
+                  <td className="px-2 py-2">
+                    <p>{Number.isFinite(item.objective_score) ? Number(item.objective_score).toFixed(2) : '-'}</p>
+                    <p className="text-[11px] text-white/56">
+                      {Number.isFinite(item.speaking_score) ? Number(item.speaking_score).toFixed(2) : '-'}
+                    </p>
                   </td>
                   <td className="px-2 py-2">
                     <p>{item.placement_label || '-'}</p>
@@ -777,6 +1130,14 @@ export default function ResultReviewPanel({
                   <td className="px-2 py-2">{formatDate(item.updated_at)}</td>
                   <td className="px-2 py-2">
                     <div className="flex flex-wrap gap-1">
+                      <button
+                        type="button"
+                        onClick={() => void loadScholarshipDetail(item.result_id)}
+                        disabled={isActionRunning}
+                        className="rounded-lg border border-[#1A273A] bg-[#0A192B]/90 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.09em] text-white/78 transition hover:border-[#2D4363] disabled:cursor-not-allowed disabled:opacity-55"
+                      >
+                        Incele
+                      </button>
                       <button
                         type="button"
                         onClick={() => void runOverride([item.result_id])}

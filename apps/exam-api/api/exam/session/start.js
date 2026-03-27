@@ -19,6 +19,7 @@ import { computePiiLookupHash, encryptPii } from '../../_lib/piiCrypto.js';
 import { isRedisUnavailableError } from '../../_lib/redis.js';
 import { writeExamSessionCache } from '../../_lib/redisExamSession.js';
 import { enforceRateLimit, getRequestIp } from '../../_lib/redisRateLimit.js';
+import { resolveScholarshipExamContext } from '../../_lib/scholarshipExam.js';
 
 const REDACTED_NAME = '[ENCRYPTED_PII]';
 const ensuredCampaignCodes = new Set();
@@ -686,6 +687,7 @@ async function startLoadTestSession(client, payload) {
     userAgent,
     consent,
     attribution,
+    scholarshipExam,
   } = payload;
   const schoolId = await resolveSchoolId(client, schoolName);
   const guardianPhone = buildLoadTestGuardianPhoneToken(parentPhoneE164);
@@ -813,6 +815,7 @@ async function startLoadTestSession(client, payload) {
     section,
     scheduledExamAt,
     examSlotLabel,
+    scholarshipExam,
   };
 }
 
@@ -860,6 +863,13 @@ export default async function handler(req, res) {
     const bankKey = optionalString(body.bankKey, 120);
     const questionCountRaw = Number.parseInt(String(body.questionCount ?? 0), 10);
     const questionCount = Number.isFinite(questionCountRaw) ? Math.max(0, Math.min(questionCountRaw, 500)) : 0;
+    const scholarshipExam = resolveScholarshipExamContext({
+      grade,
+      bankKey,
+      source,
+    });
+    const persistedBankKey = scholarshipExam?.bankKey || bankKey || null;
+    const persistedQuestionCount = questionCount > 0 ? questionCount : Number(scholarshipExam?.questionCount || 0);
     const consent = resolveVersionedKvkkConsent(body, loadTestMode);
     const requestIp = getRequestIp(req);
     const userAgent = resolveUserAgent(req);
@@ -925,13 +935,14 @@ export default async function handler(req, res) {
           ageRange,
           language,
           source,
-          bankKey,
-          questionCount,
+          bankKey: persistedBankKey,
+          questionCount: persistedQuestionCount,
           parentPhoneE164,
           requestIp,
           userAgent,
           consent,
           attribution,
+          scholarshipExam,
         });
       }
 
@@ -983,7 +994,18 @@ export default async function handler(req, res) {
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz, $9, 'STARTED', NOW(), $10)
           RETURNING id, started_at
         `,
-        [candidateId, application.id, campaignCode, language, ageRange, bankKey, questionCount, scheduledExamAt, examSlotLabel, source],
+        [
+          candidateId,
+          application.id,
+          campaignCode,
+          language,
+          ageRange,
+          persistedBankKey,
+          persistedQuestionCount,
+          scheduledExamAt,
+          examSlotLabel,
+          source,
+        ],
       );
 
       const attempt = attemptInserted.rows[0];
@@ -1058,6 +1080,7 @@ export default async function handler(req, res) {
         section,
         scheduledExamAt,
         examSlotLabel,
+        scholarshipExam,
       };
     });
 

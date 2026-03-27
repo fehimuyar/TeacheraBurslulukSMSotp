@@ -161,6 +161,7 @@ function updateStoredSession(
 ) {
   return saveCandidateSession({
     applicationNo: patch.applicationNo || current.applicationNo,
+    candidateCode: patch.candidateCode ?? current.candidateCode,
     attemptId: patch.attemptId || current.attemptId,
     sessionToken: patch.sessionToken || current.sessionToken,
     candidateId: patch.candidateId ?? current.candidateId,
@@ -186,6 +187,8 @@ function updateStoredSession(
     questionCount: patch.questionCount ?? current.questionCount,
     campaignCode: patch.campaignCode || current.campaignCode,
     examOpenAt: patch.examOpenAt || current.examOpenAt,
+    examSlotLabel: patch.examSlotLabel ?? current.examSlotLabel,
+    scholarshipExam: patch.scholarshipExam ?? current.scholarshipExam,
   });
 }
 

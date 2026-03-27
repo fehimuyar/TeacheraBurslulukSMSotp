@@ -503,6 +503,52 @@ export async function parseBody(req) {
   });
 }
 
+export async function readRawBody(req, maxBytes = 20 * 1024 * 1024) {
+  const boundedMaxBytes = clampInt(maxBytes, 1024, 100 * 1024 * 1024, 20 * 1024 * 1024);
+
+  if (Buffer.isBuffer(req.body)) {
+    if (req.body.length > boundedMaxBytes) {
+      throw new HttpError(413, 'Request body is too large.', 'payload_too_large', {
+        max_bytes: boundedMaxBytes,
+      });
+    }
+    return req.body;
+  }
+
+  if (typeof req.body === 'string') {
+    const buffer = Buffer.from(req.body, 'utf8');
+    if (buffer.length > boundedMaxBytes) {
+      throw new HttpError(413, 'Request body is too large.', 'payload_too_large', {
+        max_bytes: boundedMaxBytes,
+      });
+    }
+    return buffer;
+  }
+
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let total = 0;
+
+    req.on('data', (chunk) => {
+      const nextChunk = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      total += nextChunk.length;
+
+      if (total > boundedMaxBytes) {
+        reject(
+          new HttpError(413, 'Request body is too large.', 'payload_too_large', {
+            max_bytes: boundedMaxBytes,
+          }),
+        );
+        return;
+      }
+
+      chunks.push(nextChunk);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', () => reject(new HttpError(400, 'Request body could not be read.', 'invalid_request_body')));
+  });
+}
+
 export function methodGuard(req, allowedMethods) {
   const method = safeTrim(req.method).toUpperCase();
   if (!allowedMethods.includes(method)) {

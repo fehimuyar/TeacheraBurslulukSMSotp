@@ -1,0 +1,28 @@
+{
+  "examVersionKey": "bursluluk-2026-v1",
+  "grade": "grade-11",
+  "files": {
+    "publicAssessment": "assessment.public.json",
+    "fullAssessment": "assessment.full.json",
+    "answerKey": "answer-key.csv"
+  },
+  "counts": {
+    "questions": 60,
+    "objectiveQuestions": 55,
+    "speakingQuestions": 5,
+    "visualQuestions": 4,
+    "speakingVisuals": 0
+  },
+  "assets": {
+    "visuals": [
+      "assets/visuals/grade-11-q01.png",
+      "assets/visuals/grade-11-q21.png",
+      "assets/visuals/grade-11-q25.png",
+      "assets/visuals/grade-11-q35.png"
+    ],
+    "listening": [
+      "assets/listening/grade-11-listening.mp3"
+    ],
+    "speaking": []
+  }
+}

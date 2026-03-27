@@ -1,0 +1,114 @@
+{
+  "ok": true,
+  "overall_pass": true,
+  "timestamp": "2026-03-27T08:02:42.285Z",
+  "grade": "grade-08",
+  "attempt_id": "9314670c-59cf-411c-bd84-aa5769da559c",
+  "result_id": "61540101-ea0b-4d15-b591-729dca83e443",
+  "panel_role": "SUPER_ADMIN",
+  "panel_request_ip": "127.0.0.1",
+  "checks": [
+    {
+      "id": "exam_start",
+      "status": "PASS",
+      "detail": "attempt=9314670c-59cf-411c-bd84-aa5769da559c",
+      "evidence": {}
+    },
+    {
+      "id": "result_status_before_submit",
+      "status": "PASS",
+      "detail": "started",
+      "evidence": {}
+    },
+    {
+      "id": "objective_answer_save",
+      "status": "PASS",
+      "detail": "55 answers saved",
+      "evidence": {}
+    },
+    {
+      "id": "speaking_upload_flow",
+      "status": "PASS",
+      "detail": "5 speaking prompts uploaded",
+      "evidence": {}
+    },
+    {
+      "id": "scholarship_submit",
+      "status": "PASS",
+      "detail": "evaluation_pending",
+      "evidence": {}
+    },
+    {
+      "id": "result_status_after_submit",
+      "status": "PASS",
+      "detail": "evaluation_pending",
+      "evidence": {}
+    },
+    {
+      "id": "db_result_row_after_submit",
+      "status": "PASS",
+      "detail": "result=61540101-ea0b-4d15-b591-729dca83e443",
+      "evidence": {}
+    },
+    {
+      "id": "panel_session_ready",
+      "status": "PASS",
+      "detail": "SUPER_ADMIN via 127.0.0.1",
+      "evidence": {}
+    },
+    {
+      "id": "panel_result_detail",
+      "status": "PASS",
+      "detail": "5 speaking questions",
+      "evidence": {}
+    },
+    {
+      "id": "panel_speaking_audio",
+      "status": "PASS",
+      "detail": "16044 bytes",
+      "evidence": {}
+    },
+    {
+      "id": "panel_finalize",
+      "status": "PASS",
+      "detail": "score=100.00",
+      "evidence": {}
+    },
+    {
+      "id": "result_status_after_finalize",
+      "status": "PASS",
+      "detail": "evaluation_pending",
+      "evidence": {}
+    },
+    {
+      "id": "panel_publish",
+      "status": "PASS",
+      "detail": "notifications=1",
+      "evidence": {}
+    },
+    {
+      "id": "publish_notification_safe_recipient",
+      "status": "PASS",
+      "detail": "lt:905000000000",
+      "evidence": {}
+    },
+    {
+      "id": "result_status_after_publish",
+      "status": "PASS",
+      "detail": "finalScore=100",
+      "evidence": {}
+    },
+    {
+      "id": "candidate_result_fetch",
+      "status": "PASS",
+      "detail": "score=100",
+      "evidence": {}
+    }
+  ],
+  "totals": {
+    "pass": 16,
+    "fail": 0,
+    "warn": 0,
+    "skip": 0
+  }
+}

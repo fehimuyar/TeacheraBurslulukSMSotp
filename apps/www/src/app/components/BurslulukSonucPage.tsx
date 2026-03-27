@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { resolveExamEndpoint, trackResultAppointmentIntent } from '../api/examApi';
+import { getScholarshipResultStatus, resolveExamEndpoint, trackResultAppointmentIntent } from '../api/examApi';
 import { trackEvent } from '../lib/analytics';
 import { readCandidateSession } from './bursluluk/burslulukFlowSession';
 import BurslulukHybridResultOffers from './BurslulukHybridResultOffers';
@@ -28,9 +28,16 @@ interface ResultPayload {
   message?: string;
 }
 
-async function readJsonSafe(response: Response) {
+interface ScholarshipResultStatusPayload {
+  status?: 'started' | 'evaluation_pending' | 'finalized' | 'timeout';
+  finalScore?: number;
+  error?: string;
+  message?: string;
+}
+
+async function readJsonSafe<T>(response: Response) {
   try {
-    return (await response.json()) as ResultPayload;
+    return (await response.json()) as T;
   } catch {
     return null;
   }
@@ -153,6 +160,7 @@ export default function BurslulukSonucPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [payload, setPayload] = useState<ResultPayload | null>(null);
+  const [resultStatus, setResultStatus] = useState<'started' | 'evaluation_pending' | 'finalized' | 'timeout' | ''>('');
   const [isIntentTracked, setIsIntentTracked] = useState(false);
   const [isResultTracked, setIsResultTracked] = useState(false);
 
@@ -166,6 +174,9 @@ export default function BurslulukSonucPage() {
   }, [attemptId, session?.candidateCode]);
 
   useEffect(() => {
+    let timerId: number | null = null;
+    let cancelled = false;
+
     const run = async () => {
       if (!attemptId || !session?.sessionToken) {
         setErrorMessage('Sonuc goruntulemek icin aday oturumu gerekir.');
@@ -176,6 +187,18 @@ export default function BurslulukSonucPage() {
       setIsLoading(true);
       setErrorMessage('');
       try {
+        const lifecycle = await getScholarshipResultStatus(session.sessionToken, attemptId);
+        if (cancelled) return;
+        setResultStatus(lifecycle.status || '');
+
+        if (lifecycle.status !== 'finalized') {
+          setPayload(null);
+          timerId = window.setTimeout(() => {
+            void run();
+          }, 8000);
+          return;
+        }
+
         const response = await fetch(resolveExamEndpoint(`/api/exam/results/${encodeURIComponent(attemptId)}`), {
           method: 'GET',
           headers: {
@@ -184,11 +207,14 @@ export default function BurslulukSonucPage() {
           },
         });
 
-        const json = await readJsonSafe(response);
+        const json = await readJsonSafe<ResultPayload>(response);
         if (!response.ok || !json?.result) {
           const reason = String(json?.message || json?.error || '').trim();
           if (response.status === 404) {
-            setErrorMessage('Sonuc henuz yayinlanmadi. Lutfen daha sonra tekrar kontrol edin.');
+            setResultStatus('evaluation_pending');
+            timerId = window.setTimeout(() => {
+              void run();
+            }, 8000);
           } else {
             setErrorMessage(reason || `Sonuc servisi hatasi (HTTP ${response.status}).`);
           }
@@ -197,12 +223,23 @@ export default function BurslulukSonucPage() {
         }
         setPayload(json);
       } catch {
-        setErrorMessage('Ag hatasi nedeniyle sonuc alinamadi.');
+        if (!cancelled) {
+          setErrorMessage('Ag hatasi nedeniyle sonuc alinamadi.');
+        }
       } finally {
-        setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
     };
     void run();
+
+    return () => {
+      cancelled = true;
+      if (timerId) {
+        window.clearTimeout(timerId);
+      }
+    };
   }, [attemptId, session?.sessionToken]);
 
   const result = payload?.result;
@@ -260,6 +297,12 @@ export default function BurslulukSonucPage() {
   const candidateDisplayName = session?.studentFullName || 'Aday ogrenci';
   const schoolDisplay = session?.schoolName || 'Okul bilgisi bekleniyor';
   const classDisplay = session?.grade ? `${session.grade}. Sinif` : 'Sinif bilgisi bekleniyor';
+  const isPending = !result && ['started', 'evaluation_pending', 'timeout', ''].includes(resultStatus || '');
+  const pendingTitle = resultStatus === 'timeout' ? 'Sure doldu, degerlendirme suruyor' : 'Degerlendirme bekleniyor';
+  const pendingCopy =
+    resultStatus === 'timeout'
+      ? 'Sinav oturumunuz sure limitine ulasti. Objective ve speaking kayitlari kontrol edildikten sonra sonucunuz yayinlandiginda bu ekran otomatik olarak guncellenecektir.'
+      : 'Objective bolumler kaydedildi. Speaking degerlendirmesi ve panel son onayi tamamlandiginda sonucunuz burada gorunecektir.';
 
   if (!session) {
     return (
@@ -278,6 +321,70 @@ export default function BurslulukSonucPage() {
             <Link
               to="/bursluluk/giris"
               className="inline-flex min-h-[52px] items-center justify-center rounded-full bg-[#E70000] px-7 py-3 font-['Neutraface_2_Text:Demi',sans-serif] text-[12px] uppercase tracking-[0.16em] text-white shadow-[0_16px_32px_rgba(231,0,0,0.14)] transition hover:bg-[#C50000] hover:shadow-[0_20px_38px_rgba(231,0,0,0.2)]"
+            >
+              Girise Don
+            </Link>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (isPending) {
+    return (
+      <section className="relative min-h-screen overflow-hidden bg-[#F7F3ED] px-4 pb-16 pt-[118px] sm:px-6 lg:px-12 lg:pb-20 lg:pt-[142px]">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(244,235,209,0.76),transparent_34%),radial-gradient(circle_at_86%_12%,rgba(74,112,103,0.06),transparent_26%),linear-gradient(180deg,#FBF8F3_0%,#F5EFE7_28%,#F7F3ED_54%,#F1E9DE_100%)]" />
+        <div className="pointer-events-none absolute left-[-8%] top-[8%] h-72 w-72 rounded-full bg-[#F4EBD1]/80 blur-3xl" />
+
+        <div className="relative mx-auto max-w-[960px] rounded-[30px] border border-[#DDD3C7] bg-white/88 p-6 shadow-[0_24px_64px_rgba(25,20,15,0.08)] sm:p-8">
+          <SectionLabel>Sonuc Ekrani</SectionLabel>
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_320px]">
+            <div className="rounded-[28px] border border-[#DDD3C7] bg-[linear-gradient(180deg,#FCF8F2_0%,#F5EDE3_100%)] p-6">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <h1 className="font-['Neutraface_2_Display:Titling',sans-serif] text-[30px] uppercase leading-[1.02] tracking-[0.02em] text-[#68232E] sm:text-[36px]">
+                    {pendingTitle}
+                  </h1>
+                  <p className="mt-4 max-w-[58ch] text-[15px] leading-[1.82] text-[#5B4F45] sm:text-[16px] sm:leading-[1.88]">
+                    {pendingCopy}
+                  </p>
+                </div>
+                <div className="rounded-full border border-[#D8CDC0] bg-white/78 px-4 py-2 text-[11px] font-['Neutraface_2_Text:Demi',sans-serif] uppercase tracking-[0.16em] text-[#4A7067]">
+                  {isLoading ? 'Kontrol Ediliyor' : 'Beklemede'}
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                <MetricCard label="Aday Kodu" value={candidateDisplayCode} accent="burgundy" />
+                <MetricCard label="Sinif" value={session?.grade ? `${session.grade}` : '-'} />
+                <MetricCard label="Durum" value={resultStatus === 'timeout' ? 'TIMEOUT' : 'PENDING'} accent="green" />
+              </div>
+
+              {errorMessage ? (
+                <p className="mt-6 rounded-[22px] border border-[#E5B8B1] bg-[#FFF3F1] px-4 py-4 text-[14px] leading-[1.72] text-[#8E3530]">
+                  {errorMessage}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="space-y-4">
+              <DetailCard title="Aday Ozeti">
+                <DetailRow label="Ogrenci" value={candidateDisplayName} />
+                <DetailRow label="Okul" value={schoolDisplay} />
+                <DetailRow label="Sinif" value={classDisplay} />
+              </DetailCard>
+
+              <DetailCard title="Sonraki Adim">
+                <DetailRow label="Kontrol" value={isLoading ? 'Sunucu sonucu kontrol ediyor' : 'Sonuc yayinini bekliyor'} />
+                <DetailRow label="Durum" value={resultStatus === 'timeout' ? 'Sure asimi sonrasi inceleme' : 'Panel onayi bekleniyor'} />
+              </DetailCard>
+            </div>
+          </div>
+
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              to="/bursluluk/giris"
+              className="inline-flex min-h-[52px] items-center justify-center rounded-full border border-[#D8CDC0] bg-white/76 px-6 py-3 text-[12px] font-['Neutraface_2_Text:Demi',sans-serif] uppercase tracking-[0.16em] text-[#5B4F45] transition hover:bg-white"
             >
               Girise Don
             </Link>
