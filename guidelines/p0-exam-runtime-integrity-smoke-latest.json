@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-03-25T09:14:43.497Z",
+  "timestamp": "2026-03-27T09:02:47.806Z",
   "exam_api_base": "https://exam-api.teachera.com.tr",
   "campaign_code": "2026_BURSLULUK",
   "config": {
@@ -11,7 +11,7 @@
     "has_database_url": true,
     "has_load_test_bypass_key": true
   },
-  "attempt_id": "9840ed30-3338-4ed5-a2a5-d60a7d024546",
+  "attempt_id": "949504b8-2637-428c-880b-bed39446502c",
   "totals": {
     "pass": 8,
     "fail": 0,
@@ -26,7 +26,7 @@
       "detail": "HTTP 200",
       "evidence": {
         "status": 200,
-        "attempt_id": "9840ed30-3338-4ed5-a2a5-d60a7d024546",
+        "attempt_id": "949504b8-2637-428c-880b-bed39446502c",
         "has_session_token": true,
         "error": null,
         "message": null
@@ -43,15 +43,15 @@
     {
       "id": "status_runtime_contract",
       "status": "PASS",
-      "detail": "duration=2400 remaining=2398",
+      "detail": "duration=2400 remaining=2396",
       "evidence": {
         "runtime": {
           "duration_seconds": 2400,
-          "started_at": "2026-03-25T09:14:35.035Z",
-          "deadline_at": "2026-03-25T09:54:35.035Z",
-          "server_time_utc": "2026-03-25T09:14:37.130Z",
-          "elapsed_seconds": 2,
-          "remaining_seconds": 2398,
+          "started_at": "2026-03-27T09:02:37.093Z",
+          "deadline_at": "2026-03-27T09:42:37.093Z",
+          "server_time_utc": "2026-03-27T09:02:41.926Z",
+          "elapsed_seconds": 4,
+          "remaining_seconds": 2396,
           "timed_out": false,
           "source": "started_at_plus_duration"
         }
@@ -65,7 +65,7 @@
         "status": 200,
         "expected_event_type": "WINDOW_BLUR",
         "actual_event_type": "WINDOW_BLUR",
-        "event_id": "ce8982cc-a376-4413-823c-edfbc828c8b5"
+        "event_id": "92ba4942-123d-4239-a13a-d44a7668eac7"
       }
     },
     {

@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import pg from 'pg';
 
 function safeTrim(value) {
   return String(value ?? '').trim();
@@ -68,6 +69,68 @@ function readOtpChallenge(payload) {
     challengeToken: safeTrim(otp?.challenge_token || otp?.challengeToken),
     maskedPhone: safeTrim(otp?.masked_phone || otp?.maskedPhone),
   };
+}
+
+function sanitizeConnectionString(value) {
+  const raw = safeTrim(value);
+  if (!raw) return '';
+  try {
+    const url = new URL(raw);
+    if (!['postgres:', 'postgresql:'].includes(url.protocol)) {
+      return raw;
+    }
+    const sslMode = safeTrim(url.searchParams.get('sslmode')).toLowerCase();
+    if (!sslMode || ['prefer', 'require', 'verify-ca'].includes(sslMode)) {
+      url.searchParams.set('sslmode', 'verify-full');
+    }
+    return url.toString();
+  } catch {
+    return raw;
+  }
+}
+
+function resolveDbSslForScript() {
+  const sslMode = safeTrim(process.env.PG_SSL_MODE).toLowerCase();
+  const isProduction = safeTrim(process.env.NODE_ENV).toLowerCase() === 'production';
+  if (sslMode === 'disable') return isProduction ? { rejectUnauthorized: true } : false;
+  if (sslMode === 'relaxed') return isProduction ? { rejectUnauthorized: true } : { rejectUnauthorized: false };
+  if (sslMode === 'strict') return { rejectUnauthorized: true };
+  return isProduction ? { rejectUnauthorized: true } : { rejectUnauthorized: false };
+}
+
+async function readLatestPanelOtpCode(client, { email, maxAgeSeconds = 300 }) {
+  const result = await client.query(
+    `
+      SELECT payload
+      FROM notification_jobs
+      WHERE template_code = 'PANEL_LOGIN_SMS_OTP'
+        AND channel = 'SMS'
+        AND lower(COALESCE(payload->>'email', payload->>'user_email', '')) = lower($1)
+        AND created_at >= NOW() - make_interval(secs => $2::int)
+      ORDER BY created_at DESC
+      LIMIT 1
+    `,
+    [email, maxAgeSeconds],
+  );
+  const payload = result.rows[0]?.payload;
+  const code = safeTrim(payload?.otp_code || payload?.otpCode);
+  return /^\d{6}$/.test(code) ? code : '';
+}
+
+async function waitForPanelOtpCode(pool, { email, maxAttempts = 8, delayMs = 900, maxAgeSeconds = 300 }) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const client = await pool.connect();
+    try {
+      const code = await readLatestPanelOtpCode(client, { email, maxAgeSeconds });
+      if (code) return code;
+    } finally {
+      client.release();
+    }
+    if (attempt < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  return '';
 }
 
 function parseDateLike(value) {
@@ -144,9 +207,18 @@ async function run() {
     panelEmail: safeTrim(process.env.PANEL_EMAIL),
     panelPassword: safeTrim(process.env.PANEL_PASSWORD),
     panelOtpCode: safeTrim(process.env.PANEL_OTP_CODE),
+    panelOtpSource: safeTrim(process.env.PANEL_OTP_CODE) ? 'env' : 'none',
     requireAuth: parseBoolean(process.env.PANEL_STEP21_REQUIRE_AUTH, false),
+    dbConnectionString: sanitizeConnectionString(process.env.DATABASE_URL || process.env.POSTGRES_URL || ''),
   };
   const checks = [];
+  const panelOtpDbPool = cfg.dbConnectionString
+    ? new pg.Pool({
+      connectionString: cfg.dbConnectionString,
+      ssl: resolveDbSslForScript(),
+      max: 1,
+    })
+    : null;
 
   const settingsSource = await fs.readFile(path.join(rootDir, 'apps/panel-api/api/panel/settings/index.js'), 'utf8');
   const releaseGateSource = await fs.readFile(path.join(rootDir, 'apps/panel-api/api/panel/settings/release-gate.js'), 'utf8');
@@ -220,92 +292,111 @@ async function run() {
     ),
   );
 
-  const missingAuth = [];
-  if (!cfg.panelEmail) missingAuth.push('PANEL_EMAIL');
-  if (!cfg.panelPassword) missingAuth.push('PANEL_PASSWORD');
-  if (!cfg.panelOtpCode) missingAuth.push('PANEL_OTP_CODE');
-
   let panelToken = '';
   let panelRole = '';
+  try {
+    const missingAuth = [];
+    if (!cfg.panelEmail) missingAuth.push('PANEL_EMAIL');
+    if (!cfg.panelPassword) missingAuth.push('PANEL_PASSWORD');
+    if (!cfg.panelOtpCode && !panelOtpDbPool) {
+      missingAuth.push('PANEL_OTP_CODE or DATABASE_URL/POSTGRES_URL (for OTP auto-read)');
+    }
 
-  if (missingAuth.length > 0) {
-    const missingStatus = cfg.requireAuth ? 'FAIL' : 'WARN';
-    checks.push(
-      makeCheck(
-        'auth_prerequisites',
-        missingStatus,
-        `Missing auth env: ${missingAuth.join(', ')}`,
-        { missing: missingAuth, require_auth: cfg.requireAuth },
-      ),
-    );
-  } else {
-    const loginResp = await httpRequest({
-      method: 'POST',
-      url: `${cfg.panelApiBase}/api/panel/auth/login`,
-      headers: { 'content-type': 'application/json' },
-      body: {
-        email: cfg.panelEmail,
-        password: cfg.panelPassword,
-      },
-    });
-    const challenge = readOtpChallenge(loginResp.json);
-    const hasChallenge = loginResp.status === 200
-      && loginResp.json?.otp_required === true
-      && challenge.challengeId
-      && challenge.challengeToken;
-
-    let verifyResp = { status: 0, json: null };
-    if (hasChallenge) {
-      verifyResp = await httpRequest({
+    if (missingAuth.length > 0) {
+      const missingStatus = cfg.requireAuth ? 'FAIL' : 'WARN';
+      checks.push(
+        makeCheck(
+          'auth_prerequisites',
+          missingStatus,
+          `Missing auth env: ${missingAuth.join(', ')}`,
+          { missing: missingAuth, require_auth: cfg.requireAuth },
+        ),
+      );
+    } else {
+      const loginResp = await httpRequest({
         method: 'POST',
         url: `${cfg.panelApiBase}/api/panel/auth/login`,
         headers: { 'content-type': 'application/json' },
         body: {
           email: cfg.panelEmail,
           password: cfg.panelPassword,
-          otpCode: cfg.panelOtpCode,
-          challengeId: challenge.challengeId,
-          challengeToken: challenge.challengeToken,
         },
       });
-    }
+      const challenge = readOtpChallenge(loginResp.json);
+      const hasChallenge = loginResp.status === 200
+        && loginResp.json?.otp_required === true
+        && challenge.challengeId
+        && challenge.challengeToken;
 
-    panelToken = safeTrim(verifyResp.json?.session?.token);
-    checks.push(
-      makeCheck(
-        'auth_login',
-        hasChallenge && verifyResp.status === 200 && panelToken ? 'PASS' : 'FAIL',
-        `start:${loginResp.status} verify:${verifyResp.status || 'NA'}`,
-        {
-          start_status: loginResp.status,
-          verify_status: verifyResp.status || null,
-          otp_required: loginResp.json?.otp_required === true,
-          challenge_masked_phone: challenge.maskedPhone || null,
-          has_token: Boolean(panelToken),
-          start_error: loginResp.json?.error || null,
-          verify_error: verifyResp.json?.error || null,
-        },
-      ),
-    );
+      let otpCodeUsed = cfg.panelOtpCode;
+      if (hasChallenge && !otpCodeUsed && panelOtpDbPool) {
+        const autoCode = await waitForPanelOtpCode(panelOtpDbPool, { email: cfg.panelEmail });
+        if (autoCode) {
+          otpCodeUsed = autoCode;
+          cfg.panelOtpSource = 'db_auto';
+        } else {
+          cfg.panelOtpSource = 'db_auto';
+        }
+      }
 
-    if (panelToken) {
-      const meResp = await httpRequest({
-        method: 'GET',
-        url: `${cfg.panelApiBase}/api/panel/auth/me`,
-        headers: { authorization: `Bearer ${panelToken}` },
-      });
-      panelRole = safeTrim(meResp.json?.identity?.role).toUpperCase();
+      let verifyResp = { status: 0, json: null };
+      if (hasChallenge && otpCodeUsed) {
+        verifyResp = await httpRequest({
+          method: 'POST',
+          url: `${cfg.panelApiBase}/api/panel/auth/login`,
+          headers: { 'content-type': 'application/json' },
+          body: {
+            email: cfg.panelEmail,
+            password: cfg.panelPassword,
+            otpCode: otpCodeUsed,
+            challengeId: challenge.challengeId,
+            challengeToken: challenge.challengeToken,
+          },
+        });
+      }
+
+      panelToken = safeTrim(verifyResp.json?.session?.token);
       checks.push(
         makeCheck(
-          'auth_me',
-          meResp.status === 200 ? 'PASS' : 'FAIL',
-          `HTTP ${meResp.status}`,
+          'auth_login',
+          hasChallenge && verifyResp.status === 200 && panelToken ? 'PASS' : 'FAIL',
+          `start:${loginResp.status} verify:${verifyResp.status || 'NA'}`,
           {
-            status: meResp.status,
-            role: panelRole || null,
+            start_status: loginResp.status,
+            verify_status: verifyResp.status || null,
+            otp_required: loginResp.json?.otp_required === true,
+            challenge_masked_phone: challenge.maskedPhone || null,
+            has_token: Boolean(panelToken),
+            otp_source: cfg.panelOtpSource || 'none',
+            start_error: loginResp.json?.error || null,
+            verify_error: verifyResp.json?.error || null,
           },
         ),
       );
+
+      if (panelToken) {
+        const meResp = await httpRequest({
+          method: 'GET',
+          url: `${cfg.panelApiBase}/api/panel/auth/me`,
+          headers: { authorization: `Bearer ${panelToken}` },
+        });
+        panelRole = safeTrim(meResp.json?.identity?.role).toUpperCase();
+        checks.push(
+          makeCheck(
+            'auth_me',
+            meResp.status === 200 ? 'PASS' : 'FAIL',
+            `HTTP ${meResp.status}`,
+            {
+              status: meResp.status,
+              role: panelRole || null,
+            },
+          ),
+        );
+      }
+    }
+  } finally {
+    if (panelOtpDbPool) {
+      await panelOtpDbPool.end();
     }
   }
 

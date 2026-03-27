@@ -1,8 +1,8 @@
 # Panel Step-21 Settings + Release Gate Smoke
 
-- Timestamp: 2026-03-23T11:12:07.150Z
+- Timestamp: 2026-03-27T09:11:36.360Z
 - overall_ready_for_step_21: **true**
-- pass: 5, fail: 0, warn: 1, skip: 5
+- pass: 7, fail: 0, warn: 0, skip: 5
 
 ## Checks
 
@@ -13,10 +13,11 @@
 | static_release_gate_endpoint_marker | PASS | Release-gate endpoint markers found. |
 | unauth_release_gate_read | PASS | HTTP 401 |
 | unauth_settings_write | PASS | HTTP 401 |
-| auth_prerequisites | WARN | Missing auth env: PANEL_EMAIL, PANEL_PASSWORD, PANEL_OTP_CODE |
-| role_super_admin_for_settings_write | SKIP | Missing authenticated panel token. |
-| release_gate_read_authenticated | SKIP | Skipped: Missing authenticated panel token. |
-| settings_baseline_open_at | SKIP | Skipped: Missing authenticated panel token. |
-| canonical_activation_attempt | SKIP | Skipped: Missing authenticated panel token. |
-| legacy_key_rejection_authenticated | SKIP | Skipped: Missing authenticated panel token. |
+| auth_login | PASS | start:200 verify:200 |
+| auth_me | PASS | HTTP 200 |
+| role_super_admin_for_settings_write | SKIP | Role OPERATIONS cannot write settings. |
+| release_gate_read_authenticated | SKIP | Skipped: Role OPERATIONS cannot write settings. |
+| settings_baseline_open_at | SKIP | Skipped: Role OPERATIONS cannot write settings. |
+| canonical_activation_attempt | SKIP | Skipped: Role OPERATIONS cannot write settings. |
+| legacy_key_rejection_authenticated | SKIP | Skipped: Role OPERATIONS cannot write settings. |
 

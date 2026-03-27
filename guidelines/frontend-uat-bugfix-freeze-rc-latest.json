@@ -1,12 +1,12 @@
 {
-  "timestamp": "2026-03-18T04:54:31.474Z",
-  "started_at": "2026-03-18T04:54:17.636Z",
+  "timestamp": "2026-03-27T09:13:40.694Z",
+  "started_at": "2026-03-27T09:13:11.247Z",
   "mode": {
     "http": true,
     "panel_full_auth": false,
-    "require_panel_full_auth": false,
-    "panel_mfa_source": "none",
-    "panel_mfa_resolution_error": null,
+    "require_panel_full_auth": true,
+    "panel_otp_source": "db_auto",
+    "panel_otp_resolution_error": null,
     "load_test_bypass_key_available": true
   },
   "totals": {
@@ -18,8 +18,8 @@
   "blocking_failure_count": 0,
   "overall_ready_for_release_candidate": true,
   "release_candidate": {
-    "id": "rc-frontend-uat-20260318045431",
-    "freeze_started_at": "2026-03-18T04:54:31.474Z",
+    "id": "rc-frontend-uat-20260327091340",
+    "freeze_started_at": "2026-03-27T09:13:40.694Z",
     "notes": "No blocking frontend/API contract regressions detected in this run."
   },
   "checks": [
@@ -146,28 +146,28 @@
     {
       "id": "contract_schools_search",
       "status": "PASS",
-      "detail": "HTTP 200, items=4",
+      "detail": "HTTP 200, items=5",
       "evidence": {
         "url": "https://exam-api.teachera.com.tr/api/schools/search?q=konya&limit=5",
         "status": 200,
         "sample": [
           {
-            "id": "104acafe-fa61-448d-8c6b-5b12b7eb67d1",
-            "name": "KONYA - KARATAY - Hacı Yusuf Mescit Ahmet Haşhaş İlkokulu",
+            "id": "8ae8d1aa-cab3-4b18-8f01-06c6929f78ac",
+            "name": "KONYA   Kaşgarlı Mahmut Ortaokulu",
             "district": null,
             "city": null,
             "source": "db"
           },
           {
-            "id": "c2b83f37-ccb0-4c23-a0f7-865686caa92a",
-            "name": "Konya Anadolu Lisesi",
+            "id": "7b9e7310-7198-4f29-8668-a47e0dbbbca7",
+            "name": "KONYA - KARATAY - Abdülhamid Han Ortaokulu",
             "district": null,
             "city": null,
             "source": "db"
           },
           {
-            "id": "ea8cce84-ad57-4a28-85ee-4a0da81d9bad",
-            "name": "Konya Meram Fen Lisesi",
+            "id": "0ca04ed2-a17e-4fd9-a14f-9acf513afb75",
+            "name": "KONYA - KARATAY - Akabe İlkokulu",
             "district": null,
             "city": null,
             "source": "db"
@@ -207,25 +207,27 @@
       "detail": "HTTP 200",
       "evidence": {
         "status": 200,
-        "attemptId": "812888c3-ba7d-4802-b640-166a0ad44f91",
-        "applicationNo": "20260318-101703",
+        "attemptId": "143fdecf-b133-4ae3-b3bd-3cb735258d10",
+        "applicationNo": "20260327-103716",
         "hasSessionToken": true,
         "loadTestModeUsed": true,
         "body": {
           "ok": true,
           "session": {
-            "candidateId": "e65c874b-b988-4dc4-8cf1-e3a1b0b6f682",
-            "applicationNo": "20260318-101703",
+            "candidateId": "06511ff2-804d-48f3-b6a6-360bbc91e0bd",
+            "applicationNo": "20260327-103716",
+            "candidateCode": "AD103715",
             "applicationStatus": "APPLIED",
-            "attemptId": "812888c3-ba7d-4802-b640-166a0ad44f91",
+            "attemptId": "143fdecf-b133-4ae3-b3bd-3cb735258d10",
             "sessionToken": "[REDACTED]",
-            "expiresAt": "2026-03-18T07:54:22.413Z",
-            "startedAt": "2026-03-18T04:54:21.807Z",
-            "credentialsSmsStatus": "NOT_QUEUED",
+            "expiresAt": "2026-03-27T12:13:15.927Z",
+            "startedAt": "2026-03-27T09:13:14.924Z",
+            "credentialsSmsStatus": "QUEUED",
             "consentVersion": "KVKK_v1_2026-03-13",
-            "section": "LOADTEST",
-            "scheduledExamAt": "2026-03-21T07:10:54.736Z",
-            "examSlotLabel": "Exam Slot"
+            "section": "8-A",
+            "scheduledExamAt": "2026-03-28T10:00:00.000Z",
+            "examSlotLabel": "28 Mart 2026 13:00-14:00",
+            "credentialsSmsJobId": "204f8629-f6b4-405d-a507-9de622efa4c0"
           }
         }
       }
@@ -239,34 +241,36 @@
         "body": {
           "ok": true,
           "session": {
-            "applicationNo": "20260318-101703",
-            "attemptId": "812888c3-ba7d-4802-b640-166a0ad44f91",
-            "candidateId": "e65c874b-b988-4dc4-8cf1-e3a1b0b6f682",
+            "applicationNo": "20260327-103716",
+            "candidateCode": "AD103715",
+            "attemptId": "143fdecf-b133-4ae3-b3bd-3cb735258d10",
+            "candidateId": "06511ff2-804d-48f3-b6a6-360bbc91e0bd",
             "sessionToken": "[REDACTED]",
-            "expiresAt": "2026-03-18T07:54:22.413Z",
+            "expiresAt": "2026-03-27T12:13:15.927Z",
             "examStatus": "STARTED",
             "examLanguage": "EN",
             "examAgeRange": "13-14",
             "questionCount": 5,
-            "scheduledExamAt": "2026-03-21T07:10:54.736Z",
-            "examSlotLabel": "Exam Slot",
-            "section": "LOADTEST"
+            "scheduledExamAt": "2026-03-28T10:00:00.000Z",
+            "examSlotLabel": "28 Mart 2026 13:00-14:00",
+            "section": "8-A"
           },
           "candidate": {
             "studentFullName": "[ENCRYPTED_PII]",
             "parentFullName": "[ENCRYPTED_PII]",
             "grade": 8,
-            "section": "LOADTEST"
+            "section": "8-A"
           },
           "gate": {
-            "exam_open": true,
-            "exam_open_at": null,
-            "server_time_utc": "2026-03-18T04:54:24.623Z",
-            "remaining_seconds": 0,
+            "exam_open": false,
+            "exam_open_at": "2026-03-28T10:00:00.000Z",
+            "exam_force_open": false,
+            "server_time_utc": "2026-03-27T09:13:20.291Z",
+            "remaining_seconds": 89200,
             "source": "default:open",
-            "candidate_exam_open": true,
-            "candidate_exam_open_at": "2026-03-21T07:10:54.736Z",
-            "candidate_remaining_seconds": 0
+            "candidate_exam_open": false,
+            "candidate_exam_open_at": "2026-03-28T10:00:00.000Z",
+            "candidate_remaining_seconds": 89200
           }
         }
       }
@@ -278,14 +282,15 @@
       "evidence": {
         "status": 200,
         "gate": {
-          "exam_open": true,
-          "exam_open_at": null,
-          "server_time_utc": "2026-03-18T04:54:26.258Z",
-          "remaining_seconds": 0,
+          "exam_open": false,
+          "exam_open_at": "2026-03-28T10:00:00.000Z",
+          "exam_force_open": false,
+          "server_time_utc": "2026-03-27T09:13:21.442Z",
+          "remaining_seconds": 89199,
           "source": "default:open",
-          "candidate_exam_open": true,
-          "candidate_exam_open_at": "2026-03-21T07:10:54.736Z",
-          "candidate_remaining_seconds": 0
+          "candidate_exam_open": false,
+          "candidate_exam_open_at": "2026-03-28T10:00:00.000Z",
+          "candidate_remaining_seconds": 89199
         }
       }
     },
@@ -297,7 +302,7 @@
         "status": 200,
         "body": {
           "ok": true,
-          "attempt_id": "812888c3-ba7d-4802-b640-166a0ad44f91",
+          "attempt_id": "143fdecf-b133-4ae3-b3bd-3cb735258d10",
           "answered_count": 2
         }
       }
@@ -308,21 +313,21 @@
       "detail": "HTTP 200",
       "evidence": {
         "status": 200,
-        "resultId": "a52d9ae3-ce7c-49cb-aa59-186adf6978d1",
+        "resultId": "5a43e1ca-e24c-4142-92a2-4ce80b92e4e5",
         "body": {
           "ok": true,
           "result": {
-            "attempt_id": "812888c3-ba7d-4802-b640-166a0ad44f91",
-            "result_id": "a52d9ae3-ce7c-49cb-aa59-186adf6978d1",
+            "attempt_id": "143fdecf-b133-4ae3-b3bd-3cb735258d10",
+            "result_id": "5a43e1ca-e24c-4142-92a2-4ce80b92e4e5",
             "status": "PUBLISHED",
             "score": 1,
             "percentage": 20,
             "placement_label": null,
             "cefr_band": null,
-            "published_at": "2026-03-18T04:54:28.820Z",
+            "published_at": "2026-03-27T09:13:25.669Z",
             "viewed_at": null
           },
-          "notifications_enqueued": false
+          "notifications_enqueued": true
         }
       }
     },
@@ -332,17 +337,17 @@
       "detail": "HTTP 200",
       "evidence": {
         "status": 200,
-        "resultStatus": "PUBLISHED",
+        "resultStatus": "VIEWED",
         "body": {
           "ok": true,
           "result": {
-            "result_id": "a52d9ae3-ce7c-49cb-aa59-186adf6978d1",
-            "attempt_id": "812888c3-ba7d-4802-b640-166a0ad44f91",
-            "candidate_id": "e65c874b-b988-4dc4-8cf1-e3a1b0b6f682",
-            "student_full_name": null,
-            "parent_full_name": null,
-            "parent_phone_e164": null,
-            "school_name": null,
+            "result_id": "5a43e1ca-e24c-4142-92a2-4ce80b92e4e5",
+            "attempt_id": "143fdecf-b133-4ae3-b3bd-3cb735258d10",
+            "candidate_id": "06511ff2-804d-48f3-b6a6-360bbc91e0bd",
+            "student_full_name": "UAT Candidate 1774602793976",
+            "parent_full_name": "UAT Parent 1774602793976",
+            "parent_phone_e164": "+905002793976",
+            "school_name": "UAT Smoke School",
             "grade": 8,
             "exam_status": "SUBMITTED",
             "exam_language": "EN",
@@ -351,18 +356,18 @@
             "score": 1,
             "percentage": 20,
             "discount_rate": 10,
-            "class_rank": 58,
+            "class_rank": 64,
             "correct_count": 1,
             "wrong_count": 1,
             "unanswered_count": 3,
             "placement_label": null,
             "cefr_band": null,
-            "status": "PUBLISHED",
-            "started_at": "2026-03-18T04:54:21.807Z",
-            "submitted_at": "2026-03-18T04:54:28.820Z",
-            "published_at": "2026-03-18T04:54:28.820Z",
-            "viewed_at": null,
-            "pii_included": false
+            "status": "VIEWED",
+            "started_at": "2026-03-27T09:13:14.924Z",
+            "submitted_at": "2026-03-27T09:13:25.669Z",
+            "published_at": "2026-03-27T09:13:25.669Z",
+            "viewed_at": "2026-03-27T09:13:29.514Z",
+            "pii_included": true
           }
         }
       }
@@ -384,27 +389,105 @@
     {
       "id": "panel_login",
       "status": "PASS",
-      "detail": "optional-admin-check: skipped full panel auth smoke (set PANEL_EMAIL/PANEL_PASSWORD/PANEL_MFA_CODE).",
+      "detail": "start:200 verify:200",
       "evidence": {
-        "skipped": true
+        "startStatus": 200,
+        "verifyStatus": 200,
+        "startNextStep": "otp_verify",
+        "otpRequired": true,
+        "hasToken": true,
+        "otpSource": "db_auto",
+        "otpResolutionError": null,
+        "startBody": {
+          "ok": true,
+          "next_step": "otp_verify",
+          "otp_required": true,
+          "otp": {
+            "challenge_id": "86d9ee55-d9db-4792-9723-9015532bd24a",
+            "challenge_token": "[REDACTED]",
+            "expires_in_seconds": 300,
+            "masked_phone": "***2233"
+          },
+          "user": {
+            "id": "b2b605c2-c594-4c0a-a301-199c6ba2eb43",
+            "tckn": "",
+            "email": "ops-smoke-panel@teachera.com.tr",
+            "full_name": "Ops Smoke Panel",
+            "role": "OPERATIONS",
+            "masked_phone": "***2233"
+          }
+        },
+        "verifyBody": {
+          "ok": true,
+          "next_step": null,
+          "session": {
+            "token": "[REDACTED]",
+            "expires_at": "2026-03-27T17:13:37.000Z",
+            "session_id": "ca69505d-ed17-44cc-88d8-efd8445d7c36",
+            "password_reset_required": false
+          },
+          "user": {
+            "id": "b2b605c2-c594-4c0a-a301-199c6ba2eb43",
+            "tckn": "",
+            "email": "ops-smoke-panel@teachera.com.tr",
+            "full_name": "Ops Smoke Panel",
+            "role": "OPERATIONS",
+            "mfa_verified": true,
+            "otp_verified": true,
+            "auth_method": "SMS_OTP",
+            "password_reset_required": false
+          }
+        }
       },
       "check_group": "optional-admin-check"
     },
     {
       "id": "panel_auth_me",
       "status": "PASS",
-      "detail": "optional-admin-check: skipped (missing env).",
+      "detail": "HTTP 200",
       "evidence": {
-        "skipped": true
+        "status": 200,
+        "body": {
+          "ok": true,
+          "identity": {
+            "user_id": "b2b605c2-c594-4c0a-a301-199c6ba2eb43",
+            "email": "ops-smoke-panel@teachera.com.tr",
+            "full_name": "Ops Smoke Panel",
+            "role": "OPERATIONS",
+            "permissions": [
+              "PANEL_AUDIT_EXPORT",
+              "PANEL_AUDIT_READ",
+              "PANEL_CANDIDATES_ACTION",
+              "PANEL_CANDIDATES_EXPORT",
+              "PANEL_CANDIDATES_READ",
+              "PANEL_CRM_PUSH",
+              "PANEL_DASHBOARD_READ",
+              "PANEL_DLQ_ACTION",
+              "PANEL_DLQ_READ",
+              "PANEL_IP_POLICY_READ",
+              "PANEL_NOTIFICATIONS_ACTION",
+              "PANEL_NOTIFICATIONS_READ",
+              "PANEL_RESULTS_REVIEW",
+              "PANEL_SETTINGS_READ",
+              "PANEL_UNVIEWED_ACTION",
+              "PANEL_UNVIEWED_READ"
+            ],
+            "mfa_verified": true,
+            "otp_verified": true,
+            "session_id": "ca69505d-ed17-44cc-88d8-efd8445d7c36",
+            "password_reset_required": false
+          }
+        }
       },
       "check_group": "optional-admin-check"
     },
     {
       "id": "panel_dashboard",
       "status": "PASS",
-      "detail": "optional-admin-check: skipped (missing env).",
+      "detail": "HTTP 200",
       "evidence": {
-        "skipped": true
+        "status": 200,
+        "hasSummary": true
       },
       "check_group": "optional-admin-check"
     }

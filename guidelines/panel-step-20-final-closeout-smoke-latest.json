@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-03-24T08:12:12.653Z",
+  "timestamp": "2026-03-27T09:07:57.167Z",
   "mode": {
     "http": true,
     "artifact": true
@@ -17,7 +17,7 @@
       "status": "PASS",
       "detail": "Artifact exists and JSON parsed.",
       "evidence": {
-        "path": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/panel-step-14-closeout-smoke-latest.json"
+        "path": "/Users/aliye/Documents/New project/teachera_bursluluk_registry/guidelines/panel-step-14-closeout-smoke-latest.json"
       }
     },
     {
@@ -25,18 +25,18 @@
       "status": "PASS",
       "detail": "overall_ready_for_step_14=true",
       "evidence": {
-        "path": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/panel-step-14-closeout-smoke-latest.json",
+        "path": "/Users/aliye/Documents/New project/teachera_bursluluk_registry/guidelines/panel-step-14-closeout-smoke-latest.json",
         "overall_ready_for_step_14": true
       }
     },
     {
       "id": "artifact_step14_freshness",
       "status": "PASS",
-      "detail": "artifact fresh (4382 min <= 10080 min).",
+      "detail": "artifact fresh (8758 min <= 10080 min).",
       "evidence": {
-        "path": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/panel-step-14-closeout-smoke-latest.json",
+        "path": "/Users/aliye/Documents/New project/teachera_bursluluk_registry/guidelines/panel-step-14-closeout-smoke-latest.json",
         "timestamp": "2026-03-21T07:09:59.596Z",
-        "age_minutes": 4382,
+        "age_minutes": 8758,
         "max_age_hours": 168
       }
     },
@@ -45,7 +45,7 @@
       "status": "PASS",
       "detail": "Artifact exists and JSON parsed.",
       "evidence": {
-        "path": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/panel-step-16-ops-grid-smoke-latest.json"
+        "path": "/Users/aliye/Documents/New project/teachera_bursluluk_registry/guidelines/panel-step-16-ops-grid-smoke-latest.json"
       }
     },
     {
@@ -53,18 +53,18 @@
       "status": "PASS",
       "detail": "overall_ready_for_step_16=true",
       "evidence": {
-        "path": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/panel-step-16-ops-grid-smoke-latest.json",
+        "path": "/Users/aliye/Documents/New project/teachera_bursluluk_registry/guidelines/panel-step-16-ops-grid-smoke-latest.json",
         "overall_ready_for_step_16": true
       }
     },
     {
       "id": "artifact_step16_freshness",
       "status": "PASS",
-      "detail": "artifact fresh (4382 min <= 10080 min).",
+      "detail": "artifact fresh (2663 min <= 10080 min).",
       "evidence": {
-        "path": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/panel-step-16-ops-grid-smoke-latest.json",
-        "timestamp": "2026-03-21T07:10:02.813Z",
-        "age_minutes": 4382,
+        "path": "/Users/aliye/Documents/New project/teachera_bursluluk_registry/guidelines/panel-step-16-ops-grid-smoke-latest.json",
+        "timestamp": "2026-03-25T12:45:16.382Z",
+        "age_minutes": 2663,
         "max_age_hours": 168
       }
     },
@@ -73,7 +73,7 @@
       "status": "PASS",
       "detail": "Artifact exists and JSON parsed.",
       "evidence": {
-        "path": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/panel-step-17-rbac-session-smoke-latest.json"
+        "path": "/Users/aliye/Documents/New project/teachera_bursluluk_registry/guidelines/panel-step-17-rbac-session-smoke-latest.json"
       }
     },
     {
@@ -81,18 +81,18 @@
       "status": "PASS",
       "detail": "overall_ready_for_step_17=true",
       "evidence": {
-        "path": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/panel-step-17-rbac-session-smoke-latest.json",
+        "path": "/Users/aliye/Documents/New project/teachera_bursluluk_registry/guidelines/panel-step-17-rbac-session-smoke-latest.json",
         "overall_ready_for_step_17": true
       }
     },
     {
       "id": "artifact_step17_freshness",
       "status": "PASS",
-      "detail": "artifact fresh (4382 min <= 10080 min).",
+      "detail": "artifact fresh (2663 min <= 10080 min).",
       "evidence": {
-        "path": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/panel-step-17-rbac-session-smoke-latest.json",
-        "timestamp": "2026-03-21T07:10:03.704Z",
-        "age_minutes": 4382,
+        "path": "/Users/aliye/Documents/New project/teachera_bursluluk_registry/guidelines/panel-step-17-rbac-session-smoke-latest.json",
+        "timestamp": "2026-03-25T12:45:13.238Z",
+        "age_minutes": 2663,
         "max_age_hours": 168
       }
     },
@@ -101,7 +101,7 @@
       "status": "PASS",
       "detail": "Artifact exists and JSON parsed.",
       "evidence": {
-        "path": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/panel-step-18-rbac-policy-smoke-latest.json"
+        "path": "/Users/aliye/Documents/New project/teachera_bursluluk_registry/guidelines/panel-step-18-rbac-policy-smoke-latest.json"
       }
     },
     {
@@ -109,18 +109,18 @@
       "status": "PASS",
       "detail": "overall_ready_for_step_18=true",
       "evidence": {
-        "path": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/panel-step-18-rbac-policy-smoke-latest.json",
+        "path": "/Users/aliye/Documents/New project/teachera_bursluluk_registry/guidelines/panel-step-18-rbac-policy-smoke-latest.json",
         "overall_ready_for_step_18": true
       }
     },
     {
       "id": "artifact_step18_freshness",
       "status": "PASS",
-      "detail": "artifact fresh (4382 min <= 10080 min).",
+      "detail": "artifact fresh (8758 min <= 10080 min).",
       "evidence": {
-        "path": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/panel-step-18-rbac-policy-smoke-latest.json",
+        "path": "/Users/aliye/Documents/New project/teachera_bursluluk_registry/guidelines/panel-step-18-rbac-policy-smoke-latest.json",
         "timestamp": "2026-03-21T07:10:06.308Z",
-        "age_minutes": 4382,
+        "age_minutes": 8758,
         "max_age_hours": 168
       }
     },
@@ -129,7 +129,7 @@
       "status": "PASS",
       "detail": "Artifact exists and JSON parsed.",
       "evidence": {
-        "path": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/panel-step-19-data-contract-smoke-latest.json"
+        "path": "/Users/aliye/Documents/New project/teachera_bursluluk_registry/guidelines/panel-step-19-data-contract-smoke-latest.json"
       }
     },
     {
@@ -137,18 +137,18 @@
       "status": "PASS",
       "detail": "overall_ready_for_step_19=true",
       "evidence": {
-        "path": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/panel-step-19-data-contract-smoke-latest.json",
+        "path": "/Users/aliye/Documents/New project/teachera_bursluluk_registry/guidelines/panel-step-19-data-contract-smoke-latest.json",
         "overall_ready_for_step_19": true
       }
     },
     {
       "id": "artifact_step19_freshness",
       "status": "PASS",
-      "detail": "artifact fresh (4382 min <= 10080 min).",
+      "detail": "artifact fresh (8758 min <= 10080 min).",
       "evidence": {
-        "path": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/panel-step-19-data-contract-smoke-latest.json",
+        "path": "/Users/aliye/Documents/New project/teachera_bursluluk_registry/guidelines/panel-step-19-data-contract-smoke-latest.json",
         "timestamp": "2026-03-21T07:10:07.498Z",
-        "age_minutes": 4382,
+        "age_minutes": 8758,
         "max_age_hours": 168
       }
     },
@@ -157,7 +157,7 @@
       "status": "PASS",
       "detail": "Artifact exists and JSON parsed.",
       "evidence": {
-        "path": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/panel-step-21-settings-release-gate-smoke-latest.json"
+        "path": "/Users/aliye/Documents/New project/teachera_bursluluk_registry/guidelines/panel-step-21-settings-release-gate-smoke-latest.json"
       }
     },
     {
@@ -165,18 +165,18 @@
       "status": "PASS",
       "detail": "overall_ready_for_step_21=true",
       "evidence": {
-        "path": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/panel-step-21-settings-release-gate-smoke-latest.json",
+        "path": "/Users/aliye/Documents/New project/teachera_bursluluk_registry/guidelines/panel-step-21-settings-release-gate-smoke-latest.json",
         "overall_ready_for_step_21": true
       }
     },
     {
       "id": "artifact_step21_freshness",
       "status": "PASS",
-      "detail": "artifact fresh (1260 min <= 1440 min).",
+      "detail": "artifact fresh (0 min <= 1440 min).",
       "evidence": {
-        "path": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/panel-step-21-settings-release-gate-smoke-latest.json",
-        "timestamp": "2026-03-23T11:12:07.150Z",
-        "age_minutes": 1260,
+        "path": "/Users/aliye/Documents/New project/teachera_bursluluk_registry/guidelines/panel-step-21-settings-release-gate-smoke-latest.json",
+        "timestamp": "2026-03-27T09:07:44.717Z",
+        "age_minutes": 0,
         "max_age_hours": 24
       }
     },
@@ -185,7 +185,7 @@
       "status": "PASS",
       "detail": "Artifact exists and JSON parsed.",
       "evidence": {
-        "path": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/p0-panel-prod-slot-visibility-smoke-latest.json"
+        "path": "/Users/aliye/Documents/New project/teachera_bursluluk_registry/guidelines/p0-panel-prod-slot-visibility-smoke-latest.json"
       }
     },
     {
@@ -193,18 +193,18 @@
       "status": "PASS",
       "detail": "overall_pass=true",
       "evidence": {
-        "path": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/p0-panel-prod-slot-visibility-smoke-latest.json",
+        "path": "/Users/aliye/Documents/New project/teachera_bursluluk_registry/guidelines/p0-panel-prod-slot-visibility-smoke-latest.json",
         "overall_pass": true
       }
     },
     {
       "id": "artifact_slot_visibility_freshness",
       "status": "PASS",
-      "detail": "artifact fresh (1218 min <= 1440 min).",
+      "detail": "artifact fresh (0 min <= 1440 min).",
       "evidence": {
-        "path": "/Users/aliye/Downloads/teachera-codex-push-all-20260323/guidelines/p0-panel-prod-slot-visibility-smoke-latest.json",
-        "timestamp": "2026-03-23T11:54:16.603Z",
-        "age_minutes": 1218,
+        "path": "/Users/aliye/Documents/New project/teachera_bursluluk_registry/guidelines/p0-panel-prod-slot-visibility-smoke-latest.json",
+        "timestamp": "2026-03-27T09:07:36.688Z",
+        "age_minutes": 0,
         "max_age_hours": 24
       }
     },

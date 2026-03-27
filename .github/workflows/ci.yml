@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - new-bursluluk
   workflow_dispatch:
 
 permissions:
@@ -271,6 +272,8 @@ jobs:
       PANEL_EMAIL: ${{ secrets.PANEL_EMAIL }}
       PANEL_PASSWORD: ${{ secrets.PANEL_PASSWORD }}
       PANEL_SMOKE_TOTP_SECRET: ${{ secrets.PANEL_SMOKE_TOTP_SECRET }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
       REQUIRE_PANEL_FULL_AUTH: "true"
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -353,7 +356,7 @@ jobs:
     needs: [changes, quality, preflight, evidence_gate]
     if: >
       github.event_name == 'push' &&
-      github.ref == 'refs/heads/main'
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/new-bursluluk')
     env:
       WWW_BASE_URL: ${{ vars.WWW_BASE_URL || 'https://teachera.com.tr' }}
       EXAM_API_BASE_URL: ${{ vars.EXAM_API_BASE_URL || 'https://exam-api.teachera.com.tr' }}
@@ -385,7 +388,7 @@ jobs:
     needs: [changes, quality, preflight, evidence_gate, release_gate_panel_closeout]
     if: >
       github.event_name == 'push' &&
-      github.ref == 'refs/heads/main' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/new-bursluluk') &&
       (needs.changes.outputs.www == 'true' || needs.changes.outputs.force_all == 'true')
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -408,7 +411,7 @@ jobs:
     needs: [changes, quality, preflight, evidence_gate, release_gate_panel_closeout]
     if: >
       github.event_name == 'push' &&
-      github.ref == 'refs/heads/main' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/new-bursluluk') &&
       (needs.changes.outputs.exam_api == 'true' || needs.changes.outputs.force_all == 'true')
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -431,7 +434,7 @@ jobs:
     needs: [changes, quality, preflight, evidence_gate, release_gate_panel_closeout]
     if: >
       github.event_name == 'push' &&
-      github.ref == 'refs/heads/main' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/new-bursluluk') &&
       (needs.changes.outputs.panel_api == 'true' || needs.changes.outputs.force_all == 'true')
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -454,7 +457,7 @@ jobs:
     needs: [changes, quality, preflight, evidence_gate, release_gate_panel_closeout]
     if: >
       github.event_name == 'push' &&
-      github.ref == 'refs/heads/main' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/new-bursluluk') &&
       (needs.changes.outputs.ops_api == 'true' || needs.changes.outputs.force_all == 'true')
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

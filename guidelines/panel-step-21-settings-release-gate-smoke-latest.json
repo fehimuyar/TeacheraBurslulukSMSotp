@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-03-23T11:12:07.150Z",
+  "timestamp": "2026-03-27T09:11:36.360Z",
   "mode": {
     "http": true,
     "static": true,
@@ -10,15 +10,15 @@
     "campaign_code": "2026_BURSLULUK",
     "require_auth": false,
     "auth_inputs_present": {
-      "panel_email": false,
-      "panel_password": false,
+      "panel_email": true,
+      "panel_password": true,
       "panel_otp_code": false
     }
   },
   "totals": {
-    "pass": 5,
+    "pass": 7,
     "fail": 0,
-    "warn": 1,
+    "warn": 0,
     "skip": 5
   },
   "overall_ready_for_step_21": true,
@@ -79,49 +79,60 @@
       }
     },
     {
-      "id": "auth_prerequisites",
-      "status": "WARN",
-      "detail": "Missing auth env: PANEL_EMAIL, PANEL_PASSWORD, PANEL_OTP_CODE",
+      "id": "auth_login",
+      "status": "PASS",
+      "detail": "start:200 verify:200",
       "evidence": {
-        "missing": [
-          "PANEL_EMAIL",
-          "PANEL_PASSWORD",
-          "PANEL_OTP_CODE"
-        ],
-        "require_auth": false
+        "start_status": 200,
+        "verify_status": 200,
+        "otp_required": true,
+        "challenge_masked_phone": "***2233",
+        "has_token": true,
+        "otp_source": "db_auto",
+        "start_error": null,
+        "verify_error": null
+      }
+    },
+    {
+      "id": "auth_me",
+      "status": "PASS",
+      "detail": "HTTP 200",
+      "evidence": {
+        "status": 200,
+        "role": "OPERATIONS"
       }
     },
     {
       "id": "role_super_admin_for_settings_write",
       "status": "SKIP",
-      "detail": "Missing authenticated panel token.",
+      "detail": "Role OPERATIONS cannot write settings.",
       "evidence": {
-        "role": null,
+        "role": "OPERATIONS",
         "require_auth": false
       }
     },
     {
       "id": "release_gate_read_authenticated",
       "status": "SKIP",
-      "detail": "Skipped: Missing authenticated panel token.",
+      "detail": "Skipped: Role OPERATIONS cannot write settings.",
       "evidence": {}
     },
     {
       "id": "settings_baseline_open_at",
       "status": "SKIP",
-      "detail": "Skipped: Missing authenticated panel token.",
+      "detail": "Skipped: Role OPERATIONS cannot write settings.",
       "evidence": {}
     },
     {
       "id": "canonical_activation_attempt",
       "status": "SKIP",
-      "detail": "Skipped: Missing authenticated panel token.",
+      "detail": "Skipped: Role OPERATIONS cannot write settings.",
       "evidence": {}
     },
     {
       "id": "legacy_key_rejection_authenticated",
       "status": "SKIP",
-      "detail": "Skipped: Missing authenticated panel token.",
+      "detail": "Skipped: Role OPERATIONS cannot write settings.",
       "evidence": {}
     }
   ]

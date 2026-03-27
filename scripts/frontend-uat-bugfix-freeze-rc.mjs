@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import pg from 'pg';
 
 function safeTrim(value) {
   return String(value ?? '').trim();
@@ -18,6 +19,68 @@ function normalizeBase(value, fallback) {
   const raw = safeTrim(value || fallback);
   if (!raw) throw new Error('missing_base_url');
   return raw.replace(/\/+$/, '');
+}
+
+function sanitizeConnectionString(value) {
+  const raw = safeTrim(value);
+  if (!raw) return '';
+  try {
+    const url = new URL(raw);
+    if (!['postgres:', 'postgresql:'].includes(url.protocol)) {
+      return raw;
+    }
+    const sslMode = safeTrim(url.searchParams.get('sslmode')).toLowerCase();
+    if (!sslMode || ['prefer', 'require', 'verify-ca'].includes(sslMode)) {
+      url.searchParams.set('sslmode', 'verify-full');
+    }
+    return url.toString();
+  } catch {
+    return raw;
+  }
+}
+
+function resolveDbSslForScript() {
+  const sslMode = safeTrim(process.env.PG_SSL_MODE).toLowerCase();
+  const isProduction = safeTrim(process.env.NODE_ENV).toLowerCase() === 'production';
+  if (sslMode === 'disable') return isProduction ? { rejectUnauthorized: true } : false;
+  if (sslMode === 'relaxed') return isProduction ? { rejectUnauthorized: true } : { rejectUnauthorized: false };
+  if (sslMode === 'strict') return { rejectUnauthorized: true };
+  return isProduction ? { rejectUnauthorized: true } : { rejectUnauthorized: false };
+}
+
+async function readLatestPanelOtpCode(client, { email, maxAgeSeconds = 300 }) {
+  const result = await client.query(
+    `
+      SELECT payload
+      FROM notification_jobs
+      WHERE template_code = 'PANEL_LOGIN_SMS_OTP'
+        AND channel = 'SMS'
+        AND lower(COALESCE(payload->>'email', payload->>'user_email', '')) = lower($1)
+        AND created_at >= NOW() - make_interval(secs => $2::int)
+      ORDER BY created_at DESC
+      LIMIT 1
+    `,
+    [email, maxAgeSeconds],
+  );
+  const payload = result.rows[0]?.payload;
+  const code = safeTrim(payload?.otp_code || payload?.otpCode);
+  return /^\d{6}$/.test(code) ? code : '';
+}
+
+async function waitForPanelOtpCode(pool, { email, maxAttempts = 8, delayMs = 900, maxAgeSeconds = 300 }) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const client = await pool.connect();
+    try {
+      const code = await readLatestPanelOtpCode(client, { email, maxAgeSeconds });
+      if (code) return code;
+    } finally {
+      client.release();
+    }
+    if (attempt < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  return '';
 }
 
 function nowIso() {
@@ -185,14 +248,29 @@ async function run() {
     panelEmail: safeTrim(process.env.PANEL_EMAIL),
     panelPassword: safeTrim(process.env.PANEL_PASSWORD),
     panelOtpCode: safeTrim(process.env.PANEL_OTP_CODE),
+    panelOtpSource: 'none',
+    panelOtpResolutionError: '',
     requirePanelFullAuth: parseBool(process.env.REQUIRE_PANEL_FULL_AUTH, false),
     loadTestBypassKey: resolveLoadTestKey(envFileMap),
+    dbConnectionString: sanitizeConnectionString(
+      process.env.DATABASE_URL
+      || process.env.POSTGRES_URL
+      || envFileMap.DATABASE_URL
+      || envFileMap.POSTGRES_URL
+      || '',
+    ),
   };
-
   const panelOtp = maybeResolvePanelOtpCode(cfg);
   cfg.panelOtpCode = panelOtp.code;
   cfg.panelOtpSource = panelOtp.source;
   cfg.panelOtpResolutionError = panelOtp.error;
+  const panelOtpDbPool = cfg.dbConnectionString
+    ? new pg.Pool({
+      connectionString: cfg.dbConnectionString,
+      ssl: resolveDbSslForScript(),
+      max: 1,
+    })
+    : null;
 
   const checks = [];
   const startedAt = nowIso();
@@ -308,8 +386,10 @@ async function run() {
   const startPayload = {
     campaignCode: cfg.campaignCode,
     studentFullName: `UAT Candidate ${runId}`,
+    identityNo: `1${String(runId).slice(-10).padStart(10, '0')}`,
+    birthYear: 2012,
     parentFullName: `UAT Parent ${runId}`,
-    parentPhoneE164: `+90555${String(runId).slice(-7)}`,
+    parentPhoneE164: `+90500${String(runId).slice(-7)}`,
     parentEmail: `uat.${runId}@teachera.com.tr`,
     schoolName: 'UAT Smoke School',
     grade: 8,
@@ -569,166 +649,190 @@ async function run() {
     ),
   );
 
-  if (cfg.panelEmail && cfg.panelPassword && cfg.panelOtpCode) {
-    const panelLoginStartResp = await httpRequest({
-      url: `${cfg.panelApiBase}/api/panel/auth/login`,
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: {
-        email: cfg.panelEmail,
-        password: cfg.panelPassword,
-      },
-    });
-
-    const challengeId = safeTrim(panelLoginStartResp.json?.otp?.challenge_id || panelLoginStartResp.json?.otp?.challengeId);
-    const challengeToken = safeTrim(panelLoginStartResp.json?.otp?.challenge_token || panelLoginStartResp.json?.otp?.challengeToken);
-    const hasChallenge = panelLoginStartResp.status === 200
-      && panelLoginStartResp.json?.otp_required === true
-      && challengeId
-      && challengeToken;
-
-    let panelLoginVerifyResp = { status: 0, json: null, text: '' };
-    if (hasChallenge) {
-      panelLoginVerifyResp = await httpRequest({
+  try {
+    const hasPanelOtpPath = Boolean(cfg.panelOtpCode || panelOtpDbPool);
+    if (cfg.panelEmail && cfg.panelPassword && hasPanelOtpPath) {
+      const panelLoginStartResp = await httpRequest({
         url: `${cfg.panelApiBase}/api/panel/auth/login`,
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: {
           email: cfg.panelEmail,
           password: cfg.panelPassword,
-          otpCode: cfg.panelOtpCode,
-          challengeId,
-          challengeToken,
         },
       });
-    }
 
-    const panelToken = safeTrim(panelLoginVerifyResp.json?.session?.token);
-    checks.push(
-      makeCheck(
-        'panel_login',
-        hasChallenge && panelLoginVerifyResp.status === 200 && panelToken ? 'PASS' : 'FAIL',
-        `start:${panelLoginStartResp.status} verify:${panelLoginVerifyResp.status || 'NA'}`,
-        {
-          startStatus: panelLoginStartResp.status,
-          verifyStatus: panelLoginVerifyResp.status || null,
-          startNextStep: panelLoginStartResp.json?.next_step || null,
-          otpRequired: panelLoginStartResp.json?.otp_required === true,
-          hasToken: Boolean(panelToken),
-          startBody: redactSensitive(panelLoginStartResp.json || panelLoginStartResp.text),
-          verifyBody: redactSensitive(panelLoginVerifyResp.json || panelLoginVerifyResp.text),
-        },
-        { check_group: 'optional-admin-check' },
-      ),
-    );
+      const challengeId = safeTrim(panelLoginStartResp.json?.otp?.challenge_id || panelLoginStartResp.json?.otp?.challengeId);
+      const challengeToken = safeTrim(panelLoginStartResp.json?.otp?.challenge_token || panelLoginStartResp.json?.otp?.challengeToken);
+      const hasChallenge = panelLoginStartResp.status === 200
+        && panelLoginStartResp.json?.otp_required === true
+        && challengeId
+        && challengeToken;
 
-    if (panelToken) {
-      const panelMeResp = await httpRequest({
-        url: `${cfg.panelApiBase}/api/panel/auth/me`,
-        method: 'GET',
-        headers: {
-          authorization: `Bearer ${panelToken}`,
-        },
-      });
+      let otpCodeUsed = cfg.panelOtpCode;
+      if (hasChallenge && !otpCodeUsed && panelOtpDbPool) {
+        const autoCode = await waitForPanelOtpCode(panelOtpDbPool, { email: cfg.panelEmail });
+        if (autoCode) {
+          otpCodeUsed = autoCode;
+          cfg.panelOtpSource = 'db_auto';
+          cfg.panelOtpResolutionError = '';
+        } else {
+          cfg.panelOtpSource = 'db_auto';
+          cfg.panelOtpResolutionError = 'panel_otp_not_found_in_db';
+        }
+      }
+
+      let panelLoginVerifyResp = { status: 0, json: null, text: '' };
+      if (hasChallenge && otpCodeUsed) {
+        panelLoginVerifyResp = await httpRequest({
+          url: `${cfg.panelApiBase}/api/panel/auth/login`,
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: {
+            email: cfg.panelEmail,
+            password: cfg.panelPassword,
+            otpCode: otpCodeUsed,
+            challengeId,
+            challengeToken,
+          },
+        });
+      }
+
+      const panelToken = safeTrim(panelLoginVerifyResp.json?.session?.token);
       checks.push(
         makeCheck(
+          'panel_login',
+          hasChallenge && panelLoginVerifyResp.status === 200 && panelToken ? 'PASS' : 'FAIL',
+          `start:${panelLoginStartResp.status} verify:${panelLoginVerifyResp.status || 'NA'}`,
+          {
+            startStatus: panelLoginStartResp.status,
+            verifyStatus: panelLoginVerifyResp.status || null,
+            startNextStep: panelLoginStartResp.json?.next_step || null,
+            otpRequired: panelLoginStartResp.json?.otp_required === true,
+            hasToken: Boolean(panelToken),
+            otpSource: cfg.panelOtpSource || 'none',
+            otpResolutionError: cfg.panelOtpResolutionError || null,
+            startBody: redactSensitive(panelLoginStartResp.json || panelLoginStartResp.text),
+            verifyBody: redactSensitive(panelLoginVerifyResp.json || panelLoginVerifyResp.text),
+          },
+          { check_group: 'optional-admin-check' },
+        ),
+      );
+
+      if (panelToken) {
+        const panelMeResp = await httpRequest({
+          url: `${cfg.panelApiBase}/api/panel/auth/me`,
+          method: 'GET',
+          headers: {
+            authorization: `Bearer ${panelToken}`,
+          },
+        });
+        checks.push(
+          makeCheck(
+            'panel_auth_me',
+            panelMeResp.status === 200 ? 'PASS' : 'FAIL',
+            `HTTP ${panelMeResp.status}`,
+            {
+              status: panelMeResp.status,
+              body: redactSensitive(panelMeResp.json || panelMeResp.text),
+            },
+            { check_group: 'optional-admin-check' },
+          ),
+        );
+
+        const panelDashboardResp = await httpRequest({
+          url: `${cfg.panelApiBase}/api/panel/dashboard`,
+          method: 'GET',
+          headers: {
+            authorization: `Bearer ${panelToken}`,
+          },
+        });
+
+        checks.push(
+          makeCheck(
+            'panel_dashboard',
+            panelDashboardResp.status === 200 ? 'PASS' : 'FAIL',
+            `HTTP ${panelDashboardResp.status}`,
+            {
+              status: panelDashboardResp.status,
+              hasSummary: Boolean(panelDashboardResp.json?.summary),
+            },
+            { check_group: 'optional-admin-check' },
+          ),
+        );
+      } else {
+        checks.push(makeCheck(
           'panel_auth_me',
-          panelMeResp.status === 200 ? 'PASS' : 'FAIL',
-          `HTTP ${panelMeResp.status}`,
-          {
-            status: panelMeResp.status,
-            body: redactSensitive(panelMeResp.json || panelMeResp.text),
-          },
+          'WARN',
+          'optional-admin-check: skipped because panel login failed.',
+          {},
           { check_group: 'optional-admin-check' },
-        ),
-      );
-
-      const panelDashboardResp = await httpRequest({
-        url: `${cfg.panelApiBase}/api/panel/dashboard`,
-        method: 'GET',
-        headers: {
-          authorization: `Bearer ${panelToken}`,
-        },
-      });
-
-      checks.push(
-        makeCheck(
+        ));
+        checks.push(makeCheck(
           'panel_dashboard',
-          panelDashboardResp.status === 200 ? 'PASS' : 'FAIL',
-          `HTTP ${panelDashboardResp.status}`,
-          {
-            status: panelDashboardResp.status,
-            hasSummary: Boolean(panelDashboardResp.json?.summary),
-          },
+          'WARN',
+          'optional-admin-check: skipped because panel login failed.',
+          {},
           { check_group: 'optional-admin-check' },
-        ),
-      );
+        ));
+      }
     } else {
-      checks.push(makeCheck(
-        'panel_auth_me',
-        'WARN',
-        'optional-admin-check: skipped because panel login failed.',
-        {},
-        { check_group: 'optional-admin-check' },
-      ));
-      checks.push(makeCheck(
-        'panel_dashboard',
-        'WARN',
-        'optional-admin-check: skipped because panel login failed.',
-        {},
-        { check_group: 'optional-admin-check' },
-      ));
-    }
-  } else {
-    const missing = [];
-    if (!cfg.panelEmail) missing.push('PANEL_EMAIL');
-    if (!cfg.panelPassword) missing.push('PANEL_PASSWORD');
-    if (!cfg.panelOtpCode) missing.push('PANEL_OTP_CODE');
+      const missing = [];
+      if (!cfg.panelEmail) missing.push('PANEL_EMAIL');
+      if (!cfg.panelPassword) missing.push('PANEL_PASSWORD');
+      if (!cfg.panelOtpCode && !panelOtpDbPool) {
+        missing.push('PANEL_OTP_CODE or DATABASE_URL/POSTGRES_URL (for OTP auto-read)');
+      }
 
-    if (cfg.requirePanelFullAuth) {
-      checks.push(makeCheck(
-        'panel_login',
-        'FAIL',
-        `required-admin-check: missing env (${missing.join(', ')})`,
-        { missing },
-        { check_group: 'optional-admin-check', required: true },
-      ));
-      checks.push(makeCheck(
-        'panel_auth_me',
-        'FAIL',
-        'required-admin-check: skipped because panel login prerequisites are missing.',
-        { missing },
-        { check_group: 'optional-admin-check', required: true },
-      ));
-      checks.push(makeCheck(
-        'panel_dashboard',
-        'FAIL',
-        'required-admin-check: skipped because panel login prerequisites are missing.',
-        { missing },
-        { check_group: 'optional-admin-check', required: true },
-      ));
-    } else {
-      checks.push(makeCheck(
-        'panel_login',
-        'PASS',
-        'optional-admin-check: skipped full panel auth smoke (set PANEL_EMAIL/PANEL_PASSWORD/PANEL_OTP_CODE).',
-        { skipped: true },
-        { check_group: 'optional-admin-check' },
-      ));
-      checks.push(makeCheck(
-        'panel_auth_me',
-        'PASS',
-        'optional-admin-check: skipped (missing env).',
-        { skipped: true },
-        { check_group: 'optional-admin-check' },
-      ));
-      checks.push(makeCheck(
-        'panel_dashboard',
-        'PASS',
-        'optional-admin-check: skipped (missing env).',
-        { skipped: true },
-        { check_group: 'optional-admin-check' },
-      ));
+      if (cfg.requirePanelFullAuth) {
+        checks.push(makeCheck(
+          'panel_login',
+          'FAIL',
+          `required-admin-check: missing env (${missing.join(', ')})`,
+          { missing },
+          { check_group: 'optional-admin-check', required: true },
+        ));
+        checks.push(makeCheck(
+          'panel_auth_me',
+          'FAIL',
+          'required-admin-check: skipped because panel login prerequisites are missing.',
+          { missing },
+          { check_group: 'optional-admin-check', required: true },
+        ));
+        checks.push(makeCheck(
+          'panel_dashboard',
+          'FAIL',
+          'required-admin-check: skipped because panel login prerequisites are missing.',
+          { missing },
+          { check_group: 'optional-admin-check', required: true },
+        ));
+      } else {
+        checks.push(makeCheck(
+          'panel_login',
+          'PASS',
+          'optional-admin-check: skipped full panel auth smoke (set PANEL_EMAIL/PANEL_PASSWORD and PANEL_OTP_CODE or DB env).',
+          { skipped: true },
+          { check_group: 'optional-admin-check' },
+        ));
+        checks.push(makeCheck(
+          'panel_auth_me',
+          'PASS',
+          'optional-admin-check: skipped (missing env).',
+          { skipped: true },
+          { check_group: 'optional-admin-check' },
+        ));
+        checks.push(makeCheck(
+          'panel_dashboard',
+          'PASS',
+          'optional-admin-check: skipped (missing env).',
+          { skipped: true },
+          { check_group: 'optional-admin-check' },
+        ));
+      }
+    }
+  } finally {
+    if (panelOtpDbPool) {
+      await panelOtpDbPool.end();
     }
   }
 
