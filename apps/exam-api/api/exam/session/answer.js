@@ -1,16 +1,10 @@
 import { query, withTransaction } from '../../_lib/db.js';
 import { HttpError } from '../../_lib/errors.js';
-import { resolveExamRuntimeWindow } from '../../_lib/examRuntime.js';
 import { handleRequest, methodGuard, ok, parseBody, safeTrim } from '../../_lib/http.js';
 import { isAuthorizedLoadTestMode } from '../../_lib/loadTestMode.js';
 import { enforceCounterThreshold } from '../../_lib/redisEphemeral.js';
 import { enforceRateLimit, getRequestIp } from '../../_lib/redisRateLimit.js';
 import { requireExamSession } from '../../_lib/sessionAuth.js';
-import {
-  assertScholarshipExamVersion,
-  hasScholarshipExamPayload,
-  resolveScholarshipExamContext,
-} from '../../_lib/scholarshipExam.js';
 
 function readBoundedIntEnv(name, fallback, min, max) {
   const parsed = Number.parseInt(safeTrim(process.env[name] || ''), 10);
@@ -18,50 +12,44 @@ function readBoundedIntEnv(name, fallback, min, max) {
   return Math.max(min, Math.min(max, parsed));
 }
 
-function normalizeIncomingAnswers(body, scholarshipContract = false) {
+function normalizeIncomingAnswers(body) {
   if (Array.isArray(body.answers)) return body.answers;
 
   const questionId = safeTrim(body.questionId);
   if (!questionId) return [];
 
   return [
-    scholarshipContract
-      ? {
-          questionId,
-          selectedOptionId: body.selectedOptionId ?? body.selectedOption,
-        }
-      : {
-          questionId,
-          selectedOption: body.selectedOption,
-          isCorrect: body.isCorrect,
-          questionWeight: body.questionWeight,
-          scoreDelta: body.scoreDelta,
-        },
+    {
+      questionId,
+      selectedOptionId: body.selectedOptionId,
+      selectedOption: body.selectedOption,
+      isCorrect: body.isCorrect,
+      questionWeight: body.questionWeight,
+      scoreDelta: body.scoreDelta,
+      savedAt: body.savedAt,
+    },
   ];
 }
 
-function normalizeAnswerRow(raw, { scholarshipContract = false } = {}) {
+function normalizeAnswerRow(raw) {
   const questionId = safeTrim(raw?.questionId).slice(0, 120);
   if (!questionId) return null;
 
-  const selectedOptionRaw = scholarshipContract ? raw?.selectedOptionId : raw?.selectedOption;
+  const selectedOptionRaw = raw?.selectedOptionId ?? raw?.selectedOption;
   const selectedOption = selectedOptionRaw === null || selectedOptionRaw === undefined
     ? null
     : String(selectedOptionRaw).slice(0, 500);
 
-  const scoreDeltaRaw = Number.parseFloat(String(raw?.scoreDelta ?? 0));
-  const questionWeightRaw = Number.parseFloat(String(raw?.questionWeight ?? 1));
+  const isPackagePayload = Object.prototype.hasOwnProperty.call(raw || {}, 'selectedOptionId');
+  const scoreDeltaRaw = Number.parseFloat(String(isPackagePayload ? 0 : (raw?.scoreDelta ?? 0)));
+  const questionWeightRaw = Number.parseFloat(String(isPackagePayload ? 1 : (raw?.questionWeight ?? 1)));
 
   return {
     questionId,
     selectedOption,
-    isCorrect: scholarshipContract ? null : (typeof raw?.isCorrect === 'boolean' ? raw.isCorrect : null),
-    scoreDelta: scholarshipContract
-      ? 0
-      : (Number.isFinite(scoreDeltaRaw) ? Math.max(-100, Math.min(100, scoreDeltaRaw)) : 0),
-    questionWeight: scholarshipContract
-      ? 0
-      : (Number.isFinite(questionWeightRaw) ? Math.max(0, Math.min(100, questionWeightRaw)) : 1),
+    isCorrect: isPackagePayload ? null : (typeof raw?.isCorrect === 'boolean' ? raw.isCorrect : null),
+    scoreDelta: Number.isFinite(scoreDeltaRaw) ? Math.max(-100, Math.min(100, scoreDeltaRaw)) : 0,
+    questionWeight: Number.isFinite(questionWeightRaw) ? Math.max(0, Math.min(100, questionWeightRaw)) : 1,
   };
 }
 
@@ -148,7 +136,6 @@ export default async function handler(req, res) {
     }
 
     await requireExamSession(req, attemptId);
-    const useScholarshipContract = hasScholarshipExamPayload(body);
 
     if (!loadTestMode) {
       await enforceRateLimit(req, res, {
@@ -175,8 +162,8 @@ export default async function handler(req, res) {
       });
     }
 
-    const normalizedAnswers = normalizeIncomingAnswers(body, useScholarshipContract)
-      .map((item) => normalizeAnswerRow(item, { scholarshipContract: useScholarshipContract }))
+    const normalizedAnswers = normalizeIncomingAnswers(body)
+      .map((item) => normalizeAnswerRow(item))
       .filter(Boolean);
 
     if (normalizedAnswers.length === 0) {
@@ -186,15 +173,9 @@ export default async function handler(req, res) {
     if (!loadTestMode) {
       const attemptState = await query(
         `
-          SELECT
-            ea.status,
-            ea.started_at,
-            ea.bank_key,
-            ea.source,
-            c.grade
-          FROM exam_attempts ea
-          JOIN candidates c ON c.id = ea.candidate_id
-          WHERE ea.id = $1
+          SELECT status
+          FROM exam_attempts
+          WHERE id = $1
           LIMIT 1
         `,
         [attemptId],
@@ -204,50 +185,9 @@ export default async function handler(req, res) {
         throw new HttpError(404, 'Exam attempt was not found.', 'attempt_not_found');
       }
 
-      const attempt = attemptState.rows[0];
-      const runtime = resolveExamRuntimeWindow(attempt.started_at);
-      if (runtime.timed_out) {
-        if (['STARTED', 'OPEN'].includes(attempt.status)) {
-          await query(
-            `
-              UPDATE exam_attempts
-              SET
-                status = 'TIMEOUT',
-                submitted_at = COALESCE(submitted_at, NOW()),
-                completion_status = COALESCE(completion_status, 'time_limit_reached'),
-                duration_seconds = COALESCE(duration_seconds, $2),
-                updated_at = NOW()
-              WHERE id = $1
-                AND status IN ('STARTED', 'OPEN')
-            `,
-            [attemptId, runtime.duration_seconds],
-          );
-        }
-        throw new HttpError(409, 'Exam time limit has been reached.', 'attempt_time_limit_reached', {
-          runtime,
-        });
-      }
-      if (!['STARTED', 'OPEN'].includes(attempt.status)) {
-        throw new HttpError(409, 'Attempt no longer accepts answers.', 'attempt_not_open', { status: attempt.status });
-      }
-
-      if (useScholarshipContract) {
-        const scholarshipExam = resolveScholarshipExamContext({
-          grade: attempt.grade,
-          bankKey: attempt.bank_key,
-          source: attempt.source,
-          examVersionKey: body.examVersionKey,
-        });
-
-        if (!scholarshipExam) {
-          throw new HttpError(
-            409,
-            'This attempt is not configured for the scholarship exam contract.',
-            'scholarship_exam_context_missing',
-          );
-        }
-
-        assertScholarshipExamVersion(body.examVersionKey, scholarshipExam);
+      const status = attemptState.rows[0].status;
+      if (!['STARTED', 'OPEN'].includes(status)) {
+        throw new HttpError(409, 'Attempt no longer accepts answers.', 'attempt_not_open', { status });
       }
     }
 

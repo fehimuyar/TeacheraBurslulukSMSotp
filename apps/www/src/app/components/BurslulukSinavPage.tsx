@@ -1,305 +1,302 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
-import {
-  completeScholarshipSpeakingUpload,
-  getExamSessionStatus,
-  initScholarshipSpeakingUpload,
-  saveScholarshipExamAnswers,
-  submitScholarshipExam,
-  uploadScholarshipSpeakingBlob,
-} from '../api/examApi';
-import {
-  clearExamDraft,
-  readCandidateSession,
-  readExamDraft,
-  saveExamDraft,
-} from './bursluluk/burslulukFlowSession';
-import { ScholarshipExamModule } from './scholarship-exam/scholarship-exam-module';
-import type {
-  ExamModuleAdapter,
-  ExamAttemptState,
-  ExamContentPublic,
-  ExamDraftSnapshot,
-  PersistedSpeakingResponse,
-  SaveObjectiveAnswersPayload,
-  SpeakingUploadCompletePayload,
-  SpeakingUploadInitPayload,
-  SubmitExamPayload,
-} from './scholarship-exam/types';
+import { Link } from 'react-router';
+import { getExamSessionStatus, resolveExamApiBase } from '../api/examApi';
+import { createHttpExamAdapter, type ExamAttemptState, type ExamContentPublic } from './bursluluk-exam';
+import { readCandidateSession } from './bursluluk/burslulukFlowSession';
+import { BurslulukExamShell } from './bursluluk-shell/BurslulukExamShell';
+import './bursluluk-exam/styles.css';
 
-const DEFAULT_DURATION_SECONDS = Number(import.meta.env.VITE_BURSLULUK_EXAM_DURATION_SECONDS || 2400) || 2400;
+const DEFAULT_DURATION_SECONDS = 3600;
 
-async function readScholarshipContent(publicContentPath: string) {
-  const response = await fetch(publicContentPath, {
-    method: 'GET',
-    headers: {
-      Accept: 'application/json',
-    },
-  });
-  if (!response.ok) {
-    throw new Error(`Exam content could not be loaded (HTTP ${response.status}).`);
-  }
-  return (await response.json()) as ExamContentPublic;
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <div className="mb-3 flex items-center gap-2.5">
+      <span className="h-px w-10 bg-[#4A7067]/40" />
+      <span className="font-['Neutraface_2_Text:Demi',sans-serif] text-[10px] uppercase tracking-[0.2em] text-[#68232E]/56">
+        {children}
+      </span>
+    </div>
+  );
 }
 
-function normalizeDraft(attemptId: string) {
-  const rawDraft = readExamDraft(attemptId);
-  if (!rawDraft) return null;
-
-  const objectiveAnswers =
-    rawDraft.objectiveAnswers && typeof rawDraft.objectiveAnswers === 'object'
-      ? rawDraft.objectiveAnswers
-      : Object.fromEntries(
-          Object.entries(rawDraft.answers || {}).map(([questionId, selectedOptionId]) => [questionId, selectedOptionId || null]),
-        );
-
-  const speakingResponses =
-    rawDraft.speakingResponses && typeof rawDraft.speakingResponses === 'object'
-      ? (rawDraft.speakingResponses as Record<string, PersistedSpeakingResponse>)
-      : {};
-
-  const currentQuestionIndex = Number.isFinite(Number(rawDraft.currentQuestionIndex))
-    ? Math.max(0, Math.trunc(Number(rawDraft.currentQuestionIndex)))
-    : 0;
-
-  return {
-    attemptId,
-    currentQuestionIndex,
-    objectiveAnswers,
-    speakingResponses,
-    updatedAt: rawDraft.updatedAt || new Date().toISOString(),
-  } satisfies ExamDraftSnapshot;
+function SummaryCard({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-[22px] border border-[#E2D8CC] bg-[#FCFAF7] px-4 py-4 sm:px-5 sm:py-5">
+      <p className="font-['Neutraface_2_Text:Demi',sans-serif] text-[10px] uppercase tracking-[0.14em] text-[#4A7067]">
+        {label}
+      </p>
+      <p className="mt-2.5 text-[15px] leading-[1.58] text-[#3E342D] sm:text-[16px]">{value}</p>
+    </div>
+  );
 }
 
-function resolveDeadlineAt(startedAt: string | undefined, deadlineAt: string | null | undefined, durationSeconds: number) {
-  if (deadlineAt) return deadlineAt;
+function ExamStateScreen({
+  sectionLabel,
+  title,
+  description,
+  session,
+  primaryAction,
+  secondaryAction,
+}: {
+  sectionLabel: string;
+  title: string;
+  description: string;
+  session?: ReturnType<typeof readCandidateSession>;
+  primaryAction?: { label: string; to: string };
+  secondaryAction?: { label: string; to: string };
+}) {
+  const sessionLabel = session?.selectedSessionLabel || 'Belirlenecek';
 
-  const startedAtMs = Number(new Date(startedAt || ''));
-  if (Number.isFinite(startedAtMs)) {
-    return new Date(startedAtMs + durationSeconds * 1000).toISOString();
+  return (
+    <section className="relative min-h-screen overflow-hidden bg-[#F7F3ED] px-4 pb-16 pt-[118px] sm:px-6 lg:px-12 lg:pb-20 lg:pt-[142px]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(244,235,209,0.76),transparent_34%),radial-gradient(circle_at_86%_12%,rgba(74,112,103,0.06),transparent_26%),linear-gradient(180deg,#FBF8F3_0%,#F5EFE7_28%,#F7F3ED_54%,#F1E9DE_100%)]" />
+      <div className="pointer-events-none absolute left-[-8%] top-[8%] h-72 w-72 rounded-full bg-[#F4EBD1]/80 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-[14%] right-[-10%] h-80 w-80 rounded-full bg-[#324D47]/[0.06] blur-3xl" />
+
+      <div className="relative mx-auto max-w-[1180px] rounded-[30px] border border-[#DDD3C7] bg-white/84 p-5 shadow-[0_24px_58px_rgba(25,20,15,0.06)] sm:p-7 lg:p-8">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.06fr)_minmax(340px,0.94fr)]">
+          <div className="rounded-[30px] border border-[#DDD3C7] bg-[linear-gradient(180deg,#FCF8F2_0%,#F5EDE3_100%)] p-5 shadow-[0_20px_48px_rgba(25,20,15,0.05)] sm:p-7">
+            <SectionLabel>{sectionLabel}</SectionLabel>
+            <h1 className="max-w-[11ch] font-['Neutraface_2_Display:Titling',sans-serif] text-[30px] uppercase leading-[0.98] tracking-[0.016em] text-[#68232E] sm:text-[38px] lg:text-[44px]">
+              {title}
+            </h1>
+            <p className="mt-4 max-w-[34rem] text-[15px] leading-[1.72] text-[#5B4F45] sm:text-[16px] sm:leading-[1.76]">
+              {description}
+            </p>
+
+            <div className="mt-6 rounded-[26px] border border-[#E2D8CC] bg-white/82 px-5 py-5 shadow-[0_16px_36px_rgba(25,20,15,0.04)] sm:px-6 sm:py-6">
+              <p className="font-['Neutraface_2_Text:Demi',sans-serif] text-[10px] uppercase tracking-[0.18em] text-[#8E7B6D]">
+                Durum Notu
+              </p>
+              <p className="mt-3 text-[16px] leading-[1.72] text-[#5B4F45] sm:text-[17px]">
+                Sistem oturum, soru içeriği ve sınav erişim durumunu güvenli biçimde kontrol ediyor.
+              </p>
+            </div>
+
+            {primaryAction || secondaryAction ? (
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                {primaryAction ? (
+                  <Link
+                    to={primaryAction.to}
+                    className="inline-flex min-h-[52px] items-center justify-center rounded-full bg-[#E70000] px-6 py-3.5 font-['Neutraface_2_Text:Demi',sans-serif] text-[12px] uppercase tracking-[0.16em] text-white shadow-[0_16px_32px_rgba(231,0,0,0.14)] transition-[background-color,box-shadow] duration-200 hover:bg-[#C50000] hover:shadow-[0_20px_38px_rgba(231,0,0,0.2)] sm:px-8"
+                  >
+                    {primaryAction.label}
+                  </Link>
+                ) : null}
+                {secondaryAction ? (
+                  <Link
+                    to={secondaryAction.to}
+                    className="inline-flex min-h-[52px] items-center justify-center rounded-full border border-[#D6CABC] bg-white px-6 py-3.5 font-['Neutraface_2_Text:Demi',sans-serif] text-[12px] uppercase tracking-[0.16em] text-[#68232E] transition-colors duration-200 hover:bg-[#F8F2EA] sm:px-8"
+                  >
+                    {secondaryAction.label}
+                  </Link>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="rounded-[30px] border border-[#DDD3C7] bg-white/84 p-5 shadow-[0_20px_48px_rgba(25,20,15,0.05)] sm:p-7">
+            <SectionLabel>Aday Özeti</SectionLabel>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <SummaryCard label="Aday" value={session?.studentFullName || session?.applicationNo || 'Belirlenecek'} />
+              <SummaryCard label="Aday Kodu" value={session?.applicationNo || 'Belirlenecek'} />
+              <SummaryCard label="Sınıf" value={session ? String(session.grade) : 'Belirlenecek'} />
+              <SummaryCard label="Oturum" value={sessionLabel} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function normalizeGrade(raw: unknown) {
+  const parsed = Number.parseInt(String(raw), 10);
+  if (!Number.isFinite(parsed)) return 8;
+  return Math.max(1, Math.min(12, parsed));
+}
+
+function resolveContentGradeKey(displayedGrade: unknown) {
+  const grade = normalizeGrade(displayedGrade);
+  const contentGrade = grade <= 1 ? 2 : (grade >= 12 ? 11 : grade);
+  return `grade-${String(contentGrade).padStart(2, '0')}`;
+}
+
+async function readJsonOrThrow<T>(response: Response): Promise<T> {
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || !payload) {
+    throw new Error(`HTTP ${response.status}`);
   }
-  return new Date(Date.now() + durationSeconds * 1000).toISOString();
+  return payload as T;
 }
 
 export default function BurslulukSinavPage() {
-  const navigate = useNavigate();
   const [session] = useState(() => readCandidateSession());
-  const [content, setContent] = useState<ExamContentPublic | null>(null);
-  const [runtimeDeadlineAt, setRuntimeDeadlineAt] = useState('');
-  const [runtimeDurationSeconds, setRuntimeDurationSeconds] = useState(DEFAULT_DURATION_SECONDS);
-  const [runtimeStartedAt, setRuntimeStartedAt] = useState('');
-  const [scholarshipExam, setScholarshipExam] = useState(session?.scholarshipExam || null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isGateLoading, setIsGateLoading] = useState(true);
   const [isGateOpen, setIsGateOpen] = useState(false);
+  const [content, setContent] = useState<ExamContentPublic | null>(null);
+  const [isContentLoading, setIsContentLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+
+  const contentGradeKey = useMemo(() => resolveContentGradeKey(session?.grade), [session?.grade]);
 
   useEffect(() => {
     if (!session?.attemptId || !session?.sessionToken) {
-      setIsLoading(false);
+      setIsGateLoading(false);
+      setIsGateOpen(false);
       return;
     }
 
-    let cancelled = false;
-
-    const load = async () => {
-      setIsLoading(true);
-      setErrorMessage('');
-
+    let isCancelled = false;
+    const run = async () => {
       try {
-        const status = await getExamSessionStatus(session.sessionToken, session.attemptId);
-        if (cancelled) return;
-
-        const nextScholarshipExam = status.session.scholarshipExam || session.scholarshipExam;
-        if (!nextScholarshipExam) {
-          throw new Error('Bu oturum bursluluk sinav icerigi ile eslesmedi.');
-        }
-
-        const durationSeconds = Number(status.runtime?.duration_seconds || runtimeDurationSeconds || DEFAULT_DURATION_SECONDS);
-        const startedAt = status.runtime?.started_at || status.session.startedAt || session.startedAt || new Date().toISOString();
-        const deadlineAt = resolveDeadlineAt(startedAt, status.runtime?.deadline_at, durationSeconds);
-        const nextContent = await readScholarshipContent(nextScholarshipExam.publicContentPath);
-        if (cancelled) return;
-
-        setScholarshipExam(nextScholarshipExam);
-        setContent(nextContent);
-        setRuntimeDurationSeconds(durationSeconds);
-        setRuntimeStartedAt(startedAt);
-        setRuntimeDeadlineAt(deadlineAt);
-        setIsGateOpen(Boolean(status.gate.exam_open));
-      } catch (error) {
-        if (!cancelled) {
-          setErrorMessage(error instanceof Error && error.message ? error.message : 'Sinav oturumu hazirlanamadi.');
-        }
+        const response = await getExamSessionStatus(session.sessionToken, session.attemptId);
+        if (isCancelled) return;
+        setIsGateOpen(Boolean(response.gate.exam_open));
+      } catch {
+        if (isCancelled) return;
+        setIsGateOpen(false);
       } finally {
-        if (!cancelled) {
-          setIsLoading(false);
+        if (!isCancelled) {
+          setIsGateLoading(false);
         }
       }
     };
 
-    void load();
+    void run();
     return () => {
-      cancelled = true;
+      isCancelled = true;
     };
-  }, [session?.attemptId, session?.scholarshipExam, session?.sessionToken, session?.startedAt]);
+  }, [session?.attemptId, session?.sessionToken]);
 
-  const initialDraft = useMemo(
-    () => (session?.attemptId ? normalizeDraft(session.attemptId) : null),
-    [session?.attemptId],
-  );
+  useEffect(() => {
+    if (!session) {
+      setIsContentLoading(false);
+      setContent(null);
+      return;
+    }
 
-  const attempt = useMemo(() => {
-    if (!session?.attemptId || !scholarshipExam || !runtimeDeadlineAt) return null;
+    let isCancelled = false;
+    const run = async () => {
+      setIsContentLoading(true);
+      setErrorMessage('');
+      try {
+        const response = await fetch(`/bursluluk-exam/${contentGradeKey}/assessment.public.json`, {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+          },
+        });
+        const payload = await readJsonOrThrow<ExamContentPublic>(response);
+        if (isCancelled) return;
+        setContent(payload);
+      } catch (error) {
+        if (isCancelled) return;
+        const message = error instanceof Error && error.message.trim()
+          ? error.message.trim()
+          : 'Sinav icerigi yuklenemedi.';
+        setErrorMessage(message);
+        setContent(null);
+      } finally {
+        if (!isCancelled) {
+          setIsContentLoading(false);
+        }
+      }
+    };
+
+    void run();
+    return () => {
+      isCancelled = true;
+    };
+  }, [contentGradeKey, session]);
+
+  const adapter = useMemo(() => {
+    if (!session?.sessionToken) return null;
+    return createHttpExamAdapter({
+      baseUrl: resolveExamApiBase(),
+      sessionToken: session.sessionToken,
+    });
+  }, [session?.sessionToken]);
+
+  const attempt = useMemo<ExamAttemptState | null>(() => {
+    if (!content || !session) return null;
+
+    const startedAt = session.startedAt || session.createdAt || new Date().toISOString();
+    const startedAtMs = Number(new Date(startedAt));
+    const fallbackStartedAt = Number.isFinite(startedAtMs) ? startedAtMs : Date.now();
 
     return {
       attemptId: session.attemptId,
-      examVersionKey: scholarshipExam.examVersionKey,
-      grade: scholarshipExam.contentGrade,
-      studentLabel: session.studentFullName,
-      startedAt: runtimeStartedAt || session.startedAt || new Date().toISOString(),
-      deadlineAt: runtimeDeadlineAt,
-      durationSeconds: runtimeDurationSeconds,
+      examVersionKey: content.examVersionKey,
+      grade: content.grade,
+      studentLabel: session.studentFullName || session.applicationNo,
+      startedAt: new Date(fallbackStartedAt).toISOString(),
+      deadlineAt: new Date(fallbackStartedAt + DEFAULT_DURATION_SECONDS * 1000).toISOString(),
+      durationSeconds: DEFAULT_DURATION_SECONDS,
       status: 'started',
-    } satisfies ExamAttemptState;
-  }, [
-    runtimeDeadlineAt,
-    runtimeDurationSeconds,
-    runtimeStartedAt,
-    scholarshipExam,
-    session?.attemptId,
-    session?.startedAt,
-    session?.studentFullName,
-  ]);
-
-  const adapter = useMemo<ExamModuleAdapter | null>(() => {
-    if (!session?.sessionToken) return null;
-
-    return {
-      saveObjectiveAnswers: async (payload: SaveObjectiveAnswersPayload) => {
-        await saveScholarshipExamAnswers(session.sessionToken, payload);
-      },
-      initSpeakingUpload: async (payload: SpeakingUploadInitPayload) =>
-        initScholarshipSpeakingUpload(session.sessionToken, payload),
-      uploadSpeakingBlob,
-      completeSpeakingUpload: async (payload: SpeakingUploadCompletePayload) =>
-        completeScholarshipSpeakingUpload(session.sessionToken, payload),
-      submitExam: async (payload: SubmitExamPayload) =>
-        submitScholarshipExam(session.sessionToken, payload),
     };
-  }, [session?.sessionToken]);
+  }, [content, session]);
 
   if (!session) {
     return (
-      <section className="mx-auto min-h-[65vh] max-w-[840px] px-4 pb-16 pt-[132px] text-white sm:px-6">
-        <div className="rounded-2xl border border-white/12 bg-[#091427]/85 p-8">
-          <h1 className="text-[28px] font-semibold">Sinav oturumu bulunamadi</h1>
-          <p className="mt-3 text-white/70">Lutfen once giris adimindan aday oturumunu baslatin.</p>
-          <Link to="/bursluluk/giris" className="mt-6 inline-flex rounded-full bg-[#D92E27] px-6 py-3 text-[12px] font-semibold uppercase tracking-[0.15em]">
-            Giris Sayfasina Don
-          </Link>
-        </div>
-      </section>
+      <ExamStateScreen
+        sectionLabel="Sınav Oturumu"
+        title="Sınav oturumu bulunamadı"
+        description="Lütfen önce giriş adımından aday oturumunu başlatın ve ardından sınav ekranına geçin."
+        primaryAction={{ label: 'Giriş Sayfasına Dön', to: '/bursluluk/giris' }}
+      />
     );
   }
 
-  if (isLoading) {
+  if (isGateLoading || isContentLoading) {
     return (
-      <section className="mx-auto min-h-[65vh] max-w-[840px] px-4 pb-16 pt-[132px] text-white sm:px-6">
-        <div className="rounded-2xl border border-white/12 bg-[#091427]/85 p-8">
-          <h1 className="text-[28px] font-semibold">Sinav icerigi yukleniyor</h1>
-          <p className="mt-3 text-white/70">Oturumunuz kontrol ediliyor, lutfen bekleyin.</p>
-        </div>
-      </section>
-    );
-  }
-
-  if (errorMessage) {
-    return (
-      <section className="mx-auto min-h-[65vh] max-w-[840px] px-4 pb-16 pt-[132px] text-white sm:px-6">
-        <div className="rounded-2xl border border-[#6F2824] bg-[#2B1214]/80 p-8">
-          <h1 className="text-[28px] font-semibold">Sinav hazirlanamadi</h1>
-          <p className="mt-3 text-[#FFB8B1]">{errorMessage}</p>
-          <Link to="/bursluluk/giris" className="mt-6 inline-flex rounded-full bg-[#D92E27] px-6 py-3 text-[12px] font-semibold uppercase tracking-[0.15em] text-white">
-            Giris Sayfasina Don
-          </Link>
-        </div>
-      </section>
+      <ExamStateScreen
+        sectionLabel="Sınav Hazırlığı"
+        title="Sınav hazırlanıyor"
+        description="Soru havuzu, oturum bilgisi ve sınav erişimi kontrol ediliyor. Birkaç saniye içinde sınav modülü açılacak."
+        session={session}
+        secondaryAction={{ label: 'Bekleme Ekranına Dön', to: '/bursluluk/bekleme' }}
+      />
     );
   }
 
   if (!isGateOpen) {
     return (
-      <section className="mx-auto min-h-[65vh] max-w-[840px] px-4 pb-16 pt-[132px] text-white sm:px-6">
-        <div className="rounded-2xl border border-white/12 bg-[#091427]/85 p-8">
-          <h1 className="text-[28px] font-semibold">Sinav henuz acik degil</h1>
-          <p className="mt-3 text-white/70">Bekleme ekranina donup acilis zamanini takip edin.</p>
-          <Link to="/bursluluk/bekleme" className="mt-6 inline-flex rounded-full bg-[#D92E27] px-6 py-3 text-[12px] font-semibold uppercase tracking-[0.15em] text-white">
-            Bekleme Ekranina Don
-          </Link>
-        </div>
-      </section>
+      <ExamStateScreen
+        sectionLabel="Sınav Kapısı"
+        title="Sınav henüz açık değil"
+        description="Bekleme ekranına dönerek açılış sayacını takip edin. Sınav saati geldiğinde bu oturum üzerinden devam edebilirsiniz."
+        session={session}
+        primaryAction={{ label: 'Bekleme Ekranına Dön', to: '/bursluluk/bekleme' }}
+      />
     );
   }
 
-  if (!content || !attempt || !adapter || !scholarshipExam) {
+  if (errorMessage || !content || !attempt || !adapter) {
     return (
-      <section className="mx-auto min-h-[65vh] max-w-[840px] px-4 pb-16 pt-[132px] text-white sm:px-6">
-        <div className="rounded-2xl border border-white/12 bg-[#091427]/85 p-8">
-          <h1 className="text-[28px] font-semibold">Sinav oturumu eksik</h1>
-          <p className="mt-3 text-white/70">Icerik ve sure bilgileri tam gelmeden sinav baslatilamaz.</p>
-          <Link to="/bursluluk/giris" className="mt-6 inline-flex rounded-full bg-[#D92E27] px-6 py-3 text-[12px] font-semibold uppercase tracking-[0.15em] text-white">
-            Giris Sayfasina Don
-          </Link>
-        </div>
-      </section>
+      <ExamStateScreen
+        sectionLabel="Sınav Modülü"
+        title="Sınav ekranı açılamadı"
+        description={errorMessage || 'Sınav modülü hazırlanamadı. Bekleme ekranına dönerek akışı yeniden deneyebilirsiniz.'}
+        session={session}
+        primaryAction={{ label: 'Bekleme Ekranına Dön', to: '/bursluluk/bekleme' }}
+        secondaryAction={{ label: 'Girişe Dön', to: '/bursluluk/giris' }}
+      />
     );
   }
 
   return (
-    <section className="relative min-h-screen overflow-hidden bg-[#f5efe7] px-4 pb-16 pt-[110px] sm:px-6 lg:px-12 lg:pt-[138px]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(244,235,209,0.8),transparent_34%),linear-gradient(180deg,#fbf8f3_0%,#f5efe7_30%,#efe6da_100%)]" />
-      <div className="relative mx-auto max-w-[1080px]">
-        <div className="mb-4 rounded-[24px] border border-[#ddd3c7] bg-white/86 px-5 py-4 shadow-[0_16px_34px_rgba(25,20,15,0.06)]">
-          <p className="font-['Neutraface_2_Text:Demi',sans-serif] text-[10px] uppercase tracking-[0.18em] text-[#4a7067]">
-            Bursluluk Sinavi
-          </p>
-          <p className="mt-2 text-[14px] text-[#5b4f45]">
-            {session.studentFullName} · {session.candidateCode || session.applicationNo} · {scholarshipExam.contentGrade.toUpperCase()}
-          </p>
-        </div>
-
-        <ScholarshipExamModule
-          content={content}
-          attempt={attempt}
-          adapter={adapter}
-          assetBaseUrl={scholarshipExam.assetBaseUrl}
-          initialDraft={initialDraft}
-          onDraftChange={(draft) => {
-            saveExamDraft({
-              attemptId: draft.attemptId,
-              answers: Object.fromEntries(
-                Object.entries(draft.objectiveAnswers).flatMap(([questionId, selectedOptionId]) =>
-                  selectedOptionId ? [[questionId, selectedOptionId]] : [],
-                ),
-              ),
-              objectiveAnswers: draft.objectiveAnswers,
-              speakingResponses: draft.speakingResponses,
-              currentQuestionIndex: draft.currentQuestionIndex,
-              remainingSeconds: Math.max(0, Math.floor((new Date(attempt.deadlineAt).getTime() - Date.now()) / 1000)),
-              updatedAt: draft.updatedAt,
-            });
-          }}
-          onSubmitted={() => {
-            clearExamDraft(session.attemptId);
-            navigate(`/bursluluk/sonuç?attemptId=${encodeURIComponent(session.attemptId)}`);
-          }}
-          loadingSlot={
-            <div className="rounded-[24px] border border-[#ddd3c7] bg-white/86 p-6 text-[#5b4f45]">
-              Soru akisiniz hazirlaniyor...
-            </div>
-          }
-        />
-      </div>
-    </section>
+    <BurslulukExamShell
+      content={content}
+      attempt={attempt}
+      adapter={adapter}
+      assetBaseUrl={`/bursluluk-exam/${contentGradeKey}`}
+    />
   );
 }

@@ -1,0 +1,197 @@
+@theme inline {
+  --color-background: var(--bg-app);
+  --color-foreground: var(--text-primary);
+
+  --color-brand-olive: var(--brand-olive);
+  --color-brand-claret: var(--brand-claret);
+  --color-brand-red: var(--brand-red);
+  --color-brand-yellow: var(--brand-yellow);
+  --color-brand-sand: var(--brand-sand);
+  --color-brand-cream: var(--brand-cream);
+
+  --color-bg-app: var(--bg-app);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-surface-strong: var(--bg-surface-strong);
+  --color-bg-panel: var(--bg-panel);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+
+  --color-border-soft: var(--border-soft);
+  --color-border-strong: var(--border-strong);
+
+  --font-display: var(--font-neutra-display);
+  --font-text: var(--font-neutra-text);
+  --font-body: var(--font-neutra-text);
+
+  --shadow-soft: var(--shadow-soft);
+  --shadow-card: var(--shadow-card);
+}
+
+.bursluluk-shell {
+  color-scheme: light;
+  --bg-app: #f4ebd1;
+  --bg-surface: rgba(255, 252, 245, 0.88);
+  --bg-surface-strong: #fffaf0;
+  --bg-panel: rgba(235, 211, 179, 0.66);
+
+  --text-primary: #1f2116;
+  --text-secondary: rgba(31, 33, 22, 0.78);
+  --text-muted: rgba(31, 33, 22, 0.58);
+
+  --brand-olive: #6f7146;
+  --brand-claret: #792636;
+  --brand-red: #e73d24;
+  --brand-yellow: #fcad05;
+  --brand-sand: #ed9a60;
+  --brand-cream: #f4ebd1;
+
+  --border-soft: rgba(111, 113, 70, 0.2);
+  --border-strong: rgba(111, 113, 70, 0.34);
+
+  --font-neutra-text: "Neutraface 2 Text", "Neutraface 2 Text:Book", sans-serif;
+  --font-neutra-display: "Neutraface 2 Display:Medium", "Neutraface_2_Display:Medium", sans-serif;
+
+  --radius-card: 14px;
+  --radius-pill: 999px;
+
+  --shadow-soft: 0 1px 2px rgba(86, 61, 33, 0.06), 0 8px 24px rgba(86, 61, 33, 0.08);
+  --shadow-card: 0 1px 2px rgba(86, 61, 33, 0.04), 0 6px 16px rgba(86, 61, 33, 0.06);
+  --focus-ring: 0 0 0 3px rgba(252, 173, 5, 0.28);
+
+  --grid-color: rgba(111, 113, 70, 0.06);
+  --grid-size: 24px;
+
+  --transition-quick: 180ms ease-out;
+  --transition-soft: 360ms ease-in-out;
+  --transition-pop: 150ms cubic-bezier(0.2, 0, 0.13, 1.5);
+
+  font-family: var(--font-neutra-text), Georgia, serif;
+  background-color: #f4ebd1;
+  background-image:
+    linear-gradient(var(--grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-color) 1px, transparent 1px),
+    radial-gradient(circle at top left, rgba(252, 173, 5, 0.15), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(121, 38, 54, 0.08), transparent 30%),
+    linear-gradient(180deg, #f8f0d9 0%, var(--bg-app) 55%, #ead6b7 100%);
+  background-size:
+    var(--grid-size) var(--grid-size),
+    var(--grid-size) var(--grid-size),
+    100% 100%, 100% 100%, 100% 100%;
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+.bursluluk-shell button:focus-visible,
+.bursluluk-shell input:focus-visible,
+.bursluluk-shell [role="radio"]:focus-visible,
+.bursluluk-shell summary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bursluluk-shell {
+    --transition-quick: 0ms linear;
+    --transition-soft: 0ms linear;
+    --transition-pop: 0ms linear;
+  }
+
+  .bursluluk-shell *,
+  .bursluluk-shell *::before,
+  .bursluluk-shell *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes ctaPulseOnce {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+
+@keyframes staggerFadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes heartBeatSmall {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  20% { transform: scale(1.2) rotate(-5deg); }
+  40% { transform: scale(1) rotate(0deg); }
+  60% { transform: scale(1.15) rotate(5deg); }
+  80% { transform: scale(1) rotate(0deg); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .bursluluk-shell .animate-fadeSlideIn {
+    animation: fadeSlideIn 400ms ease-out both;
+  }
+
+  .bursluluk-shell .animate-scaleIn {
+    animation: scaleIn 300ms ease-out both;
+  }
+
+  .bursluluk-shell .animate-ctaPulseOnce {
+    animation: ctaPulseOnce 600ms ease-in-out;
+  }
+
+  .bursluluk-shell .animate-staggerFadeUp {
+    animation: staggerFadeUp 500ms ease-out both;
+  }
+
+  .bursluluk-shell .animate-heartBeatSmall {
+    animation: heartBeatSmall 1.4s ease-in-out infinite;
+  }
+}
+
+.bursluluk-shell .bg-vintage-texture {
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28), transparent),
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.34), transparent 38%),
+    radial-gradient(circle at bottom right, rgba(237, 154, 96, 0.09), transparent 34%);
+}
+
+.bursluluk-shell .bg-brand-olive { background-color: #6f7146; }
+.bursluluk-shell .bg-brand-olive\/90 { background-color: rgb(111 113 70 / 0.9); }
+.bursluluk-shell .bg-brand-olive\/10 { background-color: rgb(111 113 70 / 0.1); }
+.bursluluk-shell .bg-brand-olive\/8 { background-color: rgb(111 113 70 / 0.08); }
+.bursluluk-shell .bg-brand-olive\/5 { background-color: rgb(111 113 70 / 0.05); }
+.bursluluk-shell .bg-brand-red { background-color: #e73d24; }
+.bursluluk-shell .bg-brand-red\/90 { background-color: rgb(231 61 36 / 0.9); }
+.bursluluk-shell .bg-brand-red\/10 { background-color: rgb(231 61 36 / 0.1); }
+.bursluluk-shell .bg-brand-yellow { background-color: #fcad05; }
+.bursluluk-shell .bg-brand-yellow\/20 { background-color: rgb(252 173 5 / 0.2); }
+.bursluluk-shell .bg-brand-sand { background-color: #ed9a60; }
+
+.bursluluk-shell .text-brand-olive { color: #6f7146; }
+.bursluluk-shell .text-brand-olive\/80 { color: rgb(111 113 70 / 0.8); }
+.bursluluk-shell .text-brand-olive\/70 { color: rgb(111 113 70 / 0.7); }
+.bursluluk-shell .text-brand-claret { color: #792636; }
+.bursluluk-shell .text-brand-red { color: #e73d24; }
+.bursluluk-shell .text-brand-sand { color: #ed9a60; }
+.bursluluk-shell .text-brand-cream { color: #f4ebd1; }
+.bursluluk-shell .text-border-strong { color: rgba(111 113 70 / 0.34); }
+
+.bursluluk-shell .border-brand-olive { border-color: #6f7146; }
+.bursluluk-shell .border-brand-olive\/50 { border-color: rgb(111 113 70 / 0.5); }
+.bursluluk-shell .border-brand-olive\/30 { border-color: rgb(111 113 70 / 0.3); }
+.bursluluk-shell .border-brand-olive\/20 { border-color: rgb(111 113 70 / 0.2); }
+.bursluluk-shell .border-brand-claret\/20 { border-color: rgb(121 38 54 / 0.2); }
+
+.bursluluk-shell .hover\:bg-brand-olive\/90:hover { background-color: rgb(111 113 70 / 0.9); }
+.bursluluk-shell .hover\:bg-brand-olive\/8:hover { background-color: rgb(111 113 70 / 0.08); }
+.bursluluk-shell .hover\:bg-brand-red\/90:hover { background-color: rgb(231 61 36 / 0.9); }

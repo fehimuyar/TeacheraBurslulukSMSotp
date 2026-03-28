@@ -8,15 +8,6 @@ import { decryptPii, isPrivilegedPiiRole, maskPiiName, maskPiiPhone } from '../.
 import { enforceRateLimit, getRequestIp } from '../../_lib/redisRateLimit.js';
 import { requireExamSession } from '../../_lib/sessionAuth.js';
 
-const DEFAULT_DISCOUNT_BRACKETS = [
-  { min: 95, rate: 100 },
-  { min: 90, rate: 75 },
-  { min: 80, rate: 50 },
-  { min: 70, rate: 35 },
-  { min: 60, rate: 20 },
-  { min: 0, rate: 10 },
-];
-
 function shouldIncludePii(req) {
   const queryValue = Array.isArray(req.query?.include_pii) ? req.query.include_pii[0] : req.query?.include_pii;
   const headerValue = req.headers?.['x-include-pii'];
@@ -24,67 +15,6 @@ function shouldIncludePii(req) {
   if (!raw) return true;
   const normalized = raw.toLowerCase();
   return !['0', 'false', 'no', 'off'].includes(normalized);
-}
-
-function normalizeDiscountBrackets(raw) {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .map((item) => ({
-      min: Number(item?.min),
-      rate: Number(item?.rate),
-    }))
-    .filter((item) => Number.isFinite(item.min) && Number.isFinite(item.rate))
-    .sort((a, b) => b.min - a.min);
-}
-
-function readDiscountBracketsFromEnv() {
-  const raw = safeTrim(process.env.BURSLULUK_DISCOUNT_BRACKETS);
-  if (!raw) return DEFAULT_DISCOUNT_BRACKETS;
-  try {
-    const parsed = JSON.parse(raw);
-    const normalized = normalizeDiscountBrackets(parsed);
-    if (normalized.length === 0) return DEFAULT_DISCOUNT_BRACKETS;
-    return normalized;
-  } catch {
-    return DEFAULT_DISCOUNT_BRACKETS;
-  }
-}
-
-function resolveDiscountRate(percentage) {
-  const numeric = Number(percentage);
-  if (!Number.isFinite(numeric)) return null;
-  const brackets = readDiscountBracketsFromEnv();
-  const matched = brackets.find((item) => numeric >= item.min);
-  return matched ? matched.rate : null;
-}
-
-async function readClassRank(client, campaignCode, grade, attemptId) {
-  if (!campaignCode || !Number.isFinite(Number(grade)) || !attemptId) return null;
-
-  const { rows } = await client.query(
-    `
-      WITH ranked AS (
-        SELECT
-          r.attempt_id,
-          RANK() OVER (
-            PARTITION BY c.grade
-            ORDER BY COALESCE(r.score, 0) DESC, COALESCE(r.percentage, 0) DESC, r.created_at ASC
-          )::int AS class_rank
-        FROM results r
-        JOIN candidates c ON c.id = r.candidate_id
-        WHERE r.campaign_code = $1
-          AND c.grade = $2
-          AND r.status IN ('PUBLISHED', 'VIEWED')
-      )
-      SELECT class_rank
-      FROM ranked
-      WHERE attempt_id = $3
-      LIMIT 1
-    `,
-    [campaignCode, Number(grade), attemptId],
-  );
-
-  return rows[0]?.class_rank ?? null;
 }
 
 export default async function handler(req, res) {
@@ -154,7 +84,14 @@ export default async function handler(req, res) {
                 r.status,
                 r.score,
                 r.percentage,
-                r.campaign_code,
+                r.objective_score_80,
+                r.speaking_score_20,
+                r.speaking_status,
+                r.final_score_100,
+                r.ranking_group,
+                r.ranking_position,
+                r.ranking_total,
+                r.review_note,
                 r.correct_count,
                 r.wrong_count,
                 r.unanswered_count,
@@ -190,7 +127,14 @@ export default async function handler(req, res) {
                 r.status,
                 r.score,
                 r.percentage,
-                r.campaign_code,
+                r.objective_score_80,
+                r.speaking_score_20,
+                r.speaking_status,
+                r.final_score_100,
+                r.ranking_group,
+                r.ranking_position,
+                r.ranking_total,
+                r.review_note,
                 r.correct_count,
                 r.wrong_count,
                 r.unanswered_count,
@@ -230,14 +174,9 @@ export default async function handler(req, res) {
       }
 
       const row = resultLookup.rows[0];
-      const normalizedResultStatus = safeTrim(row.status).toUpperCase();
-      const isCandidateViewable = Boolean(row.published_at) || ['PUBLISHED', 'VIEWED'].includes(normalizedResultStatus);
+      const isPublished = ['PUBLISHED', 'VIEWED'].includes(safeTrim(row.status).toUpperCase());
 
-      if (!loadTestMode && !isPanelRequest && !isCandidateViewable) {
-        throw new HttpError(404, 'Result is not published yet.', 'result_not_published');
-      }
-
-      if (!loadTestMode && !isPanelRequest && isCandidateViewable && !row.viewed_at) {
+      if (!loadTestMode && !isPanelRequest && isPublished && !row.viewed_at) {
         await client.query(
           `
             UPDATE results
@@ -265,11 +204,28 @@ export default async function handler(req, res) {
         row.viewed_at = new Date().toISOString();
       }
 
-      row.class_rank = await readClassRank(client, row.campaign_code, row.grade, row.attempt_id);
-      row.discount_rate = resolveDiscountRate(row.percentage);
-
       return row;
     });
+
+    const isPublished = ['PUBLISHED', 'VIEWED'].includes(safeTrim(payload.status).toUpperCase());
+    if (!isPanelRequest && !isPublished) {
+      ok(res, {
+        result: {
+          attempt_id: payload.attempt_id,
+          candidate_id: payload.candidate_id,
+          exam_status: payload.exam_status,
+          status: payload.status,
+          objective_ready: payload.objective_score_80 != null,
+          speaking_status: payload.speaking_status || 'PENDING',
+          started_at: payload.started_at,
+          submitted_at: payload.submitted_at,
+          published_at: null,
+          viewed_at: null,
+          pii_included: false,
+        },
+      });
+      return;
+    }
 
     const [studentFullNameRaw, parentFullNameRaw, parentPhoneRaw] = effectiveIncludePii
       ? await Promise.all([
@@ -320,15 +276,21 @@ export default async function handler(req, res) {
         exam_language: payload.exam_language,
         exam_age_range: payload.exam_age_range,
         question_count: payload.question_count,
-        score: Number(payload.score ?? 0),
-        percentage: Number(payload.percentage ?? 0),
-        discount_rate: payload.discount_rate,
-        class_rank: payload.class_rank,
+        score: Number(payload.score ?? payload.final_score_100 ?? 0),
+        percentage: Number(payload.percentage ?? payload.final_score_100 ?? 0),
+        objective_score_80: payload.objective_score_80 == null ? null : Number(payload.objective_score_80),
+        speaking_score_20: payload.speaking_score_20 == null ? null : Number(payload.speaking_score_20),
+        speaking_status: payload.speaking_status || 'PENDING',
+        final_score_100: payload.final_score_100 == null ? null : Number(payload.final_score_100),
+        ranking_group: payload.ranking_group,
+        ranking_position: payload.ranking_position,
+        ranking_total: payload.ranking_total,
         correct_count: payload.correct_count,
         wrong_count: payload.wrong_count,
         unanswered_count: payload.unanswered_count,
         placement_label: payload.placement_label,
         cefr_band: payload.cefr_band,
+        review_note: payload.review_note,
         status: payload.status,
         started_at: payload.started_at,
         submitted_at: payload.submitted_at,

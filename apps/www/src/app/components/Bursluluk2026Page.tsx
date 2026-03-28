@@ -9,9 +9,8 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { useNavigate } from 'react-router';
 import { startExamSession } from '../api/examApi';
-import { getAttributionSubmissionPayload } from '../lib/analytics';
 import { useLiteMode } from '../lib/useLiteMode';
 import {
   deriveAgeRangeFromGrade,
@@ -26,7 +25,7 @@ import { isValidTrMobilePhone, normalizeTrMobileInput, TR_MOBILE_PATTERN, TR_MOB
 const revealEase = [0.22, 1, 0.36, 1] as const;
 const trustBadges = ['Ücretsiz', 'MEB Onaylı', 'Online'] as const;
 const CAMPAIGN_CODE = String(import.meta.env.VITE_BURSLULUK_CAMPAIGN_CODE || '2026_BURSLULUK').trim();
-const QUESTION_COUNT = Number(import.meta.env.VITE_BURSLULUK_QUESTION_COUNT || 40) || 40;
+const QUESTION_COUNT = Number(import.meta.env.VITE_BURSLULUK_QUESTION_COUNT || 60) || 60;
 const CONSENT_VERSION = 'KVKK_v1_2026-03-13';
 const APPLICATION_LANGUAGE = 'en';
 const FORM_GRADES = Array.from({ length: 12 }, (_, index) => index + 1);
@@ -342,7 +341,6 @@ export default function Bursluluk2026Page() {
   const [hasActivatedVideo, setHasActivatedVideo] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isVideoReady, setIsVideoReady] = useState(false);
   const [videoDuration, setVideoDuration] = useState(0);
   const [currentVideoTime, setCurrentVideoTime] = useState(0);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -423,10 +421,6 @@ export default function Bursluluk2026Page() {
     if (!video) return;
 
     if (video.paused) {
-      if (!hasActivatedVideo) {
-        setHasActivatedVideo(true);
-        video.loop = false;
-      }
       try {
         await video.play();
         setIsPlaying(true);
@@ -452,16 +446,21 @@ export default function Bursluluk2026Page() {
       setHasActivatedVideo(true);
       video.loop = false;
     }
+
+    if (video.paused) {
+      try {
+        await video.play();
+        setIsPlaying(true);
+      } catch {
+        setIsPlaying(false);
+      }
+    }
   };
 
   const handleVideoMetadata = () => {
     const video = videoRef.current;
     if (!video) return;
     setVideoDuration(Number.isFinite(video.duration) ? video.duration : 0);
-  };
-
-  const markVideoReady = () => {
-    setIsVideoReady(true);
   };
 
   const handleVideoTimeUpdate = () => {
@@ -511,7 +510,7 @@ export default function Bursluluk2026Page() {
   const handleVideoProgressKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (videoDuration <= 0) return;
 
-    let nextTime = currentVideoTime;
+    let nextTime: number;
 
     switch (event.key) {
       case 'ArrowLeft':
@@ -571,24 +570,19 @@ export default function Bursluluk2026Page() {
       const ageRange = deriveAgeRangeFromGrade(normalizedGrade);
       const parentPhoneE164 = toE164FromTrMobile(normalizedPhone);
       const examOpenAt = selectedSession?.examOpenAt || resolveDefaultExamOpenAt();
-      const attribution = getAttributionSubmissionPayload();
 
       const response = await startExamSession({
         studentFullName: form.studentFullName.trim(),
         parentFullName: form.parentFullName.trim(),
-        identityNo: form.tckn,
-        birthYear: Number(form.birthYear),
         parentPhoneE164,
         parentEmail: form.parentEmail.trim() || undefined,
         schoolName: form.schoolName.trim(),
         grade: normalizedGrade,
-        section: form.branch.trim(),
-        selectedExamAt: selectedSession?.examOpenAt || undefined,
         ageRange,
         language: APPLICATION_LANGUAGE,
         source: 'bursluluk_2026_landing_form',
         campaignCode: CAMPAIGN_CODE,
-        attribution: attribution,
+        questionCount: QUESTION_COUNT,
         consent: {
           kvkkApproved: true,
           contactConsent: false,
@@ -601,7 +595,6 @@ export default function Bursluluk2026Page() {
       const session = response.session;
       saveCandidateSession({
         applicationNo: session.applicationNo,
-        candidateCode: session.candidateCode,
         attemptId: session.attemptId,
         sessionToken: session.sessionToken,
         candidateId: session.candidateId,
@@ -624,11 +617,9 @@ export default function Bursluluk2026Page() {
         selectedSessionLabel: selectedSession?.label || undefined,
         ageRange,
         language: APPLICATION_LANGUAGE,
-        questionCount: Number(session.scholarshipExam?.questionCount || QUESTION_COUNT),
+        questionCount: QUESTION_COUNT,
         campaignCode: CAMPAIGN_CODE,
         examOpenAt,
-        examSlotLabel: session.examSlotLabel,
-        scholarshipExam: session.scholarshipExam,
       });
 
       savePlacementExamLead({
@@ -654,8 +645,7 @@ export default function Bursluluk2026Page() {
     }
   };
 
-  const videoStatusLabel = hasActivatedVideo ? (isMuted ? 'Sessiz İzleme' : 'Sesli İzleme') : 'Video Hazır';
-  const playbackButtonLabel = isPlaying ? 'Durdur' : 'Başlat';
+  const videoStatusLabel = hasActivatedVideo ? (isMuted ? 'Sessiz İzleme' : 'Sesli İzleme') : 'Sessiz Ön İzleme';
   const primaryCtaClass =
     "inline-flex min-h-[50px] items-center justify-center rounded-full bg-[#E70000] px-6 py-3.5 font-['Neutraface_2_Text:Demi',sans-serif] text-[12px] uppercase tracking-[0.16em] text-white shadow-[0_16px_30px_rgba(231,0,0,0.16)] transition-[background-color,box-shadow] duration-200 hover:bg-[#C50000] hover:shadow-[0_20px_34px_rgba(231,0,0,0.22)] sm:min-h-[52px] sm:px-8 sm:py-4 sm:text-[13px] sm:tracking-[0.18em]";
   const inputClass =
@@ -673,7 +663,7 @@ export default function Bursluluk2026Page() {
           className="fixed inset-0 z-[95] bg-[#1E1712]/36 backdrop-blur-[3px]"
           onClick={closeApplicationForm}
         >
-          <div className="flex min-h-[100svh] items-end justify-center px-3 pb-[calc(4.75rem+env(safe-area-inset-bottom))] pt-[76px] sm:min-h-full sm:items-center sm:px-6 sm:py-6">
+          <div className="flex min-h-full items-end justify-center px-3 pt-[76px] sm:items-center sm:px-6 sm:py-6">
             <motion.div
               role="dialog"
               aria-modal="true"
@@ -683,7 +673,7 @@ export default function Bursluluk2026Page() {
               exit={liteMode ? undefined : { opacity: 0, y: 18, scale: 0.99 }}
               transition={{ duration: liteMode ? 0 : 0.26, ease: revealEase }}
               onClick={(event) => event.stopPropagation()}
-              className="relative flex max-h-[calc(100svh-1.5rem-env(safe-area-inset-bottom))] w-full max-w-[1080px] flex-col overflow-hidden rounded-t-[30px] border border-[#DDD2C5] bg-[#F8F4EE] shadow-[0_32px_90px_rgba(25,20,15,0.18)] sm:max-h-[calc(100dvh-3rem)] sm:rounded-[34px]"
+              className="relative flex max-h-[calc(100dvh-0.5rem)] w-full max-w-[1080px] flex-col overflow-hidden rounded-t-[30px] border border-[#DDD2C5] bg-[#F8F4EE] shadow-[0_32px_90px_rgba(25,20,15,0.18)] sm:max-h-[calc(100dvh-3rem)] sm:rounded-[34px]"
             >
               <div className="border-b border-[#E4D8CA] bg-[linear-gradient(180deg,#FCF8F2_0%,#F6EFE6_100%)] px-4 py-4 sm:px-6 sm:py-5 lg:px-8">
                 <div className="flex items-start justify-between gap-4">
@@ -716,7 +706,7 @@ export default function Bursluluk2026Page() {
                 </div>
               </div>
 
-              <div className="overflow-y-auto px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pb-6 sm:pt-5 lg:px-8 lg:pb-8">
+              <div className="overflow-y-auto px-4 pb-5 pt-4 sm:px-6 sm:pb-6 sm:pt-5 lg:px-8 lg:pb-8">
                 <form className="grid gap-4 sm:grid-cols-2" onSubmit={handleApplicationSubmit}>
                   <label className="block sm:col-span-2">
                     <FieldLabel>Okul</FieldLabel>
@@ -1022,16 +1012,10 @@ export default function Bursluluk2026Page() {
                 ))}
               </div>
 
-              <div className="mt-8 hidden lg:flex lg:items-center lg:gap-3">
+              <div className="mt-8 hidden lg:block">
                 <button type="button" onClick={openApplicationForm} className={`${primaryCtaClass} w-auto`}>
                   Hemen Başvur
                 </button>
-                <Link
-                  to="/bursluluk/giris"
-                  className="inline-flex min-h-[54px] items-center justify-center rounded-full border border-[#D6CABC] bg-white px-6 py-3.5 font-['Neutraface_2_Text:Demi',sans-serif] text-[12px] uppercase tracking-[0.16em] text-[#68232E] transition-colors duration-200 hover:bg-[#F8F2EA]"
-                >
-                  Giriş Yap
-                </Link>
               </div>
             </motion.div>
 
@@ -1040,37 +1024,16 @@ export default function Bursluluk2026Page() {
                 <div className="rounded-[22px] border border-[#E2D8CC] bg-[linear-gradient(180deg,#FBF7F2_0%,#F3ECE3_100%)] p-2.5 sm:rounded-[28px] sm:p-3">
                   <div className="relative overflow-hidden rounded-[18px] border border-[#D8CDC0] bg-[#E5DBCE] sm:rounded-[24px]">
                     <div className="aspect-[5/4]">
-                      {isVideoReady ? null : (
-                        <div className="pointer-events-none absolute inset-0 z-[1] overflow-hidden">
-                          <img
-                            src="/media/bursluluk-2026-hero-poster.jpg"
-                            alt=""
-                            aria-hidden="true"
-                            className="h-full w-full object-cover object-center"
-                            loading="eager"
-                            decoding="async"
-                          />
-                          <div className="absolute inset-x-0 bottom-0 h-[42%] bg-[linear-gradient(180deg,rgba(20,14,10,0)_0%,rgba(20,14,10,0.62)_100%)]" />
-                          <div className="absolute inset-x-0 bottom-0 flex items-end justify-center p-4 sm:p-5">
-                            <span className="rounded-full border border-white/18 bg-[#100B09]/46 px-3 py-1.5 font-['Neutraface_2_Text:Demi',sans-serif] text-[9px] uppercase tracking-[0.16em] text-white/92 backdrop-blur-[6px] sm:text-[10px]">
-                              Video yukleniyor...
-                            </span>
-                          </div>
-                        </div>
-                      )}
                       <video
                         ref={videoRef}
                         className="h-full w-full object-cover object-center"
                         src="/media/bursluluk-2026-hero.mp4"
-                        poster="/media/bursluluk-2026-hero-poster.jpg"
-                        autoPlay={false}
+                        autoPlay={!liteMode}
                         loop={!hasActivatedVideo}
                         muted={isMuted}
                         playsInline
                         preload="metadata"
                         onLoadedMetadata={handleVideoMetadata}
-                        onLoadedData={markVideoReady}
-                        onCanPlay={markVideoReady}
                         onPause={() => setIsPlaying(false)}
                         onPlay={() => setIsPlaying(true)}
                         onEnded={() => setIsPlaying(false)}
@@ -1131,7 +1094,7 @@ export default function Bursluluk2026Page() {
                       className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-full border border-[#D8CDC0] bg-white px-3.5 py-2 font-['Neutraface_2_Text:Demi',sans-serif] text-[9px] uppercase tracking-[0.11em] text-[#68232E] transition-colors duration-200 hover:bg-[#F7F2EB] sm:min-h-[42px] sm:border-[#D4C8BA] sm:px-4 sm:text-[10px] sm:tracking-[0.13em]"
                     >
                       {isPlaying ? <Pause size={15} strokeWidth={2.2} /> : <Play size={15} strokeWidth={2.2} />}
-                      {playbackButtonLabel}
+                      {isPlaying ? 'Durdur' : 'Devam Et'}
                     </button>
 
                     <button

@@ -1,0 +1,35 @@
+{
+  "examVersionKey": "bursluluk-2026-v1",
+  "grade": "grade-03",
+  "files": {
+    "publicAssessment": "assessment.public.json",
+    "fullAssessment": "assessment.full.json",
+    "answerKey": "answer-key.csv"
+  },
+  "counts": {
+    "questions": 60,
+    "objectiveQuestions": 55,
+    "speakingQuestions": 5,
+    "visualQuestions": 9,
+    "speakingVisuals": 1
+  },
+  "assets": {
+    "visuals": [
+      "assets/visuals/grade-03-q04.png",
+      "assets/visuals/grade-03-q06.png",
+      "assets/visuals/grade-03-q08.png",
+      "assets/visuals/grade-03-q11.png",
+      "assets/visuals/grade-03-q14.png",
+      "assets/visuals/grade-03-q21.png",
+      "assets/visuals/grade-03-q23.png",
+      "assets/visuals/grade-03-q26.png",
+      "assets/visuals/grade-03-q35.png"
+    ],
+    "listening": [
+      "assets/listening/grade-03-listening.mp3"
+    ],
+    "speaking": [
+      "assets/speaking/grade-03-speaking-garfield-happy.png"
+    ]
+  }
+}

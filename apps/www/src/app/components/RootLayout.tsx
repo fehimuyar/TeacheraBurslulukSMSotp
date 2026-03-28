@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { AnimatePresence } from 'motion/react';
 import { Outlet, useLocation } from 'react-router';
 import { SpeedInsights } from '@vercel/speed-insights/react';
@@ -27,8 +27,18 @@ export default function RootLayout() {
   const currentSectionRef = useRef('home');
   const location = useLocation();
   const liteMode = useLiteMode();
-  const isPanelRoute = location.pathname.startsWith('/panel/');
-  const isAuthPage = location.pathname === '/giris' || isPanelRoute;
+  const normalizedPathname = useMemo(() => {
+    try {
+      return decodeURIComponent(location.pathname);
+    } catch {
+      return location.pathname;
+    }
+  }, [location.pathname]);
+  const isPanelRoute = normalizedPathname.startsWith('/panel/');
+  const isBurslulukExamRoute =
+    normalizedPathname === '/bursluluk/sinav' || normalizedPathname === '/bursluluk/sınav';
+  const hideGlobalChrome = isPanelRoute || isBurslulukExamRoute;
+  const isAuthPage = normalizedPathname === '/giris' || isPanelRoute || isBurslulukExamRoute;
 
   useEffect(() => {
     document.documentElement.lang = 'tr';
@@ -133,7 +143,7 @@ export default function RootLayout() {
     currentSectionRef.current = currentSection;
   }, [currentSection]);
 
-  const isBurslulukLandingRoute = location.pathname === '/bursluluk-2026';
+  const isBurslulukLandingRoute = normalizedPathname === '/bursluluk-2026';
 
   return (
     <FreeTrialProvider>
@@ -141,7 +151,7 @@ export default function RootLayout() {
         <div className="relative min-h-screen bg-[#00000B]">
           <SeoManager />
 
-          {!isPanelRoute && (
+          {!hideGlobalChrome && (
             <Navigation
               isMenuOpen={isMenuOpen}
               setIsMenuOpen={setIsMenuOpen}
@@ -149,7 +159,7 @@ export default function RootLayout() {
             />
           )}
 
-          {!isPanelRoute && (
+          {!hideGlobalChrome && (
             <AnimatePresence mode="wait" initial={false}>
               {isMenuOpen ? (
                 <MobileMenu
@@ -167,7 +177,7 @@ export default function RootLayout() {
 
           {!isAuthPage && <Footer />}
 
-          {!isPanelRoute && (
+          {!hideGlobalChrome && (
             <>
               <LevelAssessmentModal />
               <FreeTrialModal />
@@ -175,7 +185,7 @@ export default function RootLayout() {
           )}
           <AppToaster />
 
-          {!isPanelRoute && (
+          {!hideGlobalChrome && (
             <Suspense fallback={null}>
               {!isBurslulukLandingRoute && <WhatsAppButton />}
               {showDeferredUi && <CookieConsent />}

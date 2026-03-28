@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import {
   PanelFeedbackMessage,
   PanelModal,
-  panelCompactInputClassName,
   panelDescriptionClassName,
   panelEyebrowClassName,
   panelInputClassName,
@@ -12,14 +11,14 @@ import {
 } from './panelUi';
 
 type ResultRow = {
-  candidate_id: string;
+  attempt_id: string;
   student_full_name?: string | null;
   grade?: number | null;
   school_name?: string | null;
-  result_score?: number | null;
-  result_percentage?: number | null;
-  placement_label?: string | null;
-  cefr_band?: string | null;
+  objective_score_80?: number | null;
+  speaking_score_20?: number | null;
+  final_score_100?: number | null;
+  speaking_status?: string | null;
 };
 
 export default function ResultEditModal({
@@ -31,37 +30,39 @@ export default function ResultEditModal({
   open: boolean;
   onClose: () => void;
   result: ResultRow | null;
-  onSave: (candidateId: string, updates: { score: number; placementLabel: string; cefrBand: string }, otpCode: string) => void;
+  onSave: (attemptId: string, updates: { speakingScore20: number; reviewNote: string }) => void;
 }) {
-  const [score, setScore] = useState(0);
-  const [placementLabel, setPlacementLabel] = useState('');
-  const [cefrBand, setCefrBand] = useState('');
-  const [otpCode, setOtpCode] = useState('');
+  const [speakingScore20, setSpeakingScore20] = useState(0);
+  const [reviewNote, setReviewNote] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (result && open) {
-      setScore(result.result_score ?? 0);
-      setPlacementLabel(result.placement_label ?? '');
-      setCefrBand(result.cefr_band ?? '');
-      setOtpCode('');
+      setSpeakingScore20(Number(result.speaking_score_20 || 0));
+      setReviewNote('');
       setError('');
     }
   }, [result, open]);
 
   const handleSubmit = () => {
-    if (otpCode.trim().length !== 6) {
-      setError('6 haneli OTP kodu gereklidir.');
+    if (!result) return;
+    if (speakingScore20 < 0 || speakingScore20 > 20) {
+      setError('Speaking puani 0 ile 20 arasinda olmalidir.');
       return;
     }
-    if (!result) return;
-    onSave(result.candidate_id, { score, placementLabel, cefrBand }, otpCode);
+    onSave(result.attempt_id, {
+      speakingScore20: Number(speakingScore20),
+      reviewNote: reviewNote.trim(),
+    });
   };
 
   if (!result) return null;
 
+  const objectiveScore80 = Number(result.objective_score_80 || 0);
+  const projectedTotal = Math.max(0, Math.min(100, Number(objectiveScore80 + Number(speakingScore20 || 0))));
+
   return (
-    <PanelModal open={open} onClose={onClose} title="Sonuç Düzenle" maxWidth="560px">
+    <PanelModal open={open} onClose={onClose} title="Speaking Puanı Gir" maxWidth="620px">
       <div className="space-y-4">
         <div className={panelSoftCardClassName}>
           <p className={panelEyebrowClassName}>Aday Bilgisi</p>
@@ -73,45 +74,46 @@ export default function ResultEditModal({
           </p>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <label className="block font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#7A7063]">Puan</label>
-            <input type="number" value={score} onChange={(e) => setScore(Number(e.target.value) || 0)} min={0} max={100} className={`mt-1 w-full ${panelInputClassName}`} />
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className={panelSoftCardClassName}>
+            <p className={panelEyebrowClassName}>Objective / 80</p>
+            <p className="mt-2 text-[22px] font-['Neutraface_2_Text:Bold',sans-serif] text-[#1B2B24]">{objectiveScore80}</p>
           </div>
-          <div>
-            <label className="block font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#7A7063]">Seviye</label>
-            <input value={placementLabel} onChange={(e) => setPlacementLabel(e.target.value)} placeholder="Burslu, Yarı Burslu..." className={`mt-1 w-full ${panelInputClassName}`} />
+          <div className={panelSoftCardClassName}>
+            <p className={panelEyebrowClassName}>Speaking / 20</p>
+            <input
+              type="number"
+              min={0}
+              max={20}
+              step={0.01}
+              value={speakingScore20}
+              onChange={(event) => setSpeakingScore20(Number(event.target.value) || 0)}
+              className={`mt-2 w-full ${panelInputClassName}`}
+            />
           </div>
-          <div>
-            <label className="block font-['Neutraface_2_Text:Book',sans-serif] text-[12px] text-[#7A7063]">CEFR</label>
-            <select value={cefrBand} onChange={(e) => setCefrBand(e.target.value)} className={`mt-1 w-full ${panelInputClassName}`}>
-              <option value="">Seçin</option>
-              <option value="A1">A1</option><option value="A2">A2</option>
-              <option value="B1">B1</option><option value="B2">B2</option>
-              <option value="C1">C1</option><option value="C2">C2</option>
-            </select>
+          <div className={panelSoftCardClassName}>
+            <p className={panelEyebrowClassName}>Projeksiyon / 100</p>
+            <p className="mt-2 text-[22px] font-['Neutraface_2_Text:Bold',sans-serif] text-[#1B2B24]">{projectedTotal.toFixed(2)}</p>
           </div>
         </div>
 
         <div className={panelSoftCardClassName}>
-          <p className={panelEyebrowClassName}>OTP Doğrulama</p>
-          <p className={`mt-1 ${panelDescriptionClassName}`} style={{ marginTop: 4 }}>
-            Sonuç değişikliği kritik bir işlemdir. Devam etmek için 6 haneli OTP kodunuzu girin.
-          </p>
-          <input
-            value={otpCode}
-            onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            placeholder="6 haneli OTP kodu"
-            className={`mt-3 w-full ${panelCompactInputClassName}`}
-            maxLength={6}
+          <p className={panelEyebrowClassName}>Not</p>
+          <p className={`mt-1 ${panelDescriptionClassName}`}>Ops notu opsiyoneldir. Ranking ve burs etiketi kayıt sonrası otomatik hesaplanır.</p>
+          <textarea
+            rows={4}
+            value={reviewNote}
+            onChange={(event) => setReviewNote(event.target.value)}
+            placeholder="İsteğe bağlı yorum..."
+            className="mt-3 w-full rounded-[18px] border border-[#DDD4C6] bg-[#FFFCF7] px-3 py-3 font-['Neutraface_2_Text:Book',sans-serif] text-[13px] text-[#1C2A24] outline-none transition focus:border-[#9F865C] focus:bg-white focus:ring-4 focus:ring-[#EEE3CC]"
           />
         </div>
 
-        {error && <PanelFeedbackMessage tone="error">{error}</PanelFeedbackMessage>}
+        {error ? <PanelFeedbackMessage tone="error">{error}</PanelFeedbackMessage> : null}
 
         <div className="flex justify-end gap-2">
           <button type="button" onClick={onClose} className={panelSecondaryButtonClassName}>Vazgeç</button>
-          <button type="button" onClick={handleSubmit} className={panelPrimaryButtonClassName}>Kaydet (OTP ile)</button>
+          <button type="button" onClick={handleSubmit} className={panelPrimaryButtonClassName}>Speaking Puanını Kaydet</button>
         </div>
       </div>
     </PanelModal>

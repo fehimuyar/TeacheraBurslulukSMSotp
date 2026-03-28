@@ -1,0 +1,37 @@
+{
+  "examVersionKey": "bursluluk-2026-v1",
+  "grade": "grade-04",
+  "files": {
+    "publicAssessment": "assessment.public.json",
+    "fullAssessment": "assessment.full.json",
+    "answerKey": "answer-key.csv"
+  },
+  "counts": {
+    "questions": 60,
+    "objectiveQuestions": 55,
+    "speakingQuestions": 5,
+    "visualQuestions": 10,
+    "speakingVisuals": 2
+  },
+  "assets": {
+    "visuals": [
+      "assets/visuals/grade-04-q01.png",
+      "assets/visuals/grade-04-q04.png",
+      "assets/visuals/grade-04-q09.png",
+      "assets/visuals/grade-04-q11.png",
+      "assets/visuals/grade-04-q14.png",
+      "assets/visuals/grade-04-q16.png",
+      "assets/visuals/grade-04-q21.png",
+      "assets/visuals/grade-04-q26.png",
+      "assets/visuals/grade-04-q30.png",
+      "assets/visuals/grade-04-q35.png"
+    ],
+    "listening": [
+      "assets/listening/grade-04-listening.mp3"
+    ],
+    "speaking": [
+      "assets/speaking/grade-04-speaking-superman.png",
+      "assets/speaking/grade-04-speaking-batman-bicycle.png"
+    ]
+  }
+}

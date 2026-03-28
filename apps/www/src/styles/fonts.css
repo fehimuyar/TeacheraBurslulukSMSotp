@@ -88,6 +88,22 @@
 }
 
 @font-face {
+  font-family: 'Neutraface 2 Display:Medium';
+  src: url('/fonts/neutra2-display-medium.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Neutraface_2_Display:Medium';
+  src: url('/fonts/neutra2-display-medium.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
   font-family: 'Luxury:Gold';
   src: url('/fonts/luxury-gold.woff2') format('woff2');
   font-style: normal;
